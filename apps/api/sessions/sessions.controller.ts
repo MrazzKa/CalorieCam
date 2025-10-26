@@ -13,14 +13,14 @@ export class SessionsController {
   @Get()
   @ApiOperation({ summary: 'Get user sessions' })
   @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
-  async getSessions(@Request() req) {
+  async getSessions(@Request() req: any) {
     return this.sessionsService.getSessions(req.user.id);
   }
 
   @Delete('all')
   @ApiOperation({ summary: 'Revoke all sessions' })
   @ApiResponse({ status: 200, description: 'All sessions revoked successfully' })
-  async revokeAllSessions(@Request() req) {
+  async revokeAllSessions(@Request() req: any) {
     return this.sessionsService.revokeAllSessions(req.user.id);
   }
 }

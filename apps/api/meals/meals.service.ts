@@ -19,10 +19,22 @@ export class MealsService {
   }
 
   async createMeal(userId: string, createMealDto: CreateMealDto) {
+    const { items, ...mealData } = createMealDto;
+    
     const meal = await this.prisma.meal.create({
       data: {
         userId,
-        ...createMealDto,
+        ...mealData,
+        items: {
+          create: items.map(item => ({
+            name: item.name || 'Unknown',
+            calories: item.calories || 0,
+            protein: item.protein || 0,
+            fat: item.fat || 0,
+            carbs: item.carbs || 0,
+            weight: item.weight || 0,
+          })),
+        },
       },
       include: {
         items: true,

@@ -14,7 +14,7 @@ export class MealsController {
   @Get()
   @ApiOperation({ summary: 'Get user meals' })
   @ApiResponse({ status: 200, description: 'Meals retrieved successfully' })
-  async getMeals(@Request() req) {
+  async getMeals(@Request() req: any) {
     return this.mealsService.getMeals(req.user.id);
   }
 
@@ -23,7 +23,7 @@ export class MealsController {
   @ApiResponse({ status: 201, description: 'Meal created successfully' })
   async createMeal(
     @Body() createMealDto: CreateMealDto,
-    @Request() req,
+    @Request() req: any,
   ) {
     return this.mealsService.createMeal(req.user.id, createMealDto);
   }

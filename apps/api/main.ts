@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ErrorHandlerMiddleware } from './src/core/middleware/error-handler.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,8 +13,7 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // Global error handler
-  app.use(new ErrorHandlerMiddleware().use);
+  // Global error handler (removed for now)
 
   // CORS configuration
   app.enableCors({

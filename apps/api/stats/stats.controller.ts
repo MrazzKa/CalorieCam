@@ -13,21 +13,21 @@ export class StatsController {
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard statistics' })
   @ApiResponse({ status: 200, description: 'Dashboard statistics retrieved successfully' })
-  async getDashboardStats(@Request() req) {
+  async getDashboardStats(@Request() req: any) {
     return this.statsService.getDashboardStats(req.user.id);
   }
 
   @Get('nutrition')
   @ApiOperation({ summary: 'Get nutrition statistics' })
   @ApiResponse({ status: 200, description: 'Nutrition statistics retrieved successfully' })
-  async getNutritionStats(@Request() req) {
+  async getNutritionStats(@Request() req: any) {
     return this.statsService.getNutritionStats(req.user.id);
   }
 
   @Get('progress')
   @ApiOperation({ summary: 'Get progress statistics' })
   @ApiResponse({ status: 200, description: 'Progress statistics retrieved successfully' })
-  async getProgressStats(@Request() req) {
+  async getProgressStats(@Request() req: any) {
     return this.statsService.getProgressStats(req.user.id);
   }
 }

@@ -35,7 +35,7 @@ export class MediaService {
         filename: file.originalname,
         mimetype: file.mimetype,
         size: processedImage.length,
-        data: processedImage,
+        data: Buffer.from(processedImage),
       },
     });
 

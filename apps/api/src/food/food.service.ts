@@ -36,7 +36,7 @@ export class FoodService {
     if (job.failedReason) {
       return { status: 'failed', error: job.failedReason };
     }
-    return { status: job.progress ? 'in_progress' : 'pending', progress: job.progress };
+    return { status: job.progress() ? 'in_progress' : 'pending', progress: job.progress() };
   }
 
   async getUserMeals(userId: string) {

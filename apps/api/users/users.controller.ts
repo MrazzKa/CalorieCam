@@ -14,7 +14,7 @@ export class UsersController {
   @Get('profile')
   @ApiOperation({ summary: 'Get user profile' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     return this.usersService.getProfile(req.user.id);
   }
 
@@ -23,7 +23,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   async updateProfile(
     @Body() updateProfileDto: UpdateProfileDto,
-    @Request() req,
+    @Request() req: any,
   ) {
     return this.usersService.updateProfile(req.user.id, updateProfileDto);
   }

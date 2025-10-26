@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { OtpService } from './otp.service';
 import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto } from './dto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -37,13 +37,32 @@ export class AuthService {
     });
 
     // Generate OTP
-    const otp = await this.otpService.generateOtp(user.id);
+    const otpCode = this.otpService.generateOtp();
+    const otp = await this.otpService.saveOtp(email, otpCode);
 
     return {
       message: 'User registered successfully. Please verify your email.',
       userId: user.id,
       otpId: otp.id,
     };
+  }
+
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return null;
+    }
+
+    const { password: _, ...result } = user;
+    return result;
   }
 
   async login(loginDto: LoginDto) {

@@ -5,11 +5,11 @@ import { ApiProperty } from '@nestjs/swagger';
 export class CreateMealDto {
   @ApiProperty({ example: 'Breakfast' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ example: 'BREAKFAST' })
   @IsString()
-  type: string;
+  type!: string;
 
   @ApiProperty({ example: '2024-01-01T08:00:00Z' })
   @IsString()
@@ -31,5 +31,5 @@ export class CreateMealDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Object)
-  items: any[];
+  items!: any[];
 }
