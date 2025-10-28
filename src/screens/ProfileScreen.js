@@ -17,14 +17,17 @@ import ApiService from '../services/apiService';
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    height: 175, // cm
+    firstName: '',
+    lastName: '',
+    email: '',
+    height: 170, // cm
     weight: 70, // kg
-    age: 28,
-    gender: 'male',
-    activityLevel: 'moderate',
-    goal: 'maintain',
+    age: 25,
+    gender: '',
+    activityLevel: '',
+    goal: '',
+    targetWeight: 70,
+    dailyCalories: 2000,
   });
 
   const [settings, setSettings] = useState({
@@ -48,12 +51,17 @@ export default function ProfileScreen() {
       console.error('Error loading profile:', error);
       // Use demo profile when API is not available
       setUserProfile({
-        name: 'Demo User',
+        firstName: 'Demo',
+        lastName: 'User',
         email: 'demo@caloriecam.com',
         weight: 70,
-        height: 175,
-        goalCalories: 2000,
-        activityLevel: 'moderate',
+        height: 170,
+        age: 25,
+        gender: 'male',
+        activityLevel: 'moderately_active',
+        goal: 'maintain_weight',
+        targetWeight: 70,
+        dailyCalories: 2000,
       });
     }
   };
@@ -132,14 +140,25 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.profileInfo}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Name</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={userProfile.name}
-              editable={isEditing}
-              onChangeText={(text) => setUserProfile(prev => ({ ...prev, name: text }))}
-            />
+          <View style={styles.inputRow}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.inputLabel}>First Name</Text>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={userProfile.firstName}
+                editable={isEditing}
+                onChangeText={(text) => setUserProfile(prev => ({ ...prev, firstName: text }))}
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.inputLabel}>Last Name</Text>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={userProfile.lastName}
+                editable={isEditing}
+                onChangeText={(text) => setUserProfile(prev => ({ ...prev, lastName: text }))}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -205,10 +224,83 @@ export default function ProfileScreen() {
                 }}
               >
                 <Text style={styles.pickerText}>
-                  {userProfile.gender.charAt(0).toUpperCase() + userProfile.gender.slice(1)}
+                  {userProfile.gender ? userProfile.gender.charAt(0).toUpperCase() + userProfile.gender.slice(1) : 'Select Gender'}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color="#8E8E93" />
               </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Activity Level</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.pickerInput, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
+              onPress={() => {
+                Alert.alert(
+                  'Select Activity Level',
+                  '',
+                  [
+                    { text: 'Sedentary', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'sedentary' })) },
+                    { text: 'Lightly Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'lightly_active' })) },
+                    { text: 'Moderately Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'moderately_active' })) },
+                    { text: 'Very Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'very_active' })) },
+                    { text: 'Extremely Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'extremely_active' })) },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.pickerText}>
+                {userProfile.activityLevel ? userProfile.activityLevel.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Select Activity Level'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#8E8E93" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Goal</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.pickerInput, !isEditing && styles.inputDisabled]}
+              disabled={!isEditing}
+              onPress={() => {
+                Alert.alert(
+                  'Select Goal',
+                  '',
+                  [
+                    { text: 'Lose Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'lose_weight' })) },
+                    { text: 'Maintain Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'maintain_weight' })) },
+                    { text: 'Gain Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'gain_weight' })) },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.pickerText}>
+                {userProfile.goal ? userProfile.goal.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Select Goal'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#8E8E93" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputRow}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.inputLabel}>Target Weight (kg)</Text>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={userProfile.targetWeight.toString()}
+                editable={isEditing}
+                keyboardType="numeric"
+                onChangeText={(text) => setUserProfile(prev => ({ ...prev, targetWeight: parseInt(text) || 0 }))}
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.inputLabel}>Daily Calories</Text>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={userProfile.dailyCalories.toString()}
+                editable={isEditing}
+                keyboardType="numeric"
+                onChangeText={(text) => setUserProfile(prev => ({ ...prev, dailyCalories: parseInt(text) || 0 }))}
+              />
             </View>
           </View>
         </View>

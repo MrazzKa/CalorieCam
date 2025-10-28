@@ -1,0 +1,106 @@
+# CalorieCam Alertmanager Configuration
+
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@caloriecam.com'
+  smtp_auth_username: ''
+  smtp_auth_password: ''
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 5m
+
+    # Warning alerts - grouped notification
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      repeat_interval: 30m
+
+    # Info alerts - daily digest
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 5m
+      repeat_interval: 24h
+
+# Receivers configuration
+receivers:
+  # Default receiver
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://webhook-receiver:9093/webhook'
+        send_resolved: true
+
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@caloriecam.com'
+        subject: '🚨 CRITICAL: CalorieCam Alert - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }} {{ .Name }}: {{ .Value }} {{ end }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+    webhook_configs:
+      - url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        send_resolved: true
+        title: 'CalorieCam Critical Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'dev@caloriecam.com'
+        subject: '⚠️ WARNING: CalorieCam Alert - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }} {{ .Name }}: {{ .Value }} {{ end }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+  # Info alerts - digest
+  - name: 'info-alerts'
+    email_configs:
+      - to: 'monitoring@caloriecam.com'
+        subject: 'ℹ️ CalorieCam Daily Alert Digest'
+        body: |
+          Daily alert summary:
+          {{ range .Alerts }}
+          - {{ .Annotations.summary }}
+          {{ end }}
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning alerts if critical alert is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+  # Inhibit info alerts if warning alert is firing
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'cluster', 'service']

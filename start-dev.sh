@@ -18,12 +18,21 @@ fi
 # Start API server
 echo "🔧 Starting API server..."
 cd apps/api
-npm run start:dev &
-API_PID=$!
+
+# Check if we have the full API setup
+if [ -f "package.json" ] && grep -q "nest" package.json; then
+    echo "📦 Starting full NestJS API..."
+    npm run start:dev &
+    API_PID=$!
+else
+    echo "🧪 Starting test API server..."
+    node test-api.js &
+    API_PID=$!
+fi
 
 # Wait for API to start
 echo "⏳ Waiting for API to start..."
-sleep 5
+sleep 3
 
 # Start Expo development server
 echo "📱 Starting Expo development server..."

@@ -18,11 +18,45 @@ export class OpenAiAnalyzer {
         model: 'gpt-4-vision-preview',
         messages: [
           {
+            role: 'system',
+            content: `You are a professional nutritionist and food analyst. Analyze food images and provide accurate nutritional information. 
+            
+            Guidelines:
+            - Identify all visible food items
+            - Estimate portion sizes realistically
+            - Provide accurate nutritional data per 100g
+            - Consider cooking methods (fried, baked, raw, etc.)
+            - Account for common ingredients and seasonings
+            - Be specific about food names and brands when visible
+            
+            Return a JSON object with an "items" array, where each item has:
+            - label: specific food name
+            - kcal: calories per 100g
+            - protein: protein in grams per 100g
+            - fat: fat in grams per 100g
+            - carbs: carbohydrates in grams per 100g
+            - gramsMean: estimated portion size in grams
+            
+            Example format:
+            {
+              "items": [
+                {
+                  "label": "Grilled Chicken Breast",
+                  "kcal": 165,
+                  "protein": 31,
+                  "fat": 3.6,
+                  "carbs": 0,
+                  "gramsMean": 150
+                }
+              ]
+            }`,
+          },
+          {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analyze this food image and provide detailed nutritional information. Return a JSON object with an "items" array, where each item has: label (food name), kcal (calories), protein (grams), fat (grams), carbs (grams), and gramsMean (estimated weight in grams).',
+                text: 'Please analyze this food image and provide detailed nutritional information for all visible food items.',
               },
               {
                 type: 'image_url',
@@ -33,7 +67,8 @@ export class OpenAiAnalyzer {
             ],
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
+        temperature: 0.3,
       });
 
       const content = response.choices[0]?.message?.content;
@@ -41,9 +76,17 @@ export class OpenAiAnalyzer {
         throw new Error('No response from OpenAI');
       }
 
-      // Parse JSON response
-      const result = JSON.parse(content);
-      return result;
+      // Parse JSON response with better error handling
+      try {
+        const result = JSON.parse(content);
+        if (!result.items || !Array.isArray(result.items)) {
+          throw new Error('Invalid response format');
+        }
+        return result;
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', content);
+        throw new Error('Invalid response format from OpenAI');
+      }
     } catch (error: any) {
       console.error('OpenAI image analysis error:', error);
       throw new Error(`OpenAI analysis failed: ${error.message}`);
@@ -56,11 +99,46 @@ export class OpenAiAnalyzer {
         model: 'gpt-4',
         messages: [
           {
+            role: 'system',
+            content: `You are a professional nutritionist and food analyst. Analyze food descriptions and provide accurate nutritional information.
+            
+            Guidelines:
+            - Parse the description to identify all food items
+            - Estimate realistic portion sizes
+            - Provide accurate nutritional data per 100g
+            - Consider cooking methods mentioned
+            - Account for common ingredients and seasonings
+            - Be specific about food names and preparation methods
+            
+            Return a JSON object with an "items" array, where each item has:
+            - label: specific food name
+            - kcal: calories per 100g
+            - protein: protein in grams per 100g
+            - fat: fat in grams per 100g
+            - carbs: carbohydrates in grams per 100g
+            - gramsMean: estimated portion size in grams
+            
+            Example format:
+            {
+              "items": [
+                {
+                  "label": "Grilled Chicken Breast",
+                  "kcal": 165,
+                  "protein": 31,
+                  "fat": 3.6,
+                  "carbs": 0,
+                  "gramsMean": 150
+                }
+              ]
+            }`,
+          },
+          {
             role: 'user',
-            content: `Analyze this food description and provide detailed nutritional information: "${description}". Return a JSON object with an "items" array, where each item has: label (food name), kcal (calories), protein (grams), fat (grams), carbs (grams), and gramsMean (estimated weight in grams).`,
+            content: `Analyze this food description and provide detailed nutritional information: "${description}"`,
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
+        temperature: 0.3,
       });
 
       const content = response.choices[0]?.message?.content;
@@ -68,9 +146,17 @@ export class OpenAiAnalyzer {
         throw new Error('No response from OpenAI');
       }
 
-      // Parse JSON response
-      const result = JSON.parse(content);
-      return result;
+      // Parse JSON response with better error handling
+      try {
+        const result = JSON.parse(content);
+        if (!result.items || !Array.isArray(result.items)) {
+          throw new Error('Invalid response format');
+        }
+        return result;
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', content);
+        throw new Error('Invalid response format from OpenAI');
+      }
     } catch (error: any) {
       console.error('OpenAI text analysis error:', error);
       throw new Error(`OpenAI text analysis failed: ${error.message}`);

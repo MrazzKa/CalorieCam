@@ -171,6 +171,57 @@ class ApiService {
   async healthCheck() {
     return this.request('/health');
   }
+
+  // User Profiles
+  async createUserProfile(profileData) {
+    return this.request('/user-profiles', {
+      method: 'POST',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  async getUserProfile() {
+    return this.request('/user-profiles');
+  }
+
+  async updateUserProfile(profileData) {
+    return this.request('/user-profiles', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  async completeOnboarding() {
+    return this.request('/user-profiles/complete-onboarding', {
+      method: 'POST',
+    });
+  }
+
+  // AI Assistant
+  async getNutritionAdvice(question, context) {
+    return this.request('/ai-assistant/nutrition-advice', {
+      method: 'POST',
+      body: JSON.stringify({ question, context }),
+    });
+  }
+
+  async getHealthCheck(question) {
+    return this.request('/ai-assistant/health-check', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  }
+
+  async getGeneralQuestion(question) {
+    return this.request('/ai-assistant/general-question', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  }
+
+  async getConversationHistory() {
+    return this.request('/ai-assistant/conversation-history');
+  }
 }
 
 export default new ApiService();

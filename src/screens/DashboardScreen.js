@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/apiService';
+import AiAssistant from '../components/AiAssistant';
 
 const { width } = Dimensions.get('window');
 
@@ -95,6 +96,7 @@ export default function DashboardScreen() {
   };
 
   const [showModal, setShowModal] = useState(false);
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
 
   const handleCameraPress = () => {
     console.log('Camera button pressed - navigating to Camera');
@@ -106,6 +108,10 @@ export default function DashboardScreen() {
     console.log('Gallery button pressed - navigating to Gallery');
     setShowModal(false);
     navigation.navigate('Gallery');
+  };
+
+  const handleAiAssistantPress = () => {
+    setShowAiAssistant(true);
   };
 
 
@@ -182,6 +188,25 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+
+        {/* AI Assistant Button */}
+        <View style={styles.aiAssistantContainer}>
+          <TouchableOpacity
+            style={styles.aiAssistantButton}
+            onPress={handleAiAssistantPress}
+          >
+            <View style={styles.aiAssistantIcon}>
+              <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.aiAssistantContent}>
+              <Text style={styles.aiAssistantTitle}>AI Assistant</Text>
+              <Text style={styles.aiAssistantSubtitle}>
+                Get personalized nutrition advice
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
@@ -268,6 +293,12 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* AI Assistant Modal */}
+      <AiAssistant
+        visible={showAiAssistant}
+        onClose={() => setShowAiAssistant(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -514,5 +545,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     textAlign: 'center',
+  },
+  aiAssistantContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  aiAssistantButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  aiAssistantIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  aiAssistantContent: {
+    flex: 1,
+  },
+  aiAssistantTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 2,
+  },
+  aiAssistantSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
 });

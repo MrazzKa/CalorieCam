@@ -14,7 +14,10 @@ import { JwtModule } from './jwt/jwt.module';
 import { MailerModule } from './mailer/mailer.module';
 import { QueuesModule } from './queues/queues.module';
 import { RedisModule } from './redis/redis.module';
+import { CacheModule } from './src/cache/cache.module';
 import { WellKnownModule } from './well-known/well-known.module';
+import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
+import { UserProfilesModule } from './user-profiles/user-profiles.module';
 import { HealthController } from './health.controller';
 import { configSchema } from './src/config/config.schema';
 
@@ -50,7 +53,10 @@ import { configSchema } from './src/config/config.schema';
     MailerModule,
     QueuesModule,
     RedisModule,
+    CacheModule,
     WellKnownModule,
+    AiAssistantModule,
+    UserProfilesModule,
   ],
   controllers: [HealthController],
 })

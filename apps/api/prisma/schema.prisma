@@ -24,8 +24,34 @@ model User {
   media        Media[]
   refreshTokens RefreshToken[]
   otps         Otp[]
+  userProfile  UserProfile?
+  aiAssistant  AiAssistant[]
 
   @@map("users")
+}
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  firstName   String?
+  lastName    String?
+  age         Int?
+  height      Float?   // in cm
+  weight      Float?   // in kg
+  gender      String?  // male, female, other
+  activityLevel String? // sedentary, lightly_active, moderately_active, very_active, extremely_active
+  goal        String?  // lose_weight, maintain_weight, gain_weight
+  targetWeight Float?
+  dailyCalories Int?
+  preferences Json?    // dietary preferences, allergies, etc.
+  isOnboardingCompleted Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
 }
 
 model Analysis {
@@ -131,4 +157,19 @@ model Otp {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("otps")
+}
+
+model AiAssistant {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // nutrition_advice, health_check, general_question
+  question  String
+  answer    String
+  context   Json?    // additional context for the conversation
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_assistant")
 }
