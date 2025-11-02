@@ -14,28 +14,22 @@ export class HybridAnalyzer {
 
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
     try {
-      // Try OpenAI first (best for image analysis)
+      // Use OpenAI only (temporarily removed USDA for simplicity)
       const openAiResult = await this.openAiAnalyzer.analyzeImage(imageBuffer);
       if (openAiResult && openAiResult.items.length > 0) {
         return openAiResult;
       }
+      throw new Error('OpenAI returned empty result');
     } catch (error: any) {
-      console.warn('OpenAI image analysis failed, trying RAG:', error.message);
-    }
-
-    // Fallback to RAG (limited image support)
-    try {
-      return await this.ragAnalyzer.analyzeImage(imageBuffer);
-    } catch (error: any) {
-      console.warn('RAG image analysis failed, trying USDA:', error.message);
-    }
-
-    // Final fallback to USDA
-    try {
-      return await this.usdaAnalyzer.analyzeImage(imageBuffer);
-    } catch (error: any) {
-      console.error('All image analysis methods failed:', error.message);
-      throw new Error('All image analysis methods failed');
+      console.error('OpenAI image analysis failed:', error.message);
+      
+      // RAG analyzer doesn't support image analysis, so we can't fallback
+      // Return a more user-friendly error
+      if (error.message.includes('unsupported image') || error.message.includes('invalid_image_format')) {
+        throw new Error('Изображение имеет неподдерживаемый формат. Пожалуйста, используйте JPEG, PNG, GIF или WebP.');
+      }
+      
+      throw new Error(`Не удалось проанализировать изображение: ${error.message || 'Неизвестная ошибка'}`);
     }
   }
 
@@ -43,7 +37,7 @@ export class HybridAnalyzer {
     const results = [];
     const errors = [];
 
-    // Try all analyzers in parallel
+    // Try all analyzers: OpenAI, USDA, RAG
     const promises = [
       this.openAiAnalyzer.analyzeText(description).catch(err => {
         errors.push({ source: 'OpenAI', error: err.message });
@@ -74,6 +68,12 @@ export class HybridAnalyzer {
 
     // If we have results, combine them intelligently
     if (results.length > 0) {
+      // Prefer OpenAI if available (best quality)
+      const openAiResultData = results.find(r => r.source === 'OpenAI');
+      if (openAiResultData) {
+        return openAiResultData.result;
+      }
+      // Otherwise use USDA (official data) or combine
       return this.combineResults(results);
     }
 
@@ -83,25 +83,58 @@ export class HybridAnalyzer {
   }
 
   private combineResults(results: Array<{ source: string; result: AnalysisResult }>): AnalysisResult {
-    const combinedItems = new Map();
+    const combinedItems = new Map<string, any>();
     
     // Prioritize results: OpenAI > USDA > RAG
     const priorityOrder = ['OpenAI', 'USDA', 'RAG'];
+    const sourceWeights: Record<string, number> = {
+      'OpenAI': 1.0,
+      'USDA': 0.9,
+      'RAG': 0.8,
+    };
     
-    for (const priority of priorityOrder) {
-      const result = results.find(r => r.source === priority);
-      if (result) {
-        result.result.items.forEach(item => {
-          const key = item.label.toLowerCase().trim();
-          if (!combinedItems.has(key)) {
-            combinedItems.set(key, item);
-          }
+    // Collect all items with their source priorities
+    const allItems: Array<{ item: any; source: string; weight: number }> = [];
+    
+    for (const result of results) {
+      const weight = sourceWeights[result.source] || 0.5;
+      result.result.items.forEach(item => {
+        allItems.push({ item, source: result.source, weight });
+      });
+    }
+    
+    // Group similar items by label
+    for (const { item, source, weight } of allItems) {
+      const key = item.label.toLowerCase().trim().replace(/[^\w\s]/g, '');
+      
+      if (!combinedItems.has(key)) {
+        // Add confidence score based on source
+        combinedItems.set(key, {
+          ...item,
+          source,
+          confidence: weight,
         });
+      } else {
+        // If item already exists, use the one with higher priority
+        const existing = combinedItems.get(key);
+        if (weight > existing.confidence) {
+          combinedItems.set(key, {
+            ...item,
+            source,
+            confidence: weight,
+          });
+        }
       }
     }
 
+    // Sort by confidence and take top items
+    const sortedItems = Array.from(combinedItems.values())
+      .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+      .slice(0, 5)
+      .map(({ source, confidence, ...item }) => item); // Remove metadata
+
     return {
-      items: Array.from(combinedItems.values()).slice(0, 5) // Limit to 5 items
+      items: sortedItems
     };
   }
 }

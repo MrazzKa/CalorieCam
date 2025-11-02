@@ -1,9 +1,9 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto } from './dto';
+import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto, RequestOtpDto, RequestMagicLinkDto } from './dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -25,6 +25,30 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('otp/request')
+  @ApiOperation({ summary: 'Request OTP code' })
+  @ApiResponse({ status: 200, description: 'OTP sent successfully' })
+  async requestOtp(@Body() requestOtpDto: RequestOtpDto) {
+    return this.authService.requestOtp(requestOtpDto);
+  }
+
+  @Post('magic/request')
+  @ApiOperation({ summary: 'Request magic link' })
+  @ApiResponse({ status: 200, description: 'Magic link sent successfully' })
+  async requestMagicLink(@Body() requestMagicLinkDto: RequestMagicLinkDto) {
+    return this.authService.requestMagicLink(requestMagicLinkDto);
+  }
+
+  @Get('magic/consume')
+  @ApiOperation({ summary: 'Consume magic link' })
+  @ApiResponse({ status: 200, description: 'Magic link verified successfully' })
+  async consumeMagicLink(@Query('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+    return this.authService.consumeMagicLink(token);
   }
 
   @Post('verify-otp')

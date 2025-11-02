@@ -5,6 +5,8 @@ import { FoodService } from './food.service';
 import { FoodProcessor } from './food.processor';
 import { FoodAnalyzerModule } from './food-analyzer/food-analyzer.module';
 import { PrismaModule } from '../prisma.module';
+import { RedisModule } from '../redis/redis.module';
+import { LimitsModule } from '../limits/limits.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { PrismaModule } from '../prisma.module';
       name: 'food-analysis',
     }),
     FoodAnalyzerModule,
+    RedisModule,
+    LimitsModule,
   ],
   controllers: [FoodController],
   providers: [FoodService],

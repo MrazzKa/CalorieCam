@@ -58,4 +58,13 @@ export class UsersService {
 
     return updatedUser;
   }
+
+  async deleteAccount(userId: string) {
+    // Delete user (cascade will delete related records)
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return { message: 'Account deleted successfully' };
+  }
 }

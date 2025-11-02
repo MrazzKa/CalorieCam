@@ -1,6 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
+// Calculate daily calories based on user profile or return default
+function calculateDailyCalories(userProfile: any): number {
+  if (!userProfile) return 2000; // Default for users without profile
+  
+  const { age, weight, height, gender, activityLevel, goal } = userProfile;
+  
+  if (!weight || !height || !age || !gender || !activityLevel) {
+    return 2000; // Default if profile incomplete
+  }
+  
+  // Calculate BMR using Mifflin-St Jeor Equation
+  let bmr: number;
+  if (gender === 'male') {
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+  } else {
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+  }
+  
+  // Apply activity multiplier
+  const activityMultipliers: Record<string, number> = {
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+    extremely_active: 1.9,
+  };
+  
+  const tdee = bmr * (activityMultipliers[activityLevel] || 1.2);
+  
+  // Adjust for goal
+  if (goal === 'lose_weight') {
+    return Math.round(tdee * 0.85); // 15% deficit
+  } else if (goal === 'gain_weight') {
+    return Math.round(tdee * 1.15); // 15% surplus
+  } else {
+    return Math.round(tdee); // Maintenance
+  }
+}
+
 @Injectable()
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -26,6 +65,11 @@ export class StatsService {
       },
     });
 
+    // Get user profile for personalized goals
+    const userProfile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+    });
+
     // Calculate totals
     const totalCalories = todayMeals.reduce((sum, meal) => {
       return sum + meal.items.reduce((mealSum, item) => mealSum + item.calories, 0);
@@ -43,6 +87,12 @@ export class StatsService {
       return sum + meal.items.reduce((mealSum, item) => mealSum + item.carbs, 0);
     }, 0);
 
+    // Calculate personalized goals
+    const dailyCalories = calculateDailyCalories(userProfile);
+    const dailyProtein = Math.round(dailyCalories * 0.3 / 4); // 30% of calories from protein
+    const dailyFat = Math.round(dailyCalories * 0.25 / 9); // 25% from fat
+    const dailyCarbs = Math.round(dailyCalories * 0.45 / 4); // 45% from carbs
+
     return {
       today: {
         calories: totalCalories,
@@ -52,10 +102,10 @@ export class StatsService {
         meals: todayMeals.length,
       },
       goals: {
-        calories: 2000, // Default goal
-        protein: 150,
-        fat: 65,
-        carbs: 200,
+        calories: userProfile?.dailyCalories || dailyCalories,
+        protein: dailyProtein,
+        fat: dailyFat,
+        carbs: dailyCarbs,
       },
     };
   }

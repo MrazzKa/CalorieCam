@@ -64,6 +64,10 @@ web_modules/
 # Output of 'npm pack'
 *.tgz
 
+# Backup files (keep local but don't commit)
+*.tar.gz
+caloriecam-backup-*.tar.gz
+
 # Yarn Integrity file
 .yarn-integrity
 

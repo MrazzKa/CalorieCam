@@ -18,6 +18,9 @@ import { CacheModule } from './src/cache/cache.module';
 import { WellKnownModule } from './well-known/well-known.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { UserProfilesModule } from './user-profiles/user-profiles.module';
+import { LimitsModule } from './limits/limits.module';
+import { FdcModule } from './src/fdc/fdc.module';
+import { ArticlesModule } from './articles/articles.module';
 import { HealthController } from './health.controller';
 import { configSchema } from './src/config/config.schema';
 
@@ -57,6 +60,9 @@ import { configSchema } from './src/config/config.schema';
     WellKnownModule,
     AiAssistantModule,
     UserProfilesModule,
+    LimitsModule,
+    FdcModule,
+    ArticlesModule,
   ],
   controllers: [HealthController],
 })

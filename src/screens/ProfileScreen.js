@@ -12,10 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
+import { useTheme } from '../contexts/ThemeContext';
+import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
+  const { isDark, colors, themeMode, toggleTheme } = useTheme();
   const [userProfile, setUserProfile] = useState({
     firstName: '',
     lastName: '',
@@ -32,7 +36,6 @@ export default function ProfileScreen() {
 
   const [settings, setSettings] = useState({
     notifications: true,
-    darkMode: false,
     autoSync: true,
     dataSharing: false,
   });
@@ -67,11 +70,22 @@ export default function ProfileScreen() {
   };
 
   const handleSettingChange = (setting, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [setting]: value,
-    }));
+    if (setting === 'darkMode') {
+      // Map value to theme mode: true = 'dark', false = 'light'
+      const mode = value ? 'dark' : 'light';
+      toggleTheme(mode);
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        [setting]: value,
+      }));
+    }
   };
+
+  // Sync darkMode setting with theme
+  useEffect(() => {
+    // Update local state based on theme mode
+  }, [themeMode]);
 
   const handleProfileUpdate = async () => {
     if (isEditing) {
@@ -108,23 +122,40 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     Alert.alert(
       'Delete Account',
       'This action cannot be undone. Are you sure you want to delete your account?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          // Handle account deletion
-        }},
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await ApiService.deleteAccount();
+              await ApiService.setToken(null, null);
+              Alert.alert('Success', 'Your account has been deleted.');
+              navigation.navigate('Onboarding');
+            } catch (error) {
+              console.error('Delete account error:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          }
+        },
       ]
     );
   };
 
   const renderProfileSection = () => (
-    <View style={styles.section}>
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 15 }}
+      style={styles.section}
+    >
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Profile</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Profile</Text>
         <TouchableOpacity onPress={handleProfileUpdate}>
           <Text style={styles.editButton}>
             {isEditing ? 'Save' : 'Edit'}
@@ -132,7 +163,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, dynamicStyles.profileCard]}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             <Ionicons name="person" size={32} color="#007AFF" />
@@ -144,7 +175,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.inputLabel}>First Name</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.firstName}
                 editable={isEditing}
                 onChangeText={(text) => setUserProfile(prev => ({ ...prev, firstName: text }))}
@@ -153,7 +184,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
               <Text style={styles.inputLabel}>Last Name</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.lastName}
                 editable={isEditing}
                 onChangeText={(text) => setUserProfile(prev => ({ ...prev, lastName: text }))}
@@ -164,7 +195,7 @@ export default function ProfileScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email</Text>
             <TextInput
-              style={[styles.input, !isEditing && styles.inputDisabled]}
+              style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
               value={userProfile.email}
               editable={isEditing}
               keyboardType="email-address"
@@ -176,7 +207,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.inputLabel}>Height (cm)</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.height.toString()}
                 editable={isEditing}
                 keyboardType="numeric"
@@ -186,7 +217,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
               <Text style={styles.inputLabel}>Weight (kg)</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.weight.toString()}
                 editable={isEditing}
                 keyboardType="numeric"
@@ -199,7 +230,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.inputLabel}>Age</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.age.toString()}
                 editable={isEditing}
                 keyboardType="numeric"
@@ -285,7 +316,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.inputLabel}>Target Weight (kg)</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.targetWeight.toString()}
                 editable={isEditing}
                 keyboardType="numeric"
@@ -295,7 +326,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
               <Text style={styles.inputLabel}>Daily Calories</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
                 value={userProfile.dailyCalories.toString()}
                 editable={isEditing}
                 keyboardType="numeric"
@@ -305,74 +336,95 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
-    </View>
+    </MotiView>
   );
 
   const renderSettingsSection = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Settings</Text>
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 15 }}
+      style={styles.section}
+    >
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Settings</Text>
+      </View>
       
-      <View style={styles.settingsCard}>
-        <View style={styles.settingItem}>
+      <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
+        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
           <View style={styles.settingInfo}>
-            <Ionicons name="notifications" size={24} color="#007AFF" />
+            <Ionicons name="notifications" size={24} color={colors.primary} />
             <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Notifications</Text>
-              <Text style={styles.settingSubtitle}>Receive meal reminders</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Notifications</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Receive meal reminders</Text>
             </View>
           </View>
           <Switch
             value={settings.notifications}
             onValueChange={(value) => handleSettingChange('notifications', value)}
-            trackColor={{ false: '#E5E5E7', true: '#007AFF' }}
+            trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor="#FFFFFF"
           />
         </View>
 
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
           <View style={styles.settingInfo}>
-            <Ionicons name="moon" size={24} color="#5856D6" />
+            <Ionicons name={isDark ? "moon" : "sunny"} size={24} color={colors.secondary} />
             <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Dark Mode</Text>
-              <Text style={styles.settingSubtitle}>Use dark theme</Text>
+              <Text style={[styles.settingTitle, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
+                {themeMode === 'system' ? 'Следовать системной теме' : isDark ? 'Темная тема' : 'Светлая тема'}
+              </Text>
             </View>
           </View>
-          <Switch
-            value={settings.darkMode}
-            onValueChange={(value) => handleSettingChange('darkMode', value)}
-            trackColor={{ false: '#E5E5E7', true: '#5856D6' }}
-            thumbColor="#FFFFFF"
-          />
+          <View style={styles.themeControls}>
+            <Switch
+              value={isDark}
+              onValueChange={(value) => handleSettingChange('darkMode', value)}
+              trackColor={{ false: colors.border, true: colors.secondary }}
+              thumbColor="#FFFFFF"
+            />
+            <TouchableOpacity
+              style={styles.systemThemeButton}
+              onPress={() => toggleTheme(themeMode === 'system' ? (isDark ? 'dark' : 'light') : 'system')}
+            >
+              <Ionicons 
+                name={themeMode === 'system' ? "phone-portrait" : "phone-portrait-outline"} 
+                size={18} 
+                color={themeMode === 'system' ? colors.secondary : colors.textTertiary} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
           <View style={styles.settingInfo}>
-            <Ionicons name="sync" size={24} color="#34C759" />
+            <Ionicons name="sync" size={24} color={colors.success} />
             <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Auto Sync</Text>
-              <Text style={styles.settingSubtitle}>Sync data automatically</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Auto Sync</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Sync data automatically</Text>
             </View>
           </View>
           <Switch
             value={settings.autoSync}
             onValueChange={(value) => handleSettingChange('autoSync', value)}
-            trackColor={{ false: '#E5E5E7', true: '#34C759' }}
+            trackColor={{ false: colors.border, true: colors.success }}
             thumbColor="#FFFFFF"
           />
         </View>
 
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
           <View style={styles.settingInfo}>
-            <Ionicons name="analytics" size={24} color="#FF9500" />
+            <Ionicons name="analytics" size={24} color={colors.warning} />
             <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Data Sharing</Text>
-              <Text style={styles.settingSubtitle}>Help improve the app</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Data Sharing</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Help improve the app</Text>
             </View>
           </View>
           <Switch
             value={settings.dataSharing}
             onValueChange={(value) => handleSettingChange('dataSharing', value)}
-            trackColor={{ false: '#E5E5E7', true: '#FF9500' }}
+            trackColor={{ false: colors.border, true: colors.warning }}
             thumbColor="#FFFFFF"
           />
         </View>
@@ -381,32 +433,59 @@ export default function ProfileScreen() {
   );
 
   const renderAccountSection = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Account</Text>
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 15, delay: 100 }}
+      style={styles.section}
+    >
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Account</Text>
+      </View>
       
-      <View style={styles.settingsCard}>
-        <TouchableOpacity style={styles.settingItem}>
+      <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
+        <TouchableOpacity
+          style={[styles.settingItem, dynamicStyles.settingItem]}
+          onPress={() => navigation.navigate('Articles')}
+        >
           <View style={styles.settingInfo}>
-            <Ionicons name="help-circle" size={24} color="#8E8E93" />
-            <Text style={styles.settingTitle}>Help & Support</Text>
+            <Ionicons name="book" size={24} color={colors.primary} />
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Статьи</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity
+          style={[styles.settingItem, dynamicStyles.settingItem]}
+          onPress={() => navigation.navigate('HelpSupport')}
+        >
           <View style={styles.settingInfo}>
-            <Ionicons name="document-text" size={24} color="#8E8E93" />
-            <Text style={styles.settingTitle}>Privacy Policy</Text>
+            <Ionicons name="help-circle" size={24} color={colors.textTertiary} />
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Help & Support</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity
+          style={[styles.settingItem, dynamicStyles.settingItem]}
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+        >
           <View style={styles.settingInfo}>
-            <Ionicons name="shield-checkmark" size={24} color="#8E8E93" />
-            <Text style={styles.settingTitle}>Terms of Service</Text>
+            <Ionicons name="document-text" size={24} color={colors.textTertiary} />
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Privacy Policy</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.settingItem, dynamicStyles.settingItem]}
+          onPress={() => navigation.navigate('TermsOfService')}
+        >
+          <View style={styles.settingInfo}>
+            <Ionicons name="shield-checkmark" size={24} color={colors.textTertiary} />
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Terms of Service</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
@@ -423,11 +502,27 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       </View>
-    </View>
+    </MotiView>
   );
 
+  const dynamicStyles = {
+    container: { backgroundColor: colors.background },
+    sectionTitle: { color: colors.text },
+    profileCard: { backgroundColor: colors.card, ...SHADOW.sm },
+    settingsCard: { backgroundColor: colors.card, ...SHADOW.sm },
+    settingTitle: { color: colors.text },
+    settingSubtitle: { color: colors.textSecondary },
+    input: { 
+      backgroundColor: colors.inputBackground, 
+      color: colors.input,
+      borderColor: colors.border,
+    },
+    inputDisabled: { backgroundColor: isDark ? '#2C2C2E' : '#F8F9FA' },
+    settingItem: { borderBottomColor: colors.border },
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, dynamicStyles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {renderProfileSection()}
         {renderSettingsSection()}
@@ -440,25 +535,24 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
   scrollView: {
     flex: 1,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: SPACING.xxl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: PADDING.screen,
+    paddingTop: PADDING.lg,
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1C1C1E',
   },
   editButton: {
     fontSize: 16,
@@ -466,10 +560,9 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
+    marginHorizontal: PADDING.screen,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: PADDING.screen,
   },
   avatarContainer: {
     alignItems: 'center',
@@ -497,17 +590,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E5E7',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1C1C1E',
-    backgroundColor: '#FFFFFF',
   },
   inputDisabled: {
-    backgroundColor: '#F8F9FA',
-    color: '#8E8E93',
+    opacity: 0.6,
   },
   inputRow: {
     flexDirection: 'row',
@@ -522,9 +611,8 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
   },
   settingsCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    borderRadius: 16,
+    marginHorizontal: PADDING.screen,
+    borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
   },
   settingItem: {
@@ -534,7 +622,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
+  },
+  themeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  systemThemeButton: {
+    padding: 4,
   },
   settingInfo: {
     flexDirection: 'row',
@@ -548,11 +643,9 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1C1C1E',
   },
   settingSubtitle: {
     fontSize: 14,
-    color: '#8E8E93',
     marginTop: 2,
   },
 });

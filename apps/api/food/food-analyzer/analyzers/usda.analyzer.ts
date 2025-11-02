@@ -1,19 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import axios from 'axios';
+import { FdcService } from '../../../src/fdc/fdc.service';
 import { AnalysisResult } from '../food-analyzer.service';
 
 @Injectable()
 export class UsdaAnalyzer {
-  private readonly usdaApiKey: string;
-  private readonly usdaBaseUrl = 'https://api.nal.usda.gov/fdc/v1';
-
-  constructor() {
-    this.usdaApiKey = process.env.USDA_API_KEY || 'DEMO_KEY';
-  }
+  constructor(private readonly fdcService: FdcService) {}
 
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
-    // For image analysis, we'll use a simple approach
-    // In a real implementation, you might use computer vision APIs
+    // USDA does not support image analysis directly
     throw new Error('USDA analyzer does not support image analysis directly');
   }
 
@@ -22,18 +16,16 @@ export class UsdaAnalyzer {
       // Clean and prepare the search query
       const cleanDescription = this.cleanDescription(description);
       
-      // Search for foods in USDA database
-      const searchResponse = await axios.get(`${this.usdaBaseUrl}/foods/search`, {
-        params: {
-          api_key: this.usdaApiKey,
-          query: cleanDescription,
-          pageSize: 10,
-          dataType: ['Foundation', 'SR Legacy'],
-        },
-        timeout: 10000,
+      // Search for foods in USDA database using FdcService
+      const searchResult = await this.fdcService.searchFoods({
+        query: cleanDescription,
+        dataType: ['Branded', 'Foundation'],
+        pageSize: 5,
+        sortBy: 'fdcId',
+        sortOrder: 'desc',
       });
 
-      const foods = searchResponse.data.foods;
+      const foods = searchResult.foods || [];
       if (!foods || foods.length === 0) {
         return { items: [] };
       }
@@ -47,35 +39,24 @@ export class UsdaAnalyzer {
           const food = foods[i];
           const foodId = food.fdcId;
           
-          // Get detailed nutrition
-          const detailsResponse = await axios.get(`${this.usdaBaseUrl}/food/${foodId}`, {
-            params: {
-              api_key: this.usdaApiKey,
-            },
-            timeout: 10000,
-          });
+          // Get detailed nutrition using FdcService
+          const foodDetails = await this.fdcService.getFood(foodId, { format: 'full' });
 
-          const foodDetails = detailsResponse.data;
-          const nutrients = foodDetails.foodNutrients || [];
-
-          // Extract key nutrients
-          const calories = this.getNutrientValue(nutrients, 'Energy');
-          const protein = this.getNutrientValue(nutrients, 'Protein');
-          const fat = this.getNutrientValue(nutrients, 'Total lipid (fat)');
-          const carbs = this.getNutrientValue(nutrients, 'Carbohydrate, by difference');
+          // Extract nutrition using FdcService helper
+          const nutrition = this.fdcService.extractNutrition(foodDetails);
 
           // Only add if we have meaningful nutritional data
-          if (calories > 0 || protein > 0 || fat > 0 || carbs > 0) {
+          if (nutrition.calories > 0 || nutrition.protein > 0 || nutrition.fat > 0 || nutrition.carbs > 0) {
             items.push({
               label: foodDetails.description || food.description || cleanDescription,
-              kcal: Math.round(calories),
-              protein: Math.round(protein * 10) / 10,
-              fat: Math.round(fat * 10) / 10,
-              carbs: Math.round(carbs * 10) / 10,
-              gramsMean: this.estimatePortionSize(foodDetails.description || food.description),
+              kcal: Math.round(nutrition.calories),
+              protein: Math.round(nutrition.protein * 10) / 10,
+              fat: Math.round(nutrition.fat * 10) / 10,
+              carbs: Math.round(nutrition.carbs * 10) / 10,
+              gramsMean: this.estimatePortionSize(foodDetails.description || food.description || cleanDescription),
             });
           }
-        } catch (itemError) {
+        } catch (itemError: any) {
           console.warn(`Failed to process food item ${i}:`, itemError.message);
           continue;
         }
@@ -95,13 +76,6 @@ export class UsdaAnalyzer {
       .replace(/[^\w\s]/g, ' ') // Remove special characters
       .replace(/\s+/g, ' ') // Normalize spaces
       .trim();
-  }
-
-  private getNutrientValue(nutrients: any[], nutrientName: string): number {
-    const nutrient = nutrients.find(n => 
-      n.nutrient && n.nutrient.name === nutrientName
-    );
-    return nutrient ? (nutrient.amount || 0) : 0;
   }
 
   private estimatePortionSize(foodName: string): number {

@@ -3,7 +3,7 @@
 echo "🔍 Checking CalorieCam Services..."
 
 # Check if API is running
-if curl -s http://192.168.3.6:3000/v1/health > /dev/null; then
+if curl -s http://172.20.10.2:3000/v1/health > /dev/null; then
     echo "✅ API server is running"
 else
     echo "❌ API server is not running"

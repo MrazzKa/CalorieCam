@@ -29,6 +29,11 @@ interface AiAssistantProps {
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [threads, setThreads] = useState<Record<'nutrition'|'health'|'general', Message[]>>({
+    nutrition: [],
+    health: [],
+    general: [],
+  });
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [assistantType, setAssistantType] = useState<'nutrition' | 'health' | 'general'>('nutrition');
@@ -62,6 +67,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
         },
       ]).flat();
       
+      setThreads(prev => ({ ...prev, [assistantType]: formattedMessages } as any));
       setMessages(formattedMessages);
     } catch (error) {
       console.error('Failed to load conversation history:', error);
@@ -85,6 +91,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    setThreads(prev => ({ ...prev, [assistantType]: [...(prev[assistantType]||[]), userMessage] }));
     setInputText('');
     setIsLoading(true);
 
@@ -112,6 +119,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      setThreads(prev => ({ ...prev, [assistantType]: [...(prev[assistantType]||[]), assistantMessage] }));
     } catch (error) {
       console.error('Failed to send message:', error);
       Alert.alert('Error', 'Failed to get response from AI assistant. Please try again.');
@@ -126,7 +134,10 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
       'Are you sure you want to clear the conversation history?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => setMessages([]) },
+        { text: 'Clear', style: 'destructive', onPress: () => {
+          setMessages([]);
+          setThreads(prev => ({ ...prev, [assistantType]: [] }));
+        } },
       ]
     );
   };
@@ -210,7 +221,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
               styles.typeButton,
               assistantType === 'nutrition' && styles.typeButtonActive,
             ]}
-            onPress={() => setAssistantType('nutrition')}
+            onPress={() => { setAssistantType('nutrition'); setMessages(threads.nutrition || []); }}
           >
             <Ionicons
               name="nutrition"
@@ -231,7 +242,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
               styles.typeButton,
               assistantType === 'health' && styles.typeButtonActive,
             ]}
-            onPress={() => setAssistantType('health')}
+            onPress={() => { setAssistantType('health'); setMessages(threads.health || []); }}
           >
             <Ionicons
               name="heart"
@@ -252,7 +263,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
               styles.typeButton,
               assistantType === 'general' && styles.typeButtonActive,
             ]}
-            onPress={() => setAssistantType('general')}
+            onPress={() => { setAssistantType('general'); setMessages(threads.general || []); }}
           >
             <Ionicons
               name="help-circle"

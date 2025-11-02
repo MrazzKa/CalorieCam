@@ -8,16 +8,21 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { PADDING, SPACING, BORDER_RADIUS } from '../utils/designConstants';
 
 export default function CameraScreen() {
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(false);
   const cameraRef = useRef(null);
+  const [zoom, setZoom] = useState(0.5); // Start at middle zoom level
+  const [facing, setFacing] = useState('back');
+  const [flashMode, setFlashMode] = useState('off');
 
   console.log('CameraScreen loaded');
 
@@ -90,8 +95,10 @@ export default function CameraScreen() {
     <SafeAreaView style={styles.container}>
       <CameraView
         style={styles.camera}
-        facing="back"
+        facing={facing}
         ref={cameraRef}
+        zoom={zoom}
+        enableZoomGesture
       >
         <View style={styles.cameraOverlay}>
           {/* Header */}
@@ -106,8 +113,23 @@ export default function CameraScreen() {
           {/* Camera Controls */}
           <View style={styles.controls}>
             <View style={styles.controlRow}>
-              <TouchableOpacity style={styles.controlButton}>
-                <Ionicons name="flash-off" size={24} color="#FFFFFF" />
+              <TouchableOpacity 
+                style={styles.controlButton}
+                onPress={() => {
+                  const modes = ['off', 'on', 'auto'];
+                  const currentIndex = modes.indexOf(flashMode);
+                  const nextIndex = (currentIndex + 1) % modes.length;
+                  setFlashMode(modes[nextIndex]);
+                }}
+              >
+                <Ionicons 
+                  name={
+                    flashMode === 'off' ? 'flash-off' :
+                    flashMode === 'on' ? 'flash' : 'flash-outline'
+                  } 
+                  size={24} 
+                  color="#FFFFFF" 
+                />
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -122,9 +144,27 @@ export default function CameraScreen() {
                 )}
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.controlButton}>
+              <TouchableOpacity 
+                style={styles.controlButton}
+                onPress={() => {
+                  setFacing(facing === 'back' ? 'front' : 'back');
+                }}
+              >
                 <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.zoomContainer}>
+              <Slider
+                style={{ width: '100%' }}
+                minimumValue={0}
+                maximumValue={1}
+                step={0.01}
+                value={zoom}
+                minimumTrackTintColor="#FFFFFF"
+                maximumTrackTintColor="rgba(255,255,255,0.3)"
+                onValueChange={setZoom}
+              />
             </View>
           </View>
         </View>
@@ -150,9 +190,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: PADDING.xl,
+    paddingHorizontal: PADDING.screen,
+    paddingBottom: PADDING.xl,
   },
   headerButton: {
     width: 40,
@@ -168,8 +208,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   controls: {
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingBottom: PADDING.huge,
+    paddingHorizontal: PADDING.screen,
+  },
+  zoomContainer: {
+    marginTop: 16,
+    paddingHorizontal: 10,
   },
   controlRow: {
     flexDirection: 'row',

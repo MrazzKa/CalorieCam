@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AnalysisResult } from '../food-analyzer.service';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class RagAnalyzer {
@@ -10,12 +12,62 @@ export class RagAnalyzer {
   }
 
   private initializeFoodDatabase() {
-    // Initialize with common foods and their nutritional data
-    const commonFoods = [
+    // Load from JSON file - much larger database (70+ foods)
+    try {
+      // Try multiple possible paths
+      const possiblePaths = [
+        // Compiled path (dist)
+        join(__dirname, '../data/food-database.json'),
+        // Source path from process.cwd
+        join(process.cwd(), 'food/food-analyzer/data/food-database.json'),
+        // Alternative source path
+        join(process.cwd(), 'apps/api/food/food-analyzer/data/food-database.json'),
+      ];
+      
+      let foodDatabasePath: string | null = null;
+      
+      // Find the first existing path
+      for (const path of possiblePaths) {
+        try {
+          readFileSync(path, 'utf-8');
+          foodDatabasePath = path;
+          break;
+        } catch {
+          // Continue to next path
+        }
+      }
+      
+      if (!foodDatabasePath) {
+        throw new Error('Food database file not found in any expected location');
+      }
+      
+      const foodDatabaseContent = readFileSync(foodDatabasePath, 'utf-8');
+      const foods = JSON.parse(foodDatabaseContent) as Array<{ keywords: string[]; nutrition: any }>;
+      
+      // Index foods by keywords
+      foods.forEach(food => {
+        food.keywords.forEach(keyword => {
+          if (!this.foodDatabase.has(keyword)) {
+            this.foodDatabase.set(keyword, []);
+          }
+          this.foodDatabase.get(keyword).push(food.nutrition);
+        });
+      });
+      
+      console.log(`✅ Loaded ${foods.length} foods into RAG database from ${foodDatabasePath}`);
+    } catch (error) {
+      console.warn('⚠️  Failed to load food database, using fallback:', error);
+      // Fallback to minimal database
+      this.initializeFallbackDatabase();
+    }
+  }
+
+  private initializeFallbackDatabase() {
+    const fallbackFoods = [
       {
-        keywords: ['chicken', 'breast', 'grilled', 'baked'],
+        keywords: ['chicken', 'breast'],
         nutrition: {
-          label: 'Chicken Breast (Grilled)',
+          label: 'Chicken Breast',
           kcal: 165,
           protein: 31,
           fat: 3.6,
@@ -24,9 +76,9 @@ export class RagAnalyzer {
         }
       },
       {
-        keywords: ['rice', 'white', 'cooked', 'steamed'],
+        keywords: ['rice', 'white'],
         nutrition: {
-          label: 'White Rice (Cooked)',
+          label: 'White Rice',
           kcal: 130,
           protein: 2.7,
           fat: 0.3,
@@ -34,98 +86,9 @@ export class RagAnalyzer {
           gramsMean: 100
         }
       },
-      {
-        keywords: ['apple', 'red', 'green', 'fresh'],
-        nutrition: {
-          label: 'Apple (Fresh)',
-          kcal: 52,
-          protein: 0.3,
-          fat: 0.2,
-          carbs: 14,
-          gramsMean: 150
-        }
-      },
-      {
-        keywords: ['banana', 'yellow', 'ripe'],
-        nutrition: {
-          label: 'Banana (Fresh)',
-          kcal: 89,
-          protein: 1.1,
-          fat: 0.3,
-          carbs: 23,
-          gramsMean: 120
-        }
-      },
-      {
-        keywords: ['bread', 'white', 'slice', 'toast'],
-        nutrition: {
-          label: 'White Bread (Slice)',
-          kcal: 265,
-          protein: 9,
-          fat: 3.2,
-          carbs: 49,
-          gramsMean: 30
-        }
-      },
-      {
-        keywords: ['egg', 'boiled', 'fried', 'scrambled'],
-        nutrition: {
-          label: 'Egg (Large)',
-          kcal: 155,
-          protein: 13,
-          fat: 11,
-          carbs: 1.1,
-          gramsMean: 50
-        }
-      },
-      {
-        keywords: ['milk', 'whole', 'cow', 'dairy'],
-        nutrition: {
-          label: 'Whole Milk',
-          kcal: 61,
-          protein: 3.2,
-          fat: 3.3,
-          carbs: 4.8,
-          gramsMean: 100
-        }
-      },
-      {
-        keywords: ['yogurt', 'greek', 'plain', 'natural'],
-        nutrition: {
-          label: 'Greek Yogurt (Plain)',
-          kcal: 59,
-          protein: 10,
-          fat: 0.4,
-          carbs: 3.6,
-          gramsMean: 100
-        }
-      },
-      {
-        keywords: ['salmon', 'fish', 'grilled', 'baked'],
-        nutrition: {
-          label: 'Salmon (Grilled)',
-          kcal: 206,
-          protein: 25,
-          fat: 12,
-          carbs: 0,
-          gramsMean: 100
-        }
-      },
-      {
-        keywords: ['broccoli', 'vegetable', 'steamed', 'boiled'],
-        nutrition: {
-          label: 'Broccoli (Steamed)',
-          kcal: 34,
-          protein: 2.8,
-          fat: 0.4,
-          carbs: 7,
-          gramsMean: 100
-        }
-      }
     ];
-
-    // Index foods by keywords
-    commonFoods.forEach(food => {
+    
+    fallbackFoods.forEach(food => {
       food.keywords.forEach(keyword => {
         if (!this.foodDatabase.has(keyword)) {
           this.foodDatabase.set(keyword, []);

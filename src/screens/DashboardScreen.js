@@ -12,13 +12,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import AiAssistant from '../components/AiAssistant';
+import { useTheme } from '../contexts/ThemeContext';
+import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
@@ -47,7 +51,24 @@ export default function DashboardScreen() {
   const loadStats = async () => {
     try {
       const statsData = await ApiService.getStats('day');
-      setStats(statsData);
+      // Map API (/stats/dashboard) shape to UI state
+      if (statsData && statsData.today && statsData.goals) {
+        setStats({
+          totalCalories: statsData.today.calories || 0,
+          totalProtein: statsData.today.protein || 0,
+          totalCarbs: statsData.today.carbs || 0,
+          totalFat: statsData.today.fat || 0,
+          goal: (statsData.goals && statsData.goals.calories) || 2000,
+        });
+      } else {
+        setStats({
+          totalCalories: 0,
+          totalProtein: 0,
+          totalCarbs: 0,
+          totalFat: 0,
+          goal: 2000,
+        });
+      }
     } catch (error) {
       console.error('Error loading stats:', error);
       // Use fallback data when API is not available
@@ -122,13 +143,13 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header with time */}
         <View style={styles.header}>
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-            <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
+            <Text style={[styles.timeText, { color: colors.text }]}>{formatTime(currentTime)}</Text>
+            <Text style={[styles.dateText, { color: colors.textSecondary }]}>{formatDate(currentTime)}</Text>
           </View>
         </View>
 
@@ -138,17 +159,17 @@ export default function DashboardScreen() {
             style={styles.calendarButton}
             onPress={() => navigateToDate(-1)}
           >
-            <Ionicons name="chevron-back" size={24} color="#007AFF" />
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           
           <View style={styles.calendarDate}>
-            <Text style={styles.calendarDateText}>
+            <Text style={[styles.calendarDateText, { color: colors.text }]}>
               {selectedDate.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
               })}
             </Text>
-            <Text style={styles.calendarYearText}>
+            <Text style={[styles.calendarYearText, { color: colors.textSecondary }]}>
               {selectedDate.getFullYear()}
             </Text>
           </View>
@@ -157,12 +178,17 @@ export default function DashboardScreen() {
             style={styles.calendarButton}
             onPress={() => navigateToDate(1)}
           >
-            <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+            <Ionicons name="chevron-forward" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {/* Calories Circle */}
-        <View style={styles.caloriesContainer}>
+        <MotiView
+          from={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          style={styles.caloriesContainer}
+        >
           <View style={styles.caloriesCircle}>
             <View style={styles.caloriesInner}>
               <Text style={styles.caloriesNumber}>{stats.totalCalories}</Text>
@@ -170,51 +196,71 @@ export default function DashboardScreen() {
               <Text style={styles.caloriesGoal}>of {stats.goal.toLocaleString()} goal</Text>
             </View>
           </View>
-        </View>
+        </MotiView>
 
         {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 100 }}
+          style={styles.statsContainer}
+        >
+          <MotiView
+            from={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 150 }}
+            style={styles.statItem}
+          >
             <Text style={styles.statNumber}>{stats.totalProtein}g</Text>
             <Text style={styles.statLabel}>Protein</Text>
-          </View>
-          <View style={styles.statItem}>
+          </MotiView>
+          <MotiView
+            from={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 200 }}
+            style={styles.statItem}
+          >
             <Text style={styles.statNumber}>{stats.totalCarbs}g</Text>
             <Text style={styles.statLabel}>Carbs</Text>
-          </View>
-          <View style={styles.statItem}>
+          </MotiView>
+          <MotiView
+            from={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 250 }}
+            style={styles.statItem}
+          >
             <Text style={styles.statNumber}>{stats.totalFat}g</Text>
             <Text style={styles.statLabel}>Fat</Text>
-          </View>
-        </View>
+          </MotiView>
+        </MotiView>
 
 
         {/* AI Assistant Button */}
         <View style={styles.aiAssistantContainer}>
           <TouchableOpacity
-            style={styles.aiAssistantButton}
+            style={[styles.aiAssistantButton, { backgroundColor: colors.card }]}
             onPress={handleAiAssistantPress}
           >
-            <View style={styles.aiAssistantIcon}>
+            <View style={[styles.aiAssistantIcon, { backgroundColor: colors.primary }]}>
               <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
             </View>
             <View style={styles.aiAssistantContent}>
-              <Text style={styles.aiAssistantTitle}>AI Assistant</Text>
-              <Text style={styles.aiAssistantSubtitle}>
+              <Text style={[styles.aiAssistantTitle, { color: colors.text }]}>AI Assistant</Text>
+              <Text style={[styles.aiAssistantSubtitle, { color: colors.textSecondary }]}>
                 Get personalized nutrition advice
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
-          <Text style={styles.recentTitle}>Recent</Text>
-          <View style={styles.recentEmpty}>
-            <Ionicons name="restaurant" size={48} color="#C7C7CC" />
-            <Text style={styles.recentEmptyText}>No recent items</Text>
-            <Text style={styles.recentEmptySubtext}>
+          <Text style={[styles.recentTitle, { color: colors.text }]}>Recent</Text>
+          <View style={[styles.recentEmpty, { backgroundColor: colors.card }]}>
+            <Ionicons name="restaurant" size={48} color={colors.textTertiary} />
+            <Text style={[styles.recentEmptyText, { color: colors.textSecondary }]}>No recent items</Text>
+            <Text style={[styles.recentEmptySubtext, { color: colors.textTertiary }]}>
               Start by taking a photo of your meal
             </Text>
           </View>
@@ -312,9 +358,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: PADDING.screen,
+    paddingTop: PADDING.xl,
+    paddingBottom: PADDING.md,
   },
   timeContainer: {
     alignItems: 'flex-start',
@@ -333,8 +379,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: PADDING.xl,
+    paddingHorizontal: PADDING.screen,
   },
   calendarButton: {
     padding: 10,
@@ -355,7 +401,7 @@ const styles = StyleSheet.create({
   },
   caloriesContainer: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: SPACING.xxxl,
   },
   caloriesCircle: {
     width: 220,
@@ -396,24 +442,19 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: PADDING.screen,
+    paddingVertical: PADDING.xl,
+    gap: SPACING.md,
   },
   statItem: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 20,
-    paddingHorizontal: 30,
-    borderRadius: 16,
+    paddingVertical: PADDING.xl,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.lg,
     minWidth: 80,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    flex: 1,
+    ...SHADOW.sm,
   },
   statNumber: {
     fontSize: 20,
@@ -426,30 +467,27 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   recentContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PADDING.screen,
     paddingBottom: 100,
   },
   recentTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1C1C1E',
     marginBottom: 16,
   },
   recentEmpty: {
     alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    paddingVertical: PADDING.huge,
+    borderRadius: BORDER_RADIUS.lg,
+    ...SHADOW.sm,
   },
   recentEmptyText: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#8E8E93',
     marginTop: 16,
   },
   recentEmptySubtext: {
     fontSize: 14,
-    color: '#C7C7CC',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -553,7 +591,6 @@ const styles = StyleSheet.create({
   aiAssistantButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
@@ -569,7 +606,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

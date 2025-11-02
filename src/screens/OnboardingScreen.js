@@ -10,7 +10,6 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +32,9 @@ const OnboardingScreen = ({ navigation }) => {
   });
 
   const scrollViewRef = useRef(null);
+  // Simplify animations to avoid blank-step issues on some devices
   const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(1)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
   const heightAnimation = useRef(new Animated.Value(170)).current;
   const weightAnimation = useRef(new Animated.Value(70)).current;
   const ageAnimation = useRef(new Animated.Value(25)).current;
@@ -133,80 +132,16 @@ const OnboardingScreen = ({ navigation }) => {
 
     if (currentStep < steps.length - 1) {
       const nextStepIndex = currentStep + 1;
-      
-      // Fade out current step
-      Animated.timing(fadeAnimation, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setCurrentStep(nextStepIndex);
-        
-        // Slide animation
-        Animated.parallel([
-          Animated.timing(slideAnimation, {
-            toValue: -nextStepIndex * width,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(fadeAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.spring(scaleAnimation, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
-
-        scrollViewRef.current?.scrollTo({
-          x: nextStepIndex * width,
-          animated: true,
-        });
-      });
+      setCurrentStep(nextStepIndex);
+      scrollViewRef.current?.scrollTo({ x: nextStepIndex * width, animated: true });
     }
   };
 
   const prevStep = () => {
     if (currentStep > 0) {
       const prevStepIndex = currentStep - 1;
-      
-      // Fade out current step
-      Animated.timing(fadeAnimation, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setCurrentStep(prevStepIndex);
-        
-        // Slide animation
-        Animated.parallel([
-          Animated.timing(slideAnimation, {
-            toValue: -prevStepIndex * width,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(fadeAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.spring(scaleAnimation, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
-
-        scrollViewRef.current?.scrollTo({
-          x: prevStepIndex * width,
-          animated: true,
-        });
-      });
+      setCurrentStep(prevStepIndex);
+      scrollViewRef.current?.scrollTo({ x: prevStepIndex * width, animated: true });
     }
   };
 
@@ -235,7 +170,7 @@ const OnboardingScreen = ({ navigation }) => {
     }
   };
 
-  // Interactive Slider Component with gestures
+  // Interactive Slider Component (native Slider only)
   const InteractiveSlider = ({ 
     value, 
     minimumValue, 
@@ -245,85 +180,38 @@ const OnboardingScreen = ({ navigation }) => {
     step = 1,
     animatedValue 
   }) => {
-    const panRef = useRef();
-    const sliderWidth = width - 80;
-    
-    const handleGesture = (event) => {
-      const { translationX } = event.nativeEvent;
-      const percentage = Math.max(0, Math.min(1, translationX / sliderWidth));
-      const newValue = minimumValue + (maximumValue - minimumValue) * percentage;
-      const steppedValue = Math.round(newValue / step) * step;
-      onValueChange(steppedValue);
-    };
-
-    const animatedStyle = animatedValue ? {
-      transform: [
-        {
-          scale: animatedValue.interpolate({
-            inputRange: [minimumValue, maximumValue],
-            outputRange: [0.8, 1.2],
-            extrapolate: 'clamp',
-          }),
-        },
-      ],
-    } : {};
-
+    // Ensure value is within bounds
+    const clampedValue = Math.max(minimumValue, Math.min(maximumValue, value));
+    const [tempValue, setTempValue] = useState(clampedValue);
+    useEffect(() => {
+      const newValue = Math.max(minimumValue, Math.min(maximumValue, value));
+      setTempValue(newValue);
+    }, [value, minimumValue, maximumValue]);
     return (
       <View style={styles.interactiveSliderContainer}>
-        <Animated.Text style={[styles.sliderValue, animatedStyle]}>
-          {Math.round(value)}{unit}
+        <Animated.Text style={styles.sliderValue}>
+          {Math.round(tempValue)}{unit}
         </Animated.Text>
         
-        <PanGestureHandler
-          ref={panRef}
-          onGestureEvent={handleGesture}
-          onHandlerStateChange={(event) => {
-            if (event.nativeEvent.state === GestureState.END) {
-              // Haptic feedback on gesture end
-              Animated.spring(scaleAnimation, {
-                toValue: 1,
-                tension: 200,
-                friction: 8,
-                useNativeDriver: true,
-              }).start();
-            }
-          }}
-        >
-          <View style={styles.gestureSliderContainer}>
-            <Slider
-              style={styles.slider}
-              minimumValue={minimumValue}
-              maximumValue={maximumValue}
-              value={value}
-              step={step}
-              onValueChange={onValueChange}
-              minimumTrackTintColor="#007AFF"
-              maximumTrackTintColor="#E5E5E7"
-              thumbStyle={[styles.sliderThumb, animatedStyle]}
-              onSlidingStart={() => {
-                Animated.spring(scaleAnimation, {
-                  toValue: 1.1,
-                  tension: 200,
-                  friction: 8,
-                  useNativeDriver: true,
-                }).start();
-              }}
-              onSlidingComplete={() => {
-                Animated.spring(scaleAnimation, {
-                  toValue: 1,
-                  tension: 200,
-                  friction: 8,
-                  useNativeDriver: true,
-                }).start();
-              }}
-            />
-            
-            <View style={styles.sliderIndicators}>
-              <Text style={styles.sliderIndicatorText}>{minimumValue}{unit}</Text>
-              <Text style={styles.sliderIndicatorText}>{maximumValue}{unit}</Text>
-            </View>
+        <View style={styles.gestureSliderContainer}>
+          <Slider
+            style={styles.slider}
+            minimumValue={minimumValue}
+            maximumValue={maximumValue}
+            value={tempValue}
+            step={step}
+            onValueChange={(v) => setTempValue(v)}
+            onSlidingComplete={(v) => onValueChange(v)}
+            minimumTrackTintColor="#007AFF"
+            maximumTrackTintColor="#E5E5E7"
+            thumbStyle={styles.sliderThumb}
+          />
+          
+          <View style={styles.sliderIndicators}>
+            <Text style={styles.sliderIndicatorText}>{minimumValue}{unit}</Text>
+            <Text style={styles.sliderIndicatorText}>{maximumValue}{unit}</Text>
           </View>
-        </PanGestureHandler>
+        </View>
       </View>
     );
   };
@@ -597,18 +485,9 @@ const OnboardingScreen = ({ navigation }) => {
         style={styles.scrollView}
       >
         {steps.map((_, index) => (
-          <Animated.View 
-            key={index} 
-            style={[
-              styles.stepWrapper,
-              {
-                opacity: fadeAnimation,
-                transform: [{ scale: scaleAnimation }]
-              }
-            ]}
-          >
+          <View key={index} style={styles.stepWrapper}>
             {index === currentStep && renderStep()}
-          </Animated.View>
+          </View>
         ))}
       </ScrollView>
 

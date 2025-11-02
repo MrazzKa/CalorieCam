@@ -12,7 +12,11 @@ export const configSchema = Joi.object({
   JWT_REFRESH_TOKEN_EXPIRATION_TIME: Joi.string().default('30d'),
   JWT_REFRESH_TOKEN_EXPIRATION_TIME_MS: Joi.number().default(2592000000), // 30 days in ms
   OPENAI_API_KEY: Joi.string().required(),
-  USDA_API_KEY: Joi.string().required(),
+  // USDA_API_KEY is optional (legacy) - FDC_API_KEY is preferred
+  USDA_API_KEY: Joi.string().optional().allow(''),
+  FDC_API_BASE: Joi.string().optional().default('https://api.nal.usda.gov/fdc'),
+  FDC_API_KEY: Joi.string().optional().allow(''),
+  FDC_CACHE_TTL_SECONDS: Joi.number().optional().default(86400),
   NUTRITION_PROVIDER: Joi.string().valid('hybrid', 'openai', 'usda').default('hybrid'),
   NUTRITION_FEATURE_FALLBACK: Joi.boolean().default(true),
   EMAIL_SERVICE_HOST: Joi.string().optional().allow(''),

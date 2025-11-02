@@ -15,7 +15,8 @@ export class OpenAiAnalyzer {
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-vision-preview',
+        // gpt-4-vision-preview deprecated → use gpt-4o-mini for image inputs
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -96,7 +97,7 @@ export class OpenAiAnalyzer {
   async analyzeText(description: string): Promise<AnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

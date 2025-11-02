@@ -7,14 +7,18 @@ import { OtpService } from './otp.service';
 import { JwtStrategy } from './guards/jwt.strategy';
 import { LocalStrategy } from './guards/local.strategy';
 import { PrismaModule } from '../prisma.module';
+import { RedisModule } from '../redis/redis.module';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
   imports: [
     PassportModule,
     PrismaModule,
+    RedisModule,
+    MailerModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '45m' },
     }),
   ],
   controllers: [AuthController],

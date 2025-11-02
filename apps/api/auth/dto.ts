@@ -26,11 +26,25 @@ export class LoginDto {
   password!: string;
 }
 
-export class VerifyOtpDto {
-  @ApiProperty({ example: 'otp-id-123' })
-  @IsString()
+export class RequestOtpDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
   @IsNotEmpty()
-  otpId!: string;
+  email!: string;
+}
+
+export class RequestMagicLinkDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  @IsNotEmpty()
+  email!: string;
+}
+
+export class VerifyOtpDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  @IsNotEmpty()
+  email!: string;
 
   @ApiProperty({ example: '123456' })
   @IsString()

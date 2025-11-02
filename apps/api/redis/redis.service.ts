@@ -4,21 +4,74 @@ import { createClient, RedisClientType } from 'redis';
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client!: RedisClientType;
+  private isConnected = false;
 
   async onModuleInit() {
+    const redisHost = process.env.REDIS_HOST || 'localhost';
+    const redisPort = parseInt(process.env.REDIS_PORT || '6379');
+    const redisPassword = process.env.REDIS_PASSWORD;
+    
+    const redisUrl = process.env.REDIS_URL || `redis://${redisHost}:${redisPort}`;
+    
     this.client = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
+      url: redisUrl,
+      password: redisPassword || undefined,
+      socket: {
+        reconnectStrategy: (retries) => {
+          if (retries > 10) {
+            console.warn('[Redis] Max reconnection attempts reached. Redis features will be disabled.');
+            return false;
+          }
+          return Math.min(retries * 100, 3000);
+        },
+      },
     });
 
     this.client.on('error', (err) => {
-      console.error('Redis Client Error:', err);
+      console.error('[Redis] Client Error:', err.message);
+      this.isConnected = false;
     });
 
-    await this.client.connect();
+    this.client.on('connect', () => {
+      console.log('[Redis] Connecting...');
+    });
+
+    this.client.on('ready', () => {
+      console.log('[Redis] Connected successfully');
+      this.isConnected = true;
+    });
+
+    try {
+      await this.client.connect();
+    } catch (error) {
+      console.error('[Redis] Failed to connect:', error.message);
+      console.warn('[Redis] Some features may not work (rate limiting, caching, etc.)');
+      this.isConnected = false;
+    }
   }
 
   async onModuleDestroy() {
-    await this.client.disconnect();
+    try {
+      if (this.client && this.isConnected && this.client.isOpen) {
+        await this.client.disconnect();
+      }
+    } catch (error) {
+      console.warn('[Redis] Error during disconnect:', error.message);
+    }
+  }
+
+  private async ensureConnected(): Promise<boolean> {
+    if (!this.isConnected) {
+      try {
+        if (!this.client.isOpen) {
+          await this.client.connect();
+        }
+        this.isConnected = true;
+      } catch (error) {
+        return false;
+      }
+    }
+    return this.isConnected;
   }
 
   getClient(): RedisClientType {
@@ -26,31 +79,76 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async get(key: string): Promise<string | null> {
-    return this.client.get(key);
+    if (!(await this.ensureConnected())) {
+      return null;
+    }
+    try {
+      return await this.client.get(key);
+    } catch (error) {
+      console.warn('[Redis] get error:', error.message);
+      return null;
+    }
   }
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
-    if (ttl) {
-      await this.client.setEx(key, ttl, value);
-    } else {
-      await this.client.set(key, value);
+    if (!(await this.ensureConnected())) {
+      return;
+    }
+    try {
+      if (ttl) {
+        await this.client.setEx(key, ttl, value);
+      } else {
+        await this.client.set(key, value);
+      }
+    } catch (error) {
+      console.warn('[Redis] set error:', error.message);
     }
   }
 
   async del(key: string): Promise<void> {
-    await this.client.del(key);
+    if (!(await this.ensureConnected())) {
+      return;
+    }
+    try {
+      await this.client.del(key);
+    } catch (error) {
+      console.warn('[Redis] del error:', error.message);
+    }
   }
 
   async exists(key: string): Promise<boolean> {
-    const result = await this.client.exists(key);
-    return result === 1;
+    if (!(await this.ensureConnected())) {
+      return false;
+    }
+    try {
+      const result = await this.client.exists(key);
+      return result === 1;
+    } catch (error) {
+      console.warn('[Redis] exists error:', error.message);
+      return false;
+    }
   }
 
   async expire(key: string, seconds: number): Promise<void> {
-    await this.client.expire(key, seconds);
+    if (!(await this.ensureConnected())) {
+      return;
+    }
+    try {
+      await this.client.expire(key, seconds);
+    } catch (error) {
+      console.warn('[Redis] expire error:', error.message);
+    }
   }
 
   async ttl(key: string): Promise<number> {
-    return this.client.ttl(key);
+    if (!(await this.ensureConnected())) {
+      return -1;
+    }
+    try {
+      return await this.client.ttl(key);
+    } catch (error) {
+      console.warn('[Redis] ttl error:', error.message);
+      return -1;
+    }
   }
 }

@@ -14,18 +14,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
+import { EditFoodItemModal } from '../components/EditFoodItemModal';
+import { useTheme } from '../contexts/ThemeContext';
+import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function AnalysisResultsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { imageUri, source } = route.params;
+  const { colors } = useTheme();
 
   console.log('AnalysisResultsScreen loaded with source:', source);
 
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [editingItem, setEditingItem] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   useEffect(() => {
     const analyzeImage = async () => {
@@ -90,17 +97,17 @@ export default function AnalysisResultsScreen() {
           return;
         }
 
-        if (analysisResponse.jobId) {
+        if (analysisResponse.analysisId) {
           // Poll for results
           let attempts = 0;
-          const maxAttempts = 30; // 30 seconds max
+          const maxAttempts = 60; // 60 seconds max (analysis can take time)
 
           const pollForResults = async () => {
             try {
-              const status = await ApiService.getAnalysisStatus(analysisResponse.jobId);
+              const status = await ApiService.getAnalysisStatus(analysisResponse.analysisId);
 
               if (status.status === 'completed') {
-                const result = await ApiService.getAnalysisResult(analysisResponse.jobId);
+                const result = await ApiService.getAnalysisResult(analysisResponse.analysisId);
                 setAnalysisResult(result);
                 setIsAnalyzing(false);
 
@@ -181,19 +188,29 @@ export default function AnalysisResultsScreen() {
     }
   };
 
-  const handleCorrect = () => {
-    Alert.alert(
-      'Correct Analysis',
-      'This will send the image for re-analysis with improved AI processing.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Re-analyze', onPress: () => {
-          setIsAnalyzing(true);
-          setAnalysisResult(null);
-          // Trigger re-analysis
-        }},
-      ]
-    );
+  const handleCorrect = (item, index) => {
+    setEditingItem(item);
+    setEditingIndex(index);
+  };
+
+  const handleSaveEdit = (updatedItem, index) => {
+    const updatedIngredients = [...analysisResult.ingredients];
+    updatedIngredients[index] = updatedItem;
+    
+    // Recalculate totals
+    const newTotalCalories = updatedIngredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
+    const newTotalProtein = updatedIngredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
+    const newTotalCarbs = updatedIngredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
+    const newTotalFat = updatedIngredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
+    
+    setAnalysisResult({
+      ...analysisResult,
+      ingredients: updatedIngredients,
+      totalCalories: newTotalCalories,
+      totalProtein: newTotalProtein,
+      totalCarbs: newTotalCarbs,
+      totalFat: newTotalFat,
+    });
   };
 
   const handleSave = async () => {
@@ -273,13 +290,13 @@ export default function AnalysisResultsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="close" size={24} color="#1C1C1E" />
+            <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Analysis Complete</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Analysis Complete</Text>
           <View style={styles.headerButton} />
         </View>
 
@@ -293,73 +310,139 @@ export default function AnalysisResultsScreen() {
           </View>
 
           {/* Dish Name */}
-          <View style={styles.dishNameContainer}>
-            <Text style={styles.dishName}>{analysisResult?.dishName}</Text>
-          </View>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15 }}
+          >
+            <View style={styles.dishNameContainer}>
+              <Text style={[styles.dishName, { color: colors.text }]}>{analysisResult?.dishName}</Text>
+            </View>
+          </MotiView>
 
           {/* Total Nutrition */}
-          <View style={styles.nutritionContainer}>
-            <View style={styles.nutritionCard}>
-              <Text style={styles.nutritionTitle}>Total Nutrition</Text>
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 15, delay: 100 }}
+          >
+            <View style={styles.nutritionContainer}>
+              <View style={[styles.nutritionCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.nutritionTitle, { color: colors.text }]}>Total Nutrition</Text>
               <View style={styles.nutritionGrid}>
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{analysisResult?.totalCalories}</Text>
-                  <Text style={styles.nutritionLabel}>Calories</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalCalories}</Text>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Calories</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{analysisResult?.totalProtein}g</Text>
-                  <Text style={styles.nutritionLabel}>Protein</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalProtein}g</Text>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Protein</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{analysisResult?.totalCarbs}g</Text>
-                  <Text style={styles.nutritionLabel}>Carbs</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalCarbs}g</Text>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Carbs</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{analysisResult?.totalFat}g</Text>
-                  <Text style={styles.nutritionLabel}>Fat</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalFat}g</Text>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Fat</Text>
                 </View>
               </View>
             </View>
-          </View>
+          </MotiView>
 
           {/* Ingredients */}
-          <View style={styles.ingredientsContainer}>
-            <Text style={styles.ingredientsTitle}>Ingredients</Text>
-            {analysisResult?.ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientItem}>
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 200 }}
+          >
+            <View style={styles.ingredientsContainer}>
+              <Text style={[styles.ingredientsTitle, { color: colors.text }]}>Ingredients</Text>
+            {analysisResult?.ingredients?.map((ingredient, index) => (
+              <MotiView
+                key={index}
+                from={{ opacity: 0, translateX: -20 }}
+                animate={{ opacity: 1, translateX: 0 }}
+                transition={{ type: 'spring', damping: 15, delay: index * 50 }}
+              >
+                <TouchableOpacity
+                  style={[styles.ingredientItem, { backgroundColor: colors.card }]}
+                  onPress={() => handleCorrect(ingredient, index)}
+                >
                 <View style={styles.ingredientInfo}>
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  <Text style={styles.ingredientWeight}>{ingredient.weight}g</Text>
+                  <Text style={[styles.ingredientName, { color: colors.text }]}>{ingredient.name}</Text>
+                  <Text style={[styles.ingredientWeight, { color: colors.textSecondary }]}>{ingredient.weight}g</Text>
                 </View>
                 <View style={styles.ingredientNutrition}>
-                  <Text style={styles.ingredientCalories}>{ingredient.calories} cal</Text>
-                  <Text style={styles.ingredientMacros}>
+                  <Text style={[styles.ingredientCalories, { color: colors.primary }]}>{ingredient.calories} cal</Text>
+                  <Text style={[styles.ingredientMacros, { color: colors.textSecondary }]}>
                     P: {ingredient.protein}g • C: {ingredient.carbs}g • F: {ingredient.fat}g
                   </Text>
                 </View>
-              </View>
+                <TouchableOpacity
+                  style={styles.editIcon}
+                  onPress={() => handleCorrect(ingredient, index)}
+                >
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+              </MotiView>
             ))}
-          </View>
+            </View>
+          </MotiView>
 
           {/* Action Buttons */}
-          <View style={styles.actionButtons}>
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 15, delay: 300 }}
+          >
+            <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
               <Ionicons name="share-outline" size={20} color="#007AFF" />
               <Text style={styles.shareButtonText}>Share</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.correctButton} onPress={handleCorrect}>
-              <Ionicons name="refresh-outline" size={20} color="#FF9500" />
-              <Text style={styles.correctButtonText}>Correct</Text>
+            <TouchableOpacity 
+              style={styles.correctButton} 
+              onPress={() => {
+                if (analysisResult?.ingredients?.length > 0) {
+                  handleCorrect(analysisResult.ingredients[0], 0);
+                }
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color="#FF9500" />
+              <Text style={styles.correctButtonText}>Edit</Text>
             </TouchableOpacity>
-          </View>
+            </View>
+          </MotiView>
 
           {/* Save Button */}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save to Journal</Text>
-          </TouchableOpacity>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 400 }}
+          >
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save to Journal</Text>
+            </TouchableOpacity>
+          </MotiView>
         </ScrollView>
       </Animated.View>
+
+      {/* Edit Modal */}
+      {editingItem && (
+        <EditFoodItemModal
+          visible={!!editingItem}
+          onClose={() => {
+            setEditingItem(null);
+            setEditingIndex(null);
+          }}
+          item={editingItem}
+          onSave={handleSaveEdit}
+          index={editingIndex}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -367,7 +450,6 @@ export default function AnalysisResultsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
   content: {
     flex: 1,
@@ -378,14 +460,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1C1C1E',
   },
   headerButton: {
     width: 24,
@@ -496,23 +575,22 @@ const styles = StyleSheet.create({
   dishName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1C1C1E',
     textAlign: 'center',
   },
   nutritionContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: PADDING.screen,
+    marginBottom: SPACING.xl,
   },
   nutritionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: PADDING.xl,
+    ...SHADOW.md,
   },
   nutritionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 16,
+    marginBottom: PADDING.lg,
+    paddingTop: PADDING.sm,
   },
   nutritionGrid: {
     flexDirection: 'row',
@@ -524,31 +602,33 @@ const styles = StyleSheet.create({
   nutritionValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#007AFF',
   },
   nutritionLabel: {
     fontSize: 14,
-    color: '#8E8E93',
     marginTop: 4,
   },
   ingredientsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: PADDING.screen,
+    marginBottom: SPACING.xl,
   },
   ingredientsTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 16,
+    marginBottom: PADDING.lg,
+    paddingTop: PADDING.sm,
   },
   ingredientItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    borderRadius: BORDER_RADIUS.md,
+    padding: PADDING.card,
+    marginBottom: SPACING.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    ...SHADOW.sm,
+  },
+  editIcon: {
+    padding: 8,
+    marginLeft: 'auto',
   },
   ingredientInfo: {
     flex: 1,
@@ -556,11 +636,9 @@ const styles = StyleSheet.create({
   ingredientName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1C1C1E',
   },
   ingredientWeight: {
     fontSize: 14,
-    color: '#8E8E93',
     marginTop: 2,
   },
   ingredientNutrition: {
@@ -569,18 +647,16 @@ const styles = StyleSheet.create({
   ingredientCalories: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
   },
   ingredientMacros: {
     fontSize: 12,
-    color: '#8E8E93',
     marginTop: 2,
   },
   actionButtons: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 12,
+    paddingHorizontal: PADDING.screen,
+    marginBottom: SPACING.xl,
+    gap: SPACING.md,
   },
   shareButton: {
     flex: 1,

@@ -55,9 +55,12 @@ export class UserProfilesService {
       profileData.dailyCalories = this.calculateDailyCalories(updatedData);
     }
 
+    // Remove fields that should not be updated directly
+    const { id, userId: _userId, createdAt, updatedAt, email, ...updateData } = profileData;
+
     return this.prisma.userProfile.update({
       where: { userId },
-      data: profileData,
+      data: updateData,
     });
   }
 

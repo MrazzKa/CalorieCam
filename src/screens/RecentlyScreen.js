@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
+import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function RecentlyScreen() {
   const navigation = useNavigation();
@@ -85,18 +87,23 @@ export default function RecentlyScreen() {
     }
   };
 
-  const renderRecentItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.recentItem}
-      onPress={() => {
-        // Navigate to detailed view
-        navigation.navigate('AnalysisResults', {
-          imageUri: item.imageUri,
-          analysisResult: item,
-          readOnly: true,
-        });
-      }}
+  const renderRecentItem = ({ item, index }) => (
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 15, delay: index * 50 }}
     >
+      <TouchableOpacity
+        style={styles.recentItem}
+        onPress={() => {
+          // Navigate to detailed view
+          navigation.navigate('AnalysisResults', {
+            imageUri: item.imageUri,
+            analysisResult: item,
+            readOnly: true,
+          });
+        }}
+      >
       <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
       
       <View style={styles.itemContent}>
@@ -127,6 +134,7 @@ export default function RecentlyScreen() {
       
       <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
     </TouchableOpacity>
+    </MotiView>
   );
 
   const renderEmptyState = () => (
@@ -163,7 +171,7 @@ export default function RecentlyScreen() {
         <FlatList
           data={recentItems}
           renderItem={renderRecentItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.id || `item-${index}`}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -186,8 +194,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: PADDING.screen,
+    paddingVertical: SPACING.lg,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E7',
@@ -201,24 +209,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   listContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: PADDING.screen,
+    paddingTop: SPACING.lg,
   },
   recentItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: PADDING.card,
+    marginBottom: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...SHADOW.sm,
   },
   itemImage: {
     width: 60,

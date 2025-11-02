@@ -7,7 +7,7 @@ if [ ! -f .env ]; then
     echo "⚠️  .env file not found. Creating from template..."
     cat > .env << 'ENVEOF'
 # API Configuration
-EXPO_PUBLIC_API_BASE_URL=http://192.168.3.6:3000
+EXPO_PUBLIC_API_BASE_URL=http://172.20.10.2:3000
 
 # Development
 NODE_ENV=development
@@ -37,7 +37,9 @@ sleep 3
 # Start Expo development server
 echo "📱 Starting Expo development server..."
 cd ../..
-npm start
+export EXPO_PUBLIC_API_BASE_URL="http://172.20.10.2:3000"
+export REACT_NATIVE_PACKAGER_HOSTNAME="172.20.10.2"
+npm run start:dev
 
 # Cleanup on exit
 trap "kill $API_PID" EXIT

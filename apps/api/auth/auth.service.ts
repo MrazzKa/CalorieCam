@@ -2,8 +2,11 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { OtpService } from './otp.service';
-import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto } from './dto';
+import { RedisService } from '../redis/redis.service';
+import { MailerService } from '../mailer/mailer.service';
+import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto, RequestOtpDto, RequestMagicLinkDto } from './dto';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +14,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
+    private readonly redisService: RedisService,
+    private readonly mailerService: MailerService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -97,32 +102,178 @@ export class AuthService {
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto) {
-    const { otpId, code } = verifyOtpDto;
+    const { email, code } = verifyOtpDto;
 
     // Verify OTP
-    const isValid = await this.otpService.verifyOtp(otpId, code);
+    const isValid = await this.otpService.verifyOtp(email, code);
     if (!isValid) {
       throw new BadRequestException('Invalid OTP');
     }
 
     // Get user
-    const otp = await this.prisma.otp.findUnique({
-      where: { id: otpId },
-      include: { user: true },
+    const user = await this.prisma.user.findUnique({
+      where: { email },
     });
 
-    if (!otp) {
-      throw new BadRequestException('Invalid OTP');
+    if (!user) {
+      throw new BadRequestException('User not found');
     }
 
     // Generate tokens
-    const tokens = await this.generateTokens(otp.user.id, otp.user.email);
+    const tokens = await this.generateTokens(user.id, user.email);
 
     return {
       message: 'OTP verified successfully',
       user: {
-        id: otp.user.id,
-        email: otp.user.email,
+        id: user.id,
+        email: user.email,
+      },
+      ...tokens,
+    };
+  }
+
+  async requestOtp(requestOtpDto: RequestOtpDto) {
+    const { email } = requestOtpDto;
+
+    // Rate limiting: 5 requests per hour per email
+    const rateLimitKey = `otp:rate:${email}`;
+    const rateLimitCount = await this.redisService.get(rateLimitKey);
+    const currentCount = rateLimitCount ? parseInt(rateLimitCount, 10) : 0;
+
+    if (currentCount >= 5) {
+      throw new BadRequestException('Too many OTP requests. Please try again later.');
+    }
+
+    // Create user if doesn't exist
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Create user without password (OTP-only auth)
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          password: '', // No password needed for OTP auth
+        },
+      });
+    }
+
+    // Generate and save OTP
+    const otpCode = this.otpService.generateOtp();
+    await this.otpService.saveOtp(email, otpCode);
+
+    // Increment rate limit counter
+    await this.redisService.set(rateLimitKey, (currentCount + 1).toString(), 3600); // 1 hour TTL
+
+    // Send OTP email
+    try {
+      await this.mailerService.sendOTPEmail(email, otpCode);
+    } catch (error) {
+      console.error('Failed to send OTP email:', error);
+      // Don't fail the request if email fails
+    }
+
+    return {
+      message: 'OTP sent successfully',
+      email,
+    };
+  }
+
+  async requestMagicLink(requestMagicLinkDto: RequestMagicLinkDto) {
+    const { email } = requestMagicLinkDto;
+
+    // Rate limiting: 5 requests per hour per email
+    const rateLimitKey = `magic:rate:${email}`;
+    const rateLimitCount = await this.redisService.get(rateLimitKey);
+    const currentCount = rateLimitCount ? parseInt(rateLimitCount, 10) : 0;
+
+    if (currentCount >= 5) {
+      throw new BadRequestException('Too many magic link requests. Please try again later.');
+    }
+
+    // Create user if doesn't exist
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          password: '', // No password needed for magic link auth
+        },
+      });
+    }
+
+    // Generate secure token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Store magic link
+    await this.prisma.magicLink.create({
+      data: {
+        userId: user.id,
+        email,
+        token,
+        expiresAt,
+      },
+    });
+
+    // Increment rate limit counter
+    await this.redisService.set(rateLimitKey, (currentCount + 1).toString(), 3600); // 1 hour TTL
+
+    // Generate magic link URL
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const magicLinkUrl = `${baseUrl}/v1/auth/magic/consume?token=${token}`;
+
+    // Send magic link email
+    try {
+      await this.mailerService.sendMagicLinkEmail(email, magicLinkUrl);
+    } catch (error) {
+      console.error('Failed to send magic link email:', error);
+      // Don't fail the request if email fails
+    }
+
+    return {
+      message: 'Magic link sent successfully',
+      email,
+    };
+  }
+
+  async consumeMagicLink(token: string) {
+    // Find magic link
+    const magicLink = await this.prisma.magicLink.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!magicLink) {
+      throw new BadRequestException('Invalid magic link');
+    }
+
+    if (magicLink.used) {
+      throw new BadRequestException('Magic link already used');
+    }
+
+    if (magicLink.expiresAt < new Date()) {
+      throw new BadRequestException('Magic link expired');
+    }
+
+    // Mark as used
+    await this.prisma.magicLink.update({
+      where: { id: magicLink.id },
+      data: { used: true },
+    });
+
+    // Generate tokens
+    const tokens = await this.generateTokens(magicLink.user.id, magicLink.user.email);
+
+    return {
+      message: 'Magic link verified successfully',
+      user: {
+        id: magicLink.user.id,
+        email: magicLink.user.email,
       },
       ...tokens,
     };

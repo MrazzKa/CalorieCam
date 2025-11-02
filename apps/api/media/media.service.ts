@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import sharp from 'sharp';
+import * as sharp from 'sharp';
 
 @Injectable()
 export class MediaService {

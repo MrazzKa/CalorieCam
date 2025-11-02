@@ -1,6 +1,38 @@
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+
+export class UpdateMealItemDto {
+  @ApiProperty({ example: 'Chicken Breast' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ example: 165 })
+  @IsNumber()
+  @IsOptional()
+  calories?: number;
+
+  @ApiProperty({ example: 31 })
+  @IsNumber()
+  @IsOptional()
+  protein?: number;
+
+  @ApiProperty({ example: 3.6 })
+  @IsNumber()
+  @IsOptional()
+  fat?: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  @IsOptional()
+  carbs?: number;
+
+  @ApiProperty({ example: 150 })
+  @IsNumber()
+  @IsOptional()
+  weight?: number;
+}
 
 export class CreateMealDto {
   @ApiProperty({ example: 'Breakfast' })

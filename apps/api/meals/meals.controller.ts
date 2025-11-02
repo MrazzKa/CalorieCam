@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Put, Delete, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MealsService } from './meals.service';
-import { CreateMealDto } from './dto';
+import { CreateMealDto, UpdateMealItemDto } from './dto';
 
 @ApiTags('Meals')
 @Controller('meals')
@@ -26,5 +26,38 @@ export class MealsController {
     @Request() req: any,
   ) {
     return this.mealsService.createMeal(req.user.id, createMealDto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update a meal' })
+  @ApiResponse({ status: 200, description: 'Meal updated successfully' })
+  async updateMeal(
+    @Param('id') id: string,
+    @Body() updateMealDto: Partial<CreateMealDto>,
+    @Request() req: any,
+  ) {
+    return this.mealsService.updateMeal(req.user.id, id, updateMealDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a meal' })
+  @ApiResponse({ status: 200, description: 'Meal deleted successfully' })
+  async deleteMeal(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.mealsService.deleteMeal(req.user.id, id);
+  }
+
+  @Put(':id/items/:itemId')
+  @ApiOperation({ summary: 'Update a meal item (manual correction)' })
+  @ApiResponse({ status: 200, description: 'Meal item updated successfully' })
+  async updateMealItem(
+    @Param('id') mealId: string,
+    @Param('itemId') itemId: string,
+    @Body() updateItemDto: UpdateMealItemDto,
+    @Request() req: any,
+  ) {
+    return this.mealsService.updateMealItem(req.user.id, mealId, itemId, updateItemDto);
   }
 }
