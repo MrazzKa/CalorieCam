@@ -3,6 +3,8 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../prisma.service';
 import { FoodAnalyzerService } from './food-analyzer/food-analyzer.service';
+import { RedisService } from '../redis/redis.service';
+import { calculateHealthScore } from './food-health-score.util';
 
 @Injectable()
 export class FoodService {
@@ -10,6 +12,7 @@ export class FoodService {
     private readonly prisma: PrismaService,
     private readonly foodAnalyzer: FoodAnalyzerService,
     @InjectQueue('food-analysis') private readonly analysisQueue: Queue,
+    private readonly redisService: RedisService,
   ) {}
 
   async analyzeImage(file: any, userId: string) {
@@ -57,18 +60,44 @@ export class FoodService {
       },
     });
 
+    // Convert buffer to base64 for Bull queue serialization
+    // Bull queues serialize to JSON, which doesn't support Buffer directly
+    const imageBufferBase64 = imageBuffer.toString('base64');
+
     // Add to queue for processing
     await this.analysisQueue.add('analyze-image', {
       analysisId: analysis.id,
-      imageBuffer: imageBuffer,
+      imageBufferBase64: imageBufferBase64,
       userId,
     });
+
+    // Increment daily limit counter after successful analysis creation
+    await this.incrementDailyLimit(userId, 'food');
 
     return {
       analysisId: analysis.id,
       status: 'PENDING',
       message: 'Analysis started. Results will be available shortly.',
     };
+  }
+
+  private async incrementDailyLimit(userId: string, resource: 'food' | 'chat') {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const key = `daily:${resource}:${userId}:${today}`;
+      
+      const currentCountStr = await this.redisService.get(key);
+      const currentCount = currentCountStr ? parseInt(currentCountStr) : 0;
+      
+      const resetTime = new Date();
+      resetTime.setHours(24, 0, 0, 0);
+      const ttl = Math.floor((resetTime.getTime() - Date.now()) / 1000);
+      
+      await this.redisService.set(key, (currentCount + 1).toString(), ttl > 0 ? ttl : 86400);
+    } catch (error) {
+      console.error('Error incrementing daily limit:', error);
+      // Don't throw - limit increment failure shouldn't block analysis
+    }
   }
 
   async analyzeText(description: string, userId: string) {
@@ -94,6 +123,9 @@ export class FoodService {
       description: description.trim(),
       userId,
     });
+
+    // Increment daily limit counter after successful analysis creation
+    await this.incrementDailyLimit(userId, 'food');
 
     return {
       analysisId: analysis.id,
@@ -184,6 +216,15 @@ export class FoodService {
     const totalCarbs = ingredients.reduce((sum: number, ing: any) => sum + (ing.carbs || 0), 0);
     const totalFat = ingredients.reduce((sum: number, ing: any) => sum + (ing.fat || 0), 0);
 
+    // Calculate Health Score
+    const healthScore = calculateHealthScore({
+      calories: totalCalories,
+      protein: totalProtein,
+      carbs: totalCarbs,
+      fat: totalFat,
+      items: items,
+    });
+
     return {
       dishName: items.length > 0 ? (items[0].label || 'Food Analysis') : 'Food Analysis',
       totalCalories,
@@ -191,6 +232,12 @@ export class FoodService {
       totalCarbs,
       totalFat,
       ingredients,
+      healthScore: {
+        score: healthScore.score,
+        grade: healthScore.grade,
+        factors: healthScore.factors,
+        feedback: healthScore.feedback,
+      },
     };
   }
 

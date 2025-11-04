@@ -52,18 +52,19 @@ export const ThemeProvider = ({ children }) => {
   const colors = isDark ? {
     background: '#000000',
     surface: '#1C1C1E',
-    primary: '#007AFF',
+    primary: '#4DA3FF',
     secondary: '#5856D6',
     text: '#FFFFFF',
     textSecondary: '#EBEBF5',
-    textTertiary: '#EBEBF599',
+    textTertiary: '#9BA1A6',
     border: '#38383A',
     error: '#FF3B30',
     success: '#34C759',
     warning: '#FF9500',
     card: '#1C1C1E',
-    input: '#2C2C2E',
+    input: '#FFFFFF',
     inputBackground: '#2C2C2E',
+    tabBackground: '#1C1C1E',
     shadow: '#000000',
   } : {
     background: '#F2F2F7',
@@ -80,6 +81,7 @@ export const ThemeProvider = ({ children }) => {
     card: '#FFFFFF',
     input: '#1C1C1E',
     inputBackground: '#F8F9FA',
+    tabBackground: '#FFFFFF',
     shadow: '#000000',
   };
 

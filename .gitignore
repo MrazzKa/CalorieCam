@@ -274,3 +274,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# USDA Data
+data/usda/**
+!data/usda/README.md

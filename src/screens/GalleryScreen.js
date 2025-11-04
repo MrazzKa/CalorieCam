@@ -11,23 +11,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useI18n } from '../i18n/hooks';
 import { PADDING, SPACING } from '../utils/designConstants';
 
 export default function GalleryScreen() {
   const navigation = useNavigation();
+  const { t } = useI18n();
   const [hasPermission, setHasPermission] = useState(null);
   const [images, setImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   console.log('GalleryScreen loaded');
 
-  useEffect(() => {
-    // Request permissions first, then open picker
-    getMediaLibraryPermissions();
-  }, []);
+  const [openedOnce, setOpenedOnce] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!openedOnce) {
+        // Request permissions first, then open picker (on focus to avoid iOS hangs)
+        getMediaLibraryPermissions();
+        setOpenedOnce(true);
+      }
+      return () => {};
+    }, [openedOnce])
+  );
 
   const getMediaLibraryPermissions = async () => {
     try {
@@ -81,7 +91,7 @@ export default function GalleryScreen() {
       console.log('[GalleryScreen] Launching image library...');
       
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: false,
         quality: 0.8,
         allowsEditing: false,
@@ -93,7 +103,7 @@ export default function GalleryScreen() {
         hasAssets: !!result.assets?.[0],
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
         console.log('[GalleryScreen] Image selected, compressing...');
         
@@ -105,38 +115,39 @@ export default function GalleryScreen() {
         );
 
         console.log('[GalleryScreen] Image compressed, navigating...');
+        setIsLoading(false);
         // Navigate to analysis results with the image
         navigation.navigate('AnalysisResults', {
           imageUri: compressedImage.uri,
           source: 'gallery',
         });
       } else {
-        // User cancelled, go back
+        // User cancelled, go back immediately
         console.log('[GalleryScreen] User cancelled or no image selected');
+        setIsLoading(false);
         navigation.goBack();
       }
     } catch (error) {
       console.error('[GalleryScreen] Error loading images:', error);
+      setIsLoading(false);
       
       // Check if it's a permission error
       if (error.code === 'E_PERMISSION_MISSING' || error.message?.includes('permission')) {
         Alert.alert(
-          'Доступ к галерее',
-          'Для выбора фото необходимо предоставить доступ к галерее. Откройте настройки и разрешите доступ к фото.',
+          t('gallery.accessDenied'),
+          t('gallery.accessDeniedText'),
           [
-            { text: 'Отмена', onPress: () => navigation.goBack(), style: 'cancel' },
-            { text: 'Настройки', onPress: () => {
+            { text: t('common.cancel'), onPress: () => navigation.goBack(), style: 'cancel' },
+            { text: t('gallery.settings'), onPress: () => {
               // On iOS, can't open settings directly, but Expo handles it
               navigation.goBack();
             }},
           ]
         );
       } else {
-        Alert.alert('Ошибка', 'Не удалось загрузить изображение. Попробуйте еще раз.');
+        Alert.alert(t('common.error'), t('gallery.error'));
         navigation.goBack();
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 

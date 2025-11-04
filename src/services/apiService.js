@@ -357,23 +357,23 @@ class ApiService {
   // Articles
   async getArticlesFeed(page = 1, pageSize = 20) {
     return this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
-  },
+  }
 
   async getFeaturedArticles() {
     return this.request('/articles/featured');
-  },
+  }
 
   async getArticleBySlug(slug) {
     return this.request(`/articles/slug/${slug}`);
-  },
+  }
 
   async searchArticles(query, page = 1, pageSize = 20) {
     return this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
-  },
+  }
 
   async getArticlesByTag(tag, page = 1, pageSize = 20) {
     return this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
-  },
+  }
 }
 
 export default new ApiService();

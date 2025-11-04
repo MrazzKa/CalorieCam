@@ -216,3 +216,100 @@ model Article {
   @@index([tags])
   @@map("articles")
 }
+
+enum FoodSource {
+  USDA_LOCAL
+  USDA_API
+}
+
+model Food {
+  id            String   @id @default(uuid())
+  fdcId         Int      @unique
+  dataType      String
+  description   String
+  brandOwner    String?  @map("brand_owner")
+  gtinUpc       String?  @unique @map("gtin_upc")
+  scientificName String? @map("scientific_name")
+  publishedAt   DateTime? @map("published_at")
+  updatedAt     DateTime? @map("updated_at")
+  source        FoodSource @default(USDA_LOCAL)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAtRow  DateTime @updatedAt @map("updated_at_row")
+
+  portions      FoodPortion[]
+  nutrients     FoodNutrient[]
+  label         LabelNutrients?
+  embedding     FoodEmbedding?
+
+  @@index([fdcId])
+  @@index([dataType])
+  @@index([description])
+  @@map("foods")
+}
+
+model FoodPortion {
+  id          String   @id @default(uuid())
+  foodId      String   @map("food_id")
+  gramWeight  Float    @map("gram_weight")
+  measureUnit String   @map("measure_unit")
+  modifier    String?
+  amount      Float?
+  food        Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([foodId])
+  @@map("food_portions")
+}
+
+model Nutrient {
+  id        Int     @id          // USDA nutrient.id
+  number    String?
+  name      String
+  unitName  String @map("unit_name")
+  rank      Int?
+  foods     FoodNutrient[]
+
+  @@map("nutrients")
+}
+
+model FoodNutrient {
+  id         String   @id @default(uuid())
+  foodId     String   @map("food_id")
+  nutrientId Int      @map("nutrient_id")
+  amount     Float
+  food       Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  nutrient   Nutrient @relation(fields: [nutrientId], references: [id], onDelete: Restrict)
+
+  @@unique([foodId, nutrientId])
+  @@index([foodId])
+  @@index([nutrientId])
+  @@map("food_nutrients")
+}
+
+model LabelNutrients {
+  foodId        String   @id @map("food_id")
+  calories      Float?
+  protein       Float?
+  fat           Float?
+  carbohydrates Float?
+  fiber         Float?
+  sugars        Float?
+  sodium        Float?
+  cholesterol   Float?
+  potassium     Float?
+  calcium       Float?
+  iron          Float?
+  food          Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@map("label_nutrients")
+}
+
+model FoodEmbedding {
+  foodId    String   @id @map("food_id")
+  embedding Bytes    // pgvector через Prisma: @db.Vector(1536), если включено; иначе хранить в Bytes и работать через сырой SQL
+  doc       String
+  ts        String?  // tsvector через raw SQL индекс
+  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@index([foodId])
+  @@map("food_embeddings")
+}

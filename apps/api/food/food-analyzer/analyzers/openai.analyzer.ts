@@ -12,6 +12,28 @@ export class OpenAiAnalyzer {
     });
   }
 
+  // Extract JSON from a response that may include markdown, code fences, or extra text
+  private extractJson(text: string): string {
+    // 1) Look for ```json ... ``` fenced block
+    const fencedJson = text.match(/```json\s*[\s\S]*?```/i);
+    if (fencedJson && fencedJson[0]) {
+      return fencedJson[0].replace(/```json/i, '').replace(/```$/, '').trim();
+    }
+    // 2) Look for any ``` ... ``` fenced block
+    const fenced = text.match(/```[\s\S]*?```/);
+    if (fenced && fenced[0]) {
+      return fenced[0].replace(/```/g, '').trim();
+    }
+    // 3) Fallback: extract substring between first { and last }
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      return text.slice(first, last + 1);
+    }
+    // 4) As a last resort, return original text (will fail fast in JSON.parse)
+    return text.trim();
+  }
+
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
@@ -77,9 +99,10 @@ export class OpenAiAnalyzer {
         throw new Error('No response from OpenAI');
       }
 
-      // Parse JSON response with better error handling
+      // Parse JSON from possible markdown/text response
       try {
-        const result = JSON.parse(content);
+        const jsonString = this.extractJson(content);
+        const result = JSON.parse(jsonString);
         if (!result.items || !Array.isArray(result.items)) {
           throw new Error('Invalid response format');
         }
@@ -147,9 +170,10 @@ export class OpenAiAnalyzer {
         throw new Error('No response from OpenAI');
       }
 
-      // Parse JSON response with better error handling
+      // Parse JSON from possible markdown/text response
       try {
-        const result = JSON.parse(content);
+        const jsonString = this.extractJson(content);
+        const result = JSON.parse(jsonString);
         if (!result.items || !Array.isArray(result.items)) {
           throw new Error('Invalid response format');
         }

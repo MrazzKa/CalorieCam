@@ -16,6 +16,7 @@ import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 const { width } = Dimensions.get('window');
@@ -23,6 +24,7 @@ const { width } = Dimensions.get('window');
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
@@ -45,6 +47,8 @@ export default function DashboardScreen() {
   useFocusEffect(
     React.useCallback(() => {
       loadStats();
+      loadArticles();
+      loadRecent();
     }, [selectedDate])
   );
 
@@ -79,6 +83,29 @@ export default function DashboardScreen() {
         totalFat: 0,
         goal: 2000,
       });
+    }
+  };
+
+  const loadArticles = async () => {
+    try {
+      const [featured, feed] = await Promise.all([
+        ApiService.getFeaturedArticles(),
+        ApiService.getArticlesFeed(1, 5),
+      ]);
+      setFeaturedArticles(Array.isArray(featured) ? featured.slice(0, 3) : []);
+      setFeedArticles(Array.isArray(feed?.articles) ? feed.articles.slice(0, 5) : []);
+    } catch (e) {
+      setFeaturedArticles([]);
+      setFeedArticles([]);
+    }
+  };
+
+  const loadRecent = async () => {
+    try {
+      const meals = await ApiService.getMeals();
+      setRecentItems(Array.isArray(meals) ? meals.slice(0, 5) : []);
+    } catch (e) {
+      setRecentItems([]);
     }
   };
 
@@ -118,6 +145,9 @@ export default function DashboardScreen() {
 
   const [showModal, setShowModal] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [featuredArticles, setFeaturedArticles] = useState([]);
+  const [feedArticles, setFeedArticles] = useState([]);
+  const [recentItems, setRecentItems] = useState([]);
 
   const handleCameraPress = () => {
     console.log('Camera button pressed - navigating to Camera');
@@ -192,8 +222,8 @@ export default function DashboardScreen() {
           <View style={styles.caloriesCircle}>
             <View style={styles.caloriesInner}>
               <Text style={styles.caloriesNumber}>{stats.totalCalories}</Text>
-              <Text style={styles.caloriesLabel}>calories</Text>
-              <Text style={styles.caloriesGoal}>of {stats.goal.toLocaleString()} goal</Text>
+              <Text style={styles.caloriesLabel}>{t('dashboard.calories')}</Text>
+              <Text style={styles.caloriesGoal}>{t('dashboard.ofGoal', { goal: stats.goal.toLocaleString() })}</Text>
             </View>
           </View>
         </MotiView>
@@ -212,7 +242,7 @@ export default function DashboardScreen() {
             style={styles.statItem}
           >
             <Text style={styles.statNumber}>{stats.totalProtein}g</Text>
-            <Text style={styles.statLabel}>Protein</Text>
+            <Text style={styles.statLabel}>{t('dashboard.protein')}</Text>
           </MotiView>
           <MotiView
             from={{ scale: 0.95, opacity: 0 }}
@@ -221,7 +251,7 @@ export default function DashboardScreen() {
             style={styles.statItem}
           >
             <Text style={styles.statNumber}>{stats.totalCarbs}g</Text>
-            <Text style={styles.statLabel}>Carbs</Text>
+            <Text style={styles.statLabel}>{t('dashboard.carbs')}</Text>
           </MotiView>
           <MotiView
             from={{ scale: 0.95, opacity: 0 }}
@@ -230,10 +260,61 @@ export default function DashboardScreen() {
             style={styles.statItem}
           >
             <Text style={styles.statNumber}>{stats.totalFat}g</Text>
-            <Text style={styles.statLabel}>Fat</Text>
+            <Text style={styles.statLabel}>{t('dashboard.fat')}</Text>
           </MotiView>
         </MotiView>
 
+
+        {/* Articles Preview */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 150 }}
+          style={{ paddingHorizontal: PADDING.screen, marginBottom: SPACING.xl }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
+            <Text style={[{ fontSize: 20, fontWeight: '600' }, { color: colors.text }]}>{t('dashboard.articles')}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Articles')}>
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('common.viewAll')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {featuredArticles.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.md }}>
+              {featuredArticles.map((a) => (
+                <TouchableOpacity
+                  key={a.id}
+                  style={[styles.articleCardSmall, { backgroundColor: colors.card }]}
+                  onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
+                >
+                  <View style={[styles.featuredBadgeSmall, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="star" size={12} color="#FFFFFF" />
+                  </View>
+                  <Text numberOfLines={2} style={[styles.articleTitleSmall, { color: colors.text }]}>{a.title}</Text>
+                  {a.excerpt ? (
+                    <Text numberOfLines={2} style={[styles.articleExcerptSmall, { color: colors.textSecondary }]}>{a.excerpt}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {feedArticles.map((a) => (
+            <TouchableOpacity
+              key={a.id}
+              style={[styles.articleRow, { backgroundColor: colors.card }]}
+              onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
+            >
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={2} style={[styles.articleRowTitle, { color: colors.text }]}>{a.title}</Text>
+                {a.excerpt ? (
+                  <Text numberOfLines={2} style={[styles.articleRowExcerpt, { color: colors.textSecondary }]}>{a.excerpt}</Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          ))}
+        </MotiView>
 
         {/* AI Assistant Button */}
         <View style={styles.aiAssistantContainer}>
@@ -245,9 +326,9 @@ export default function DashboardScreen() {
               <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
             </View>
             <View style={styles.aiAssistantContent}>
-              <Text style={[styles.aiAssistantTitle, { color: colors.text }]}>AI Assistant</Text>
+              <Text style={[styles.aiAssistantTitle, { color: colors.text }]}>{t('dashboard.aiAssistant')}</Text>
               <Text style={[styles.aiAssistantSubtitle, { color: colors.textSecondary }]}>
-                Get personalized nutrition advice
+                {t('dashboard.aiAssistantSubtitle')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
@@ -256,14 +337,30 @@ export default function DashboardScreen() {
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
-          <Text style={[styles.recentTitle, { color: colors.text }]}>Recent</Text>
-          <View style={[styles.recentEmpty, { backgroundColor: colors.card }]}>
-            <Ionicons name="restaurant" size={48} color={colors.textTertiary} />
-            <Text style={[styles.recentEmptyText, { color: colors.textSecondary }]}>No recent items</Text>
-            <Text style={[styles.recentEmptySubtext, { color: colors.textTertiary }]}>
-              Start by taking a photo of your meal
-            </Text>
-          </View>
+          <Text style={[styles.recentTitle, { color: colors.text }]}>{t('dashboard.recent')}</Text>
+          {recentItems && recentItems.length > 0 ? (
+            recentItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.articleRow, { backgroundColor: colors.card }]}
+                onPress={() => navigation.navigate('AnalysisResults', { analysisResult: item, readOnly: true })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={[styles.articleRowTitle, { color: colors.text }]}>{item.name || item.dishName || 'Meal'}</Text>
+                  <Text numberOfLines={1} style={[styles.articleRowExcerpt, { color: colors.textSecondary }]}>
+                    {`${item.totalCalories ?? item.calories ?? 0} kcal • P ${item.totalProtein ?? item.protein ?? 0} • C ${item.totalCarbs ?? item.carbs ?? 0} • F ${item.totalFat ?? item.fat ?? 0}`}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={[styles.recentEmpty, { backgroundColor: colors.card }]}>
+              <Ionicons name="restaurant" size={48} color={colors.textTertiary} />
+              <Text style={[styles.recentEmptyText, { color: colors.textSecondary }]}>No recent items</Text>
+              <Text style={[styles.recentEmptySubtext, { color: colors.textTertiary }]}>Start by taking a photo of your meal</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -622,5 +719,45 @@ const styles = StyleSheet.create({
   aiAssistantSubtitle: {
     fontSize: 14,
     color: '#8E8E93',
+  },
+  articleCardSmall: {
+    width: 200,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginRight: SPACING.md,
+    ...SHADOW.sm,
+  },
+  featuredBadgeSmall: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  articleTitleSmall: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  articleExcerptSmall: {
+    fontSize: 13,
+  },
+  articleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOW.sm,
+  },
+  articleRowTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  articleRowExcerpt: {
+    fontSize: 13,
   },
 });

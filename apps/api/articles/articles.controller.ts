@@ -1,12 +1,10 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Articles')
 @Controller('articles')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+// Articles are public - no authentication required
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 

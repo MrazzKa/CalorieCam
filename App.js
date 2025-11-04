@@ -11,6 +11,7 @@ import ApiService from './src/services/apiService';
 import { DEV_TOKEN, DEV_REFRESH_TOKEN, API_BASE_URL } from './src/config/env';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from './src/contexts/ThemeContext';
 
 // Import screens
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -27,6 +28,7 @@ import ArticlesScreen from './src/screens/ArticlesScreen';
 import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
 import AuthScreen from './src/components/AuthScreen';
 import { AppWrapper } from './src/components/AppWrapper';
+import './src/i18n/config';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -58,6 +60,7 @@ export const testAPIConnection = async () => {
 };
 
 function MainTabs() {
+  const { colors, isDark } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -66,6 +69,8 @@ function MainTabs() {
 
           if (route.name === 'Dashboard') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Articles') {
+            iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'Recently') {
             iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Profile') {
@@ -74,12 +79,12 @@ function MainTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.tabBackground || (isDark ? '#1C1C1E' : '#FFFFFF'),
           borderTopWidth: 1,
-          borderTopColor: '#E5E5E7',
+          borderTopColor: colors.border,
           paddingBottom: 5,
           paddingTop: 5,
           height: 60,
@@ -88,6 +93,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Articles" component={ArticlesScreen} />
       <Tab.Screen name="Recently" component={RecentlyScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

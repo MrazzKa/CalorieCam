@@ -13,12 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../i18n/hooks';
 import ApiService from '../services/apiService';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function ArticlesScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [articles, setArticles] = useState([]);
   const [featured, setFeatured] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,7 +119,7 @@ export default function ArticlesScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Статьи</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('articles.title')}</Text>
         <View style={styles.headerPlaceholder} />
       </View>
 
@@ -126,7 +128,7 @@ export default function ArticlesScreen() {
         <Ionicons name="search" size={20} color={colors.textTertiary} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.text, backgroundColor: colors.inputBackground }]}
-          placeholder="Поиск статей..."
+          placeholder={t('articles.searchPlaceholder')}
           placeholderTextColor={colors.textTertiary}
           value={searchQuery}
           onChangeText={handleSearch}
@@ -153,7 +155,7 @@ export default function ArticlesScreen() {
             transition={{ delay: 100 }}
           >
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Рекомендуемое</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('articles.featured')}</Text>
               {featured.map((article, index) => renderArticleCard(article, index, true))}
             </View>
           </MotiView>
@@ -162,11 +164,11 @@ export default function ArticlesScreen() {
         {/* Articles List */}
         <View style={styles.section}>
           {!searchQuery && (
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Все статьи</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('articles.allArticles')}</Text>
           )}
           {searchQuery && (
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              {isSearching ? 'Поиск...' : `Найдено: ${searchResults.length}`}
+                    {isSearching ? t('articles.searching') : t('articles.found', { count: searchResults.length })}
             </Text>
           )}
           
@@ -174,7 +176,7 @@ export default function ArticlesScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {searchQuery ? 'Статьи не найдены' : 'Статьи скоро появятся'}
+                {searchQuery ? t('articles.noArticles') : t('articles.comingSoon')}
               </Text>
             </View>
           )}

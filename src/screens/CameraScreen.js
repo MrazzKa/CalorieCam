@@ -20,7 +20,7 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(false);
   const cameraRef = useRef(null);
-  const [zoom, setZoom] = useState(0.5); // Start at middle zoom level
+  const [zoom, setZoom] = useState(0); // Start at minimum zoom level
   const [facing, setFacing] = useState('back');
   const [flashMode, setFlashMode] = useState('off');
 

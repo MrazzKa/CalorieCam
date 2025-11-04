@@ -185,7 +185,9 @@ const OnboardingScreen = ({ navigation }) => {
     const [tempValue, setTempValue] = useState(clampedValue);
     useEffect(() => {
       const newValue = Math.max(minimumValue, Math.min(maximumValue, value));
-      setTempValue(newValue);
+      if (Math.abs(newValue - tempValue) > 0.1) { // Only update if significant change
+        setTempValue(newValue);
+      }
     }, [value, minimumValue, maximumValue]);
     return (
       <View style={styles.interactiveSliderContainer}>

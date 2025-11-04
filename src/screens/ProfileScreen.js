@@ -15,11 +15,15 @@ import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../i18n/hooks';
+import { LanguageSelector } from '../components/LanguageSelector';
+import { saveLanguage } from '../i18n/config';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const { isDark, colors, themeMode, toggleTheme } = useTheme();
+  const { t, language } = useI18n();
   const [userProfile, setUserProfile] = useState({
     firstName: '',
     lastName: '',
@@ -155,10 +159,10 @@ export default function ProfileScreen() {
       style={styles.section}
     >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Profile</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('profile.title')}</Text>
         <TouchableOpacity onPress={handleProfileUpdate}>
           <Text style={styles.editButton}>
-            {isEditing ? 'Save' : 'Edit'}
+            {isEditing ? t('common.save') : t('common.edit')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -347,7 +351,7 @@ export default function ProfileScreen() {
       style={styles.section}
     >
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Settings</Text>
+        <Text style={styles.sectionTitle}>{t('profile.settings')}</Text>
       </View>
       
       <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
@@ -355,8 +359,8 @@ export default function ProfileScreen() {
           <View style={styles.settingInfo}>
             <Ionicons name="notifications" size={24} color={colors.primary} />
             <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Notifications</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Receive meal reminders</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.notifications')}</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.notificationsSubtitle')}</Text>
             </View>
           </View>
           <Switch
@@ -371,9 +375,9 @@ export default function ProfileScreen() {
           <View style={styles.settingInfo}>
             <Ionicons name={isDark ? "moon" : "sunny"} size={24} color={colors.secondary} />
             <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.settingTitle, { color: colors.text }]}>{t('profile.darkMode')}</Text>
               <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
-                {themeMode === 'system' ? 'Следовать системной теме' : isDark ? 'Темная тема' : 'Светлая тема'}
+                {themeMode === 'system' ? t('profile.systemTheme') : isDark ? t('profile.darkModeSubtitle') : t('profile.lightMode')}
               </Text>
             </View>
           </View>
@@ -401,8 +405,8 @@ export default function ProfileScreen() {
           <View style={styles.settingInfo}>
             <Ionicons name="sync" size={24} color={colors.success} />
             <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Auto Sync</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Sync data automatically</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.autoSync')}</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.autoSyncSubtitle')}</Text>
             </View>
           </View>
           <Switch
@@ -417,8 +421,8 @@ export default function ProfileScreen() {
           <View style={styles.settingInfo}>
             <Ionicons name="analytics" size={24} color={colors.warning} />
             <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Data Sharing</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>Help improve the app</Text>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.dataSharing')}</Text>
+              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.dataSharingSubtitle')}</Text>
             </View>
           </View>
           <Switch
@@ -429,7 +433,7 @@ export default function ProfileScreen() {
           />
         </View>
       </View>
-    </View>
+    </MotiView>
   );
 
   const renderAccountSection = () => (
@@ -440,28 +444,17 @@ export default function ProfileScreen() {
       style={styles.section}
     >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Account</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('profile.account')}</Text>
       </View>
       
       <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
-        <TouchableOpacity
-          style={[styles.settingItem, dynamicStyles.settingItem]}
-          onPress={() => navigation.navigate('Articles')}
-        >
-          <View style={styles.settingInfo}>
-            <Ionicons name="book" size={24} color={colors.primary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Статьи</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.settingItem, dynamicStyles.settingItem]}
           onPress={() => navigation.navigate('HelpSupport')}
         >
           <View style={styles.settingInfo}>
             <Ionicons name="help-circle" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Help & Support</Text>
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.helpSupport')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
@@ -472,7 +465,7 @@ export default function ProfileScreen() {
         >
           <View style={styles.settingInfo}>
             <Ionicons name="document-text" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Privacy Policy</Text>
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.privacyPolicy')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
@@ -483,22 +476,37 @@ export default function ProfileScreen() {
         >
           <View style={styles.settingInfo}>
             <Ionicons name="shield-checkmark" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>Terms of Service</Text>
+            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.termsOfService')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
+        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
+          <View style={styles.settingInfo}>
+            <Ionicons name="language" size={24} color={colors.textTertiary} />
+            <View style={styles.settingText}>
+              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.language')}</Text>
+            </View>
+          </View>
+          <LanguageSelector
+            selectedLanguage={language}
+            onLanguageChange={async (langCode) => {
+              await saveLanguage(langCode);
+            }}
+          />
+        </View>
+
+        <TouchableOpacity style={[styles.settingItem, dynamicStyles.settingItem]} onPress={handleLogout}>
           <View style={styles.settingInfo}>
             <Ionicons name="log-out" size={24} color="#FF3B30" />
-            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>Logout</Text>
+            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>{t('profile.logout')}</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleDeleteAccount}>
+        <TouchableOpacity style={[styles.settingItem, dynamicStyles.settingItem, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
           <View style={styles.settingInfo}>
             <Ionicons name="trash" size={24} color="#FF3B30" />
-            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>Delete Account</Text>
+            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>{t('profile.deleteAccount')}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -622,6 +630,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    backgroundColor: 'transparent', // Ensure transparent background
   },
   themeControls: {
     flexDirection: 'row',

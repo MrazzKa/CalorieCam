@@ -19,7 +19,13 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.caloriecam.app",
       infoPlist: {
-        ITSAppUsesNonExemptEncryption: false
+        ITSAppUsesNonExemptEncryption: false,
+        NSCameraUsageDescription: "CalorieCam needs access to your camera to take photos of food for nutrition analysis.",
+        NSPhotoLibraryUsageDescription: "CalorieCam needs access to your photo library to select food photos for nutrition analysis.",
+        NSPhotoLibraryAddUsageDescription: "CalorieCam needs access to save analyzed food photos to your library.",
+        NSLocationWhenInUseUsageDescription: "CalorieCam may use your location to provide location-based nutrition recommendations (optional).",
+        NSHealthShareUsageDescription: "CalorieCam can integrate with HealthKit to sync nutrition data (optional).",
+        NSHealthUpdateUsageDescription: "CalorieCam can update HealthKit with your nutrition data (optional)."
       },
       associatedDomains: [
         "applinks:caloriecam.app",
@@ -32,6 +38,14 @@ export default {
         backgroundColor: "#FFFFFF"
       },
       package: "com.caloriecam.app",
+      permissions: [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
       intentFilters: [
         {
           action: "VIEW",

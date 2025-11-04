@@ -13,10 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
+import { useTheme } from '../contexts/ThemeContext';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export default function RecentlyScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   
   // Mock data - in real app this would come from database
@@ -94,7 +96,7 @@ export default function RecentlyScreen() {
       transition={{ type: 'spring', damping: 15, delay: index * 50 }}
     >
       <TouchableOpacity
-        style={styles.recentItem}
+        style={[styles.recentItem, { backgroundColor: colors.card }]}
         onPress={() => {
           // Navigate to detailed view
           navigation.navigate('AnalysisResults', {
@@ -108,44 +110,44 @@ export default function RecentlyScreen() {
       
       <View style={styles.itemContent}>
         <View style={styles.itemHeader}>
-          <Text style={styles.itemName}>{item.dishName}</Text>
-          <Text style={styles.itemDate}>{formatDate(item.date)}</Text>
+          <Text style={[styles.itemName, { color: colors.text }]}>{item.dishName}</Text>
+          <Text style={[styles.itemDate, { color: colors.textSecondary }]}>{formatDate(item.date)}</Text>
         </View>
         
         <View style={styles.itemNutrition}>
           <View style={styles.nutritionItem}>
-            <Text style={styles.nutritionValue}>{item.calories}</Text>
-            <Text style={styles.nutritionLabel}>cal</Text>
+            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.calories}</Text>
+            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>cal</Text>
           </View>
           <View style={styles.nutritionItem}>
-            <Text style={styles.nutritionValue}>{item.protein}g</Text>
-            <Text style={styles.nutritionLabel}>protein</Text>
+            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.protein}g</Text>
+            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>protein</Text>
           </View>
           <View style={styles.nutritionItem}>
-            <Text style={styles.nutritionValue}>{item.carbs}g</Text>
-            <Text style={styles.nutritionLabel}>carbs</Text>
+            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.carbs}g</Text>
+            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>carbs</Text>
           </View>
           <View style={styles.nutritionItem}>
-            <Text style={styles.nutritionValue}>{item.fat}g</Text>
-            <Text style={styles.nutritionLabel}>fat</Text>
+            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.fat}g</Text>
+            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>fat</Text>
           </View>
         </View>
       </View>
       
-      <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+      <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
     </TouchableOpacity>
     </MotiView>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="restaurant-outline" size={64} color="#C7C7CC" />
-      <Text style={styles.emptyTitle}>No Recent Items</Text>
-      <Text style={styles.emptySubtitle}>
+      <Ionicons name="restaurant-outline" size={64} color={colors.textTertiary} />
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>No Recent Items</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
         Start by analyzing your first meal
       </Text>
       <TouchableOpacity
-        style={styles.emptyButton}
+        style={[styles.emptyButton, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate('Camera')}
       >
         <Text style={styles.emptyButtonText}>Analyze Food</Text>
@@ -154,16 +156,16 @@ export default function RecentlyScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Recently</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Recently</Text>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => {
             // Show filter options
           }}
         >
-          <Ionicons name="options-outline" size={24} color="#007AFF" />
+          <Ionicons name="options-outline" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -172,7 +174,7 @@ export default function RecentlyScreen() {
           data={recentItems}
           renderItem={renderRecentItem}
           keyExtractor={(item, index) => item.id || `item-${index}`}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { backgroundColor: colors.background }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

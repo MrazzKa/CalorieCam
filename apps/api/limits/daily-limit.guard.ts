@@ -62,9 +62,13 @@ export class DailyLimitGuard implements CanActivate {
       );
     }
 
-    // Increment count
-    const ttl = Math.floor((resetTime.getTime() - Date.now()) / 1000);
-    await this.redisService.set(key, (currentCount + 1).toString(), ttl > 0 ? ttl : 86400);
+    // Store limit info in request for later increment (after successful analysis)
+    request.dailyLimit = {
+      key,
+      currentCount,
+      resetTime,
+      resource: options.resource,
+    };
 
     return true;
   }

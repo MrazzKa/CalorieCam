@@ -13,10 +13,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [editedItem, setEditedItem] = useState({
     name: item?.name || '',
     calories: item?.calories?.toString() || '0',
@@ -101,8 +103,8 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
           >
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
               <View>
-                <Text style={[styles.title, { color: colors.text }]}>Редактировать ингредиент</Text>
-                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Внесите изменения и сохраните</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t('editFood.title')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('editFood.subtitle')}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -112,12 +114,12 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
               {/* Food Name */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Название</Text>
+                <Text style={[styles.label, { color: colors.text }]}>{t('editFood.name')}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.input, borderColor: colors.border }]}
                   value={editedItem.name}
                   onChangeText={(text) => setEditedItem({ ...editedItem, name: text })}
-                  placeholder="Название продукта"
+                  placeholder={t('editFood.namePlaceholder')}
                   placeholderTextColor={colors.textTertiary}
                 />
               </View>
@@ -125,8 +127,8 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
               {/* Weight */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={[styles.label, { color: colors.text }]}>Вес (г)</Text>
-                  <Text style={[styles.labelHint, { color: colors.textSecondary }]}>Масса порции</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>{t('editFood.weight')}</Text>
+                  <Text style={[styles.labelHint, { color: colors.textSecondary }]}>{t('editFood.weightHint')}</Text>
                 </View>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.input, borderColor: colors.border }]}
@@ -140,14 +142,14 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
 
               {/* Macros Section */}
               <View style={styles.macrosSection}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Макронутриенты</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('editFood.macronutrients')}</Text>
                 
                 <View style={styles.macrosGrid}>
                   <View style={[styles.macroCard, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                     <View style={[styles.macroIcon, { backgroundColor: '#FF3B3015' }]}>
                       <Ionicons name="flame" size={20} color="#FF3B30" />
                     </View>
-                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Белки</Text>
+                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('editFood.protein')}</Text>
                     <TextInput
                       style={[styles.macroInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
                       value={editedItem.protein}
@@ -156,14 +158,14 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                       placeholderTextColor={colors.textTertiary}
                       keyboardType="decimal-pad"
                     />
-                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>г</Text>
+                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>g</Text>
                   </View>
 
                   <View style={[styles.macroCard, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                     <View style={[styles.macroIcon, { backgroundColor: '#34C75915' }]}>
                       <Ionicons name="leaf" size={20} color="#34C759" />
                     </View>
-                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Углеводы</Text>
+                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('editFood.carbs')}</Text>
                     <TextInput
                       style={[styles.macroInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
                       value={editedItem.carbs}
@@ -172,14 +174,14 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                       placeholderTextColor={colors.textTertiary}
                       keyboardType="decimal-pad"
                     />
-                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>г</Text>
+                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>g</Text>
                   </View>
 
                   <View style={[styles.macroCard, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                     <View style={[styles.macroIcon, { backgroundColor: '#FF950015' }]}>
                       <Ionicons name="water" size={20} color="#FF9500" />
                     </View>
-                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Жиры</Text>
+                    <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('editFood.fat')}</Text>
                     <TextInput
                       style={[styles.macroInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
                       value={editedItem.fat}
@@ -188,7 +190,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                       placeholderTextColor={colors.textTertiary}
                       keyboardType="decimal-pad"
                     />
-                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>г</Text>
+                    <Text style={[styles.macroUnit, { color: colors.textTertiary }]}>g</Text>
                   </View>
                 </View>
               </View>
@@ -196,7 +198,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
               {/* Calories - Auto-calculated or manual */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={[styles.label, { color: colors.text }]}>Калории (ккал)</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>{t('editFood.calories')}</Text>
                   <TouchableOpacity
                     onPress={() => {
                       const calculated = calculateCalories();
@@ -204,7 +206,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                     }}
                   >
                     <Text style={[styles.autoCalcButton, { color: colors.primary }]}>
-                      {editedItem.calories !== autoCalculatedCalories.toString() && `Рассчитать: ${autoCalculatedCalories}`}
+                      {editedItem.calories !== autoCalculatedCalories.toString() && t('editFood.calculate', { value: autoCalculatedCalories })}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -217,18 +219,18 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                   keyboardType="decimal-pad"
                 />
                 {autoCalculatedCalories > 0 && editedItem.calories === autoCalculatedCalories.toString() && (
-                  <Text style={[styles.calculatedHint, { color: colors.success }]}>Рассчитано автоматически из макронутриентов</Text>
+                  <Text style={[styles.calculatedHint, { color: colors.success }]}>{t('editFood.calculatedAuto')}</Text>
                 )}
               </View>
             </ScrollView>
 
             <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
               <TouchableOpacity style={[styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.surface }]} onPress={onClose}>
-                <Text style={[styles.cancelButtonText, { color: colors.text }]}>Отмена</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
                 <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                <Text style={styles.saveButtonText}>Сохранить</Text>
+                <Text style={styles.saveButtonText}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </MotiView>

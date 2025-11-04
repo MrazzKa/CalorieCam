@@ -20,6 +20,11 @@ import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { UserProfilesModule } from './user-profiles/user-profiles.module';
 import { LimitsModule } from './limits/limits.module';
 import { FdcModule } from './src/fdc/fdc.module';
+import { FdcApiModule } from './src/fdc/api/fdc-api.module';
+import { HybridModule } from './src/fdc/hybrid/hybrid.module';
+import { AnalysisModule } from './src/analysis/analysis.module';
+import { FdcIntegrationsModule } from './src/fdc/integrations/fdc-integrations.module';
+import { FdcSchedulerModule } from './src/fdc/scheduler/fdc-scheduler.module';
 import { ArticlesModule } from './articles/articles.module';
 import { HealthController } from './health.controller';
 import { configSchema } from './src/config/config.schema';
@@ -62,6 +67,11 @@ import { configSchema } from './src/config/config.schema';
     UserProfilesModule,
     LimitsModule,
     FdcModule,
+    FdcApiModule,
+    HybridModule,
+    AnalysisModule,
+    FdcIntegrationsModule,
+    FdcSchedulerModule,
     ArticlesModule,
   ],
   controllers: [HealthController],
