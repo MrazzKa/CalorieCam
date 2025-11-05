@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { StreamValues } from 'stream-json/streamers/StreamValues';
-import { chain } from 'stream-json';
+const Chain = require('stream-chain');
+const StreamValues = require('stream-json/streamers/StreamValues');
 import * as z from 'zod';
 import { randomUUID } from 'crypto';
 
@@ -138,13 +138,24 @@ async function importFood(foodData: any, dataType: string) {
     await prisma.foodPortion.deleteMany({ where: { foodId } });
     
     await prisma.foodPortion.createMany({
-      data: validated.foodPortions.map((p: any) => ({
-        foodId,
-        gramWeight: p.gramWeight || 0,
-        measureUnit: p.measureUnit || '',
-        modifier: p.modifier || null,
-        amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
-      })),
+      data: validated.foodPortions.map((p: any) => {
+        // Extract measureUnit string from object if needed
+        let measureUnitStr = '';
+        if (typeof p.measureUnit === 'string') {
+          measureUnitStr = p.measureUnit;
+        } else if (p.measureUnit && typeof p.measureUnit === 'object') {
+          // Use abbreviation if available, otherwise name
+          measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
+        }
+        
+        return {
+          foodId,
+          gramWeight: p.gramWeight || 0,
+          measureUnit: measureUnitStr,
+          modifier: p.modifier || null,
+          amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
+        };
+      }),
     });
   }
 
@@ -257,36 +268,71 @@ async function main() {
     let batch: any[] = [];
     const BATCH_SIZE = 500;
 
-    const pipeline = chain([
+    const pipeline = new Chain([
       fs.createReadStream(file),
       StreamValues.withParser(),
-    ] as any);
+    ]);
 
     pipeline.on('data', async (data: any) => {
-      // StreamValues returns objects with 'value' property containing the food item
-      const foodData = data?.value || data;
-      if (foodData && typeof foodData === 'object' && ('fdcId' in foodData || 'fdc_id' in foodData)) {
-        // Normalize fdc_id to fdcId if needed
-        if ('fdc_id' in foodData && !('fdcId' in foodData)) {
-          foodData.fdcId = foodData.fdc_id;
+      // StreamValues returns objects with 'value' property
+      const value = data?.value;
+      
+      if (!value || typeof value !== 'object') {
+        return;
+      }
+      
+      // USDA JSON files have structure: { FoundationFoods: [...], FNDDS: [...], etc }
+      // Extract array based on data type
+      let foodsArray: any[] = [];
+      
+      if (type === 'Foundation' && value.FoundationFoods && Array.isArray(value.FoundationFoods)) {
+        foodsArray = value.FoundationFoods;
+      } else if (type === 'FNDDS' && value.FNDDS && Array.isArray(value.FNDDS)) {
+        foodsArray = value.FNDDS;
+      } else if (type === 'SRLegacy' && value.SRLegacy && Array.isArray(value.SRLegacy)) {
+        foodsArray = value.SRLegacy;
+      } else if (type === 'Branded' && value.BrandedFoods && Array.isArray(value.BrandedFoods)) {
+        foodsArray = value.BrandedFoods;
+      } else if (Array.isArray(value)) {
+        // Fallback: if value is already an array
+        foodsArray = value;
+      } else if (value.fdcId || value.fdc_id) {
+        // Single food object
+        foodsArray = [value];
+      } else {
+        // Debug: log structure if no match
+        if (count < 3) {
+          console.log('Unknown data structure:', Object.keys(value).slice(0, 10));
         }
-        batch.push(foodData);
-        
-        if (batch.length >= BATCH_SIZE) {
-          const batchCopy = [...batch];
-          batch = [];
+        return;
+      }
+      
+      // Process each food in the array
+      for (const foodData of foodsArray) {
+        if (foodData && typeof foodData === 'object' && (foodData.fdcId || foodData.fdc_id)) {
+          // Normalize to fdcId
+          if (!foodData.fdcId && foodData.fdc_id) {
+            foodData.fdcId = foodData.fdc_id;
+          }
           
-          for (const foodData of batchCopy) {
-            try {
-              await importFood(foodData, type);
-              count++;
-              
-              if (count % 100 === 0) {
-                console.log(`  Processed ${count} foods...`);
+          batch.push(foodData);
+          
+          if (batch.length >= BATCH_SIZE) {
+            const batchCopy = [...batch];
+            batch = [];
+            
+            for (const foodItem of batchCopy) {
+              try {
+                await importFood(foodItem, type);
+                count++;
+                
+                if (count % 100 === 0) {
+                  console.log(`  Processed ${count} foods...`);
+                }
+              } catch (error: any) {
+                const fdcId = foodItem?.fdcId || foodItem?.fdc_id || 'unknown';
+                console.error(`Error importing food ${fdcId}:`, error.message);
               }
-            } catch (error: any) {
-              const fdcId = foodData?.fdcId || foodData?.fdc_id || 'unknown';
-              console.error(`Error importing food ${fdcId}:`, error.message);
             }
           }
         }

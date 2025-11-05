@@ -6,8 +6,8 @@ enum FoodSource {
 }
 import * as fs from 'fs';
 import * as path from 'path';
-import { StreamValues } from 'stream-json/streamers/StreamValues';
-import { chain } from 'stream-json';
+const Chain = require('stream-chain');
+const StreamValues = require('stream-json/streamers/StreamValues');
 import * as z from 'zod';
 
 const prisma = new PrismaClient();
@@ -107,13 +107,24 @@ async function importFood(foodData: any, dataType: string) {
     await prisma.foodPortion.deleteMany({ where: { foodId: food.id } });
     
     await prisma.foodPortion.createMany({
-      data: validated.foodPortions.map((p: any) => ({
-        foodId: food.id,
-        gramWeight: p.gramWeight || 0,
-        measureUnit: p.measureUnit || '',
-        modifier: p.modifier,
-        amount: p.amount,
-      })),
+      data: validated.foodPortions.map((p: any) => {
+        // Extract measureUnit string from object if needed
+        let measureUnitStr = '';
+        if (typeof p.measureUnit === 'string') {
+          measureUnitStr = p.measureUnit;
+        } else if (p.measureUnit && typeof p.measureUnit === 'object') {
+          // Use abbreviation if available, otherwise name
+          measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
+        }
+        
+        return {
+          foodId: food.id,
+          gramWeight: p.gramWeight || 0,
+          measureUnit: measureUnitStr,
+          modifier: p.modifier || null,
+          amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
+        };
+      }),
     });
   }
 
@@ -215,29 +226,62 @@ async function main() {
     let batch: any[] = [];
     const BATCH_SIZE = 500;
 
-    const pipeline = chain([
+    const pipeline = new Chain([
       fs.createReadStream(file),
       StreamValues.withParser(),
     ]);
 
     pipeline.on('data', async (data: any) => {
-      if (data.value && typeof data.value === 'object' && 'fdcId' in data.value) {
-        batch.push(data.value);
-        
-        if (batch.length >= BATCH_SIZE) {
-          const batchCopy = [...batch];
-          batch = [];
+      const value = data?.value;
+      
+      if (!value || typeof value !== 'object') {
+        return;
+      }
+      
+      // Extract array based on data type
+      let foodsArray: any[] = [];
+      
+      if (type === 'Foundation' && value.FoundationFoods && Array.isArray(value.FoundationFoods)) {
+        foodsArray = value.FoundationFoods;
+      } else if (type === 'FNDDS' && value.FNDDS && Array.isArray(value.FNDDS)) {
+        foodsArray = value.FNDDS;
+      } else if (type === 'SRLegacy' && value.SRLegacy && Array.isArray(value.SRLegacy)) {
+        foodsArray = value.SRLegacy;
+      } else if (type === 'Branded' && value.BrandedFoods && Array.isArray(value.BrandedFoods)) {
+        foodsArray = value.BrandedFoods;
+      } else if (Array.isArray(value)) {
+        foodsArray = value;
+      } else if (value.fdcId || value.fdc_id) {
+        foodsArray = [value];
+      } else {
+        return;
+      }
+      
+      // Process each food in the array
+      for (const foodData of foodsArray) {
+        if (foodData && typeof foodData === 'object' && (foodData.fdcId || foodData.fdc_id)) {
+          if (!foodData.fdcId && foodData.fdc_id) {
+            foodData.fdcId = foodData.fdc_id;
+          }
           
-          for (const foodData of batchCopy) {
-            try {
-              await importFood(foodData, type);
-              count++;
-              
-              if (count % 100 === 0) {
-                console.log(`  Processed ${count} foods...`);
+          batch.push(foodData);
+          
+          if (batch.length >= BATCH_SIZE) {
+            const batchCopy = [...batch];
+            batch = [];
+            
+            for (const foodItem of batchCopy) {
+              try {
+                await importFood(foodItem, type);
+                count++;
+                
+                if (count % 100 === 0) {
+                  console.log(`  Processed ${count} foods...`);
+                }
+              } catch (error: any) {
+                const fdcId = foodItem?.fdcId || foodItem?.fdc_id || 'unknown';
+                console.error(`Error importing food ${fdcId}:`, error.message);
               }
-            } catch (error: any) {
-              console.error(`Error importing food ${foodData.fdcId}:`, error.message);
             }
           }
         }

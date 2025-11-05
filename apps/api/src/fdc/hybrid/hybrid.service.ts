@@ -184,19 +184,30 @@ export class HybridService {
       },
     });
 
-    // Save portions
-    if (foodData.foodPortions) {
-      await this.prisma.foodPortion.deleteMany({ where: { foodId: food.id } });
-      await this.prisma.foodPortion.createMany({
-        data: foodData.foodPortions.map((p: any) => ({
-          foodId: food.id,
-          gramWeight: p.gramWeight || 0,
-          measureUnit: p.measureUnit || '',
-          modifier: p.modifier,
-          amount: p.amount,
-        })),
-      });
-    }
+        // Save portions
+        if (foodData.foodPortions) {
+          await this.prisma.foodPortion.deleteMany({ where: { foodId: food.id } });
+          await this.prisma.foodPortion.createMany({
+            data: foodData.foodPortions.map((p: any) => {
+              // Extract measureUnit string from object if needed
+              let measureUnitStr = '';
+              if (typeof p.measureUnit === 'string') {
+                measureUnitStr = p.measureUnit;
+              } else if (p.measureUnit && typeof p.measureUnit === 'object') {
+                // Use abbreviation if available, otherwise name
+                measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
+              }
+              
+              return {
+                foodId: food.id,
+                gramWeight: p.gramWeight || 0,
+                measureUnit: measureUnitStr,
+                modifier: p.modifier || null,
+                amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
+              };
+            }),
+          });
+        }
 
     // Save nutrients
     if (foodData.foodNutrients) {
