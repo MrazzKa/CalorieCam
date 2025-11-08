@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma.service';
+import { PrismaService } from '../../../prisma.service';
 import { FdcApiService } from '../api/fdc-api.service';
-import OpenAI from 'openai';
 // FoodSource enum defined inline
 enum FoodSource {
   USDA_LOCAL = 'USDA_LOCAL',
@@ -11,91 +10,97 @@ enum FoodSource {
 @Injectable()
 export class HybridService {
   private readonly logger = new Logger(HybridService.name);
-  private readonly openai: OpenAI;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly fdcApi: FdcApiService,
-  ) {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
+  ) {}
 
   /**
-   * Find foods by text query using vector search + rerank + API fallback
+   * Find foods by text query using Postgres FTS + API fallback
    */
-  async findByText(query: string, k = 10, minScore = 0.75): Promise<any[]> {
+  async findByText(query: string, k = 10, minScore = 0.6): Promise<any[]> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return [];
+    }
+
     try {
-      // Get query embedding
-      const embeddingResponse = await this.openai.embeddings.create({
-        model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
-        input: query,
-      });
-      const queryEmbedding = embeddingResponse.data[0].embedding;
-      const queryVector = `[${queryEmbedding.join(',')}]`;
-
-      // Vector search using raw SQL (cosine distance)
-      // Note: This assumes pgvector is set up. If not, we'll use a simpler approach
-      let results: Array<{
-        id: string;
-        fdcId: number;
-        description: string;
-        dataType: string;
-        score: number;
-      }>;
-      
-      // Use text search (pgvector requires manual setup)
-      // TODO: Add pgvector support when extension is installed
-      results = await this.textSearchFallback(query, k * 2);
-
-      // Filter by min score
-      const filtered = results.filter(r => r.score >= minScore).slice(0, k);
-
-      // Rerank using BM25/tsvector (simplified)
-      const reranked = await this.rerankResults(filtered, query);
+      const results = await this.textSearch(normalizedQuery, k * 2);
+      const filtered = results.filter((r) => r.score >= minScore).slice(0, k);
+      const reranked = await this.rerankResults(filtered, normalizedQuery);
 
       if (reranked.length > 0) {
         return reranked;
       }
 
-      // Fallback to USDA API
-      this.logger.log(`No local results for "${query}", falling back to API`);
-      return await this.apiFallback(query, k);
+      this.logger.log(`No local results for "${normalizedQuery}", falling back to USDA API`);
+      return await this.apiFallback(normalizedQuery, k);
     } catch (error: any) {
       this.logger.error(`Error in findByText: ${error.message}`);
-      // Fallback to API
-      return await this.apiFallback(query, k);
+      return await this.apiFallback(normalizedQuery, k);
     }
   }
 
-  private async textSearchFallback(query: string, limit: number): Promise<Array<{
+  private async textSearch(query: string, limit: number): Promise<Array<{
     id: string;
     fdcId: number;
     description: string;
     dataType: string;
     score: number;
   }>> {
-    const results = await this.prisma.food.findMany({
-      where: {
-        description: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      },
-      take: limit,
-      orderBy: {
-        description: 'asc',
-      },
-    });
+    // Use FTS (search_vector) if available, otherwise fallback to ILIKE
+    try {
+      const results = await this.prisma.$queryRaw<Array<{
+        id: string;
+        fdc_id: number;
+        description: string;
+        data_type: string;
+        rank: number;
+      }>>`
+        SELECT 
+          id,
+          fdc_id,
+          description,
+          data_type,
+          ts_rank_cd(search_vector, plainto_tsquery('simple', ${query})) as rank
+        FROM foods
+        WHERE search_vector @@ plainto_tsquery('simple', ${query})
+        ORDER BY rank DESC
+        LIMIT ${limit}
+      `;
 
-    return results.map(f => ({
-      id: f.id,
-      fdcId: f.fdcId,
-      description: f.description,
-      dataType: f.dataType,
-      score: 0.8, // Default score for text match
-    }));
+      return results.map(f => ({
+        id: f.id,
+        fdcId: f.fdc_id,
+        description: f.description,
+        dataType: f.data_type,
+        score: Math.min(1.0, (f.rank || 0) * 2), // Normalize rank to 0-1
+      }));
+    } catch (error: any) {
+      // Fallback to ILIKE if FTS fails (e.g., search_vector not populated)
+      this.logger.warn(`FTS search failed, using ILIKE fallback: ${error.message}`);
+      const results = await this.prisma.food.findMany({
+        where: {
+          description: {
+            contains: query,
+            mode: 'insensitive',
+          },
+        },
+        take: limit,
+        orderBy: {
+          description: 'asc',
+        },
+      });
+
+      return results.map(f => ({
+        id: f.id,
+        fdcId: f.fdcId,
+        description: f.description,
+        dataType: f.dataType,
+        score: 0.8, // Default score for text match
+      }));
+    }
   }
 
   private async rerankResults(results: any[], query: string): Promise<any[]> {
@@ -133,11 +138,11 @@ export class HybridService {
         return [];
       }
 
-      // Save top results to database
+      // Save top results to database (slim mode for Branded)
       const saved: any[] = [];
       for (const foodData of apiResults.foods.slice(0, limit)) {
         try {
-          const savedFood = await this.saveFoodFromApi(foodData);
+          const savedFood = await this.saveFoodFromApi(foodData, true); // Use slim mode
           saved.push(savedFood);
         } catch (error: any) {
           this.logger.error(`Error saving food ${foodData.fdcId}:`, error.message);
@@ -158,7 +163,11 @@ export class HybridService {
     }
   }
 
-  private async saveFoodFromApi(foodData: any): Promise<any> {
+  private async saveFoodFromApi(foodData: any, slim: boolean = false): Promise<any> {
+    // For Branded, use slim mode (skip foodNutrients)
+    const isBranded = foodData.dataType === 'Branded';
+    const useSlim = slim || isBranded;
+
     const food = await this.prisma.food.upsert({
       where: { fdcId: foodData.fdcId },
       update: {
@@ -184,33 +193,33 @@ export class HybridService {
       },
     });
 
-        // Save portions
-        if (foodData.foodPortions) {
-          await this.prisma.foodPortion.deleteMany({ where: { foodId: food.id } });
-          await this.prisma.foodPortion.createMany({
-            data: foodData.foodPortions.map((p: any) => {
-              // Extract measureUnit string from object if needed
-              let measureUnitStr = '';
-              if (typeof p.measureUnit === 'string') {
-                measureUnitStr = p.measureUnit;
-              } else if (p.measureUnit && typeof p.measureUnit === 'object') {
-                // Use abbreviation if available, otherwise name
-                measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
-              }
-              
-              return {
-                foodId: food.id,
-                gramWeight: p.gramWeight || 0,
-                measureUnit: measureUnitStr,
-                modifier: p.modifier || null,
-                amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
-              };
-            }),
-          });
-        }
+    // Save portions (always save for slim)
+    if (foodData.foodPortions) {
+      await this.prisma.foodPortion.deleteMany({ where: { foodId: food.id } });
+      await this.prisma.foodPortion.createMany({
+        data: foodData.foodPortions.map((p: any) => {
+          // Extract measureUnit string from object if needed
+          let measureUnitStr = '';
+          if (typeof p.measureUnit === 'string') {
+            measureUnitStr = p.measureUnit;
+          } else if (p.measureUnit && typeof p.measureUnit === 'object') {
+            // Use abbreviation if available, otherwise name
+            measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
+          }
+          
+          return {
+            foodId: food.id,
+            gramWeight: p.gramWeight || 0,
+            measureUnit: measureUnitStr,
+            modifier: p.modifier || null,
+            amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
+          };
+        }),
+      });
+    }
 
-    // Save nutrients
-    if (foodData.foodNutrients) {
+    // Save nutrients (skip for slim/Branded)
+    if (!useSlim && foodData.foodNutrients) {
       await this.prisma.foodNutrient.deleteMany({ where: { foodId: food.id } });
       await this.prisma.foodNutrient.createMany({
         data: foodData.foodNutrients

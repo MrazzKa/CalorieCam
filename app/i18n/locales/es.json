@@ -1,0 +1,427 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skip": "Omitir",
+    "done": "Hecho",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "retry": "Reintentar",
+    "search": "Buscar",
+    "viewAll": "Ver todo",
+    "ok": "Aceptar"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "calories": "calorías",
+    "ofGoal": "de {{goal}} objetivo",
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa",
+    "quickStats": "Estadísticas rápidas",
+    "articles": "Artículos",
+    "aiAssistant": "Asistente IA",
+    "aiAssistantSubtitle": "Obtén consejos nutricionales personalizados",
+    "healthScoreTitle": "Instantánea de salud de {{meal}}",
+    "healthScoreSubtitle": "Toca la tarjeta para abrir el análisis completo en Recientes.",
+    "recent": "Recientes",
+    "recentEmptyTitle": "No hay elementos recientes",
+    "recentEmptySubtitle": "Toma una foto de tu comida para comenzar",
+    "mealFallback": "Comida",
+    "recentMacroSummary": "{{calories}} kcal • P {{protein}} • C {{carbs}} • G {{fat}}",
+    "monthlyStats": {
+      "title": "Resumen mensual",
+      "loading": "Procesando datos...",
+      "empty": "Aún no hay registros de comidas. Regístralas para ver las tendencias.",
+      "topFoods": "Alimentos destacados",
+      "foodMeta": "{{count}} registros • {{calories}} kcal totales",
+      "mealDistribution": "Distribución por comidas",
+      "mealMeta": "{{count}} comidas • {{calories}} kcal"
+    },
+    "mealTypes": {
+      "breakfast": "Desayuno",
+      "lunch": "Almuerzo",
+      "dinner": "Cena"
+    },
+    "addFood": {
+      "title": "Agregar comida",
+      "subtitle": "Elige cómo deseas añadir tu comida",
+      "camera": {
+        "title": "Tomar foto",
+        "description": "Captura tu comida con la cámara"
+      },
+      "gallery": {
+        "title": "Elegir de la galería",
+        "description": "Selecciona una foto desde tu galería"
+      }
+    }
+  },
+  "articles": {
+    "title": "Artículos",
+    "searchPlaceholder": "Buscar artículos...",
+    "featured": "Destacados",
+    "allArticles": "Todos los artículos",
+    "searching": "Buscando...",
+    "found": "Encontrados: {{count}}",
+    "noArticles": "No se encontraron artículos",
+    "comingSoon": "Pronto habrá nuevos artículos",
+    "errorLoading": "No pudimos cargar los artículos. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "quickRead": "Lectura rápida",
+    "readingTime": "{{minutes}} min de lectura",
+    "updatedRecently": "Actualizado recientemente",
+    "featuredBadge": "Destacado",
+    "browseByTag": "Explorar por etiqueta",
+    "clearTag": "Limpiar",
+    "loadingTag": "Cargando artículos con la etiqueta “{{tag}}”...",
+    "tagResultCount": "{{count}} artículos con la etiqueta “{{tag}}”",
+    "searchResultCount": "{{count}} resultados",
+    "article": "Artículo",
+    "openSource": "Ver artículo original",
+    "loading": "Cargando artículo..."
+  },
+  "analysis": {
+    "title": "Análisis completo",
+    "analyzing": "Analizando tu plato...",
+    "subtitle": "La IA está identificando ingredientes y calorías",
+    "uploaded": "Subido",
+    "analyzingStep": "Analizando",
+    "calculating": "Calculando",
+    "totalNutrition": "Nutrición total",
+    "calories": "Calorías",
+    "ingredients": "Ingredientes",
+    "share": "Compartir",
+    "saveToJournal": "Guardar en diario",
+    "autoSavedTitle": "Guardado automáticamente en tu diario",
+    "autoSavedDescription": "Guardamos esta comida en tus entradas recientes. Puedes revisarla o editarla cuando quieras.",
+    "viewMeal": "Ver comida",
+    "saveAsNewEntry": "Guardar como nueva entrada"
+  },
+  "healthScore": {
+    "title": "Puntuación de salud",
+    "qualityFactors": "Factores de calidad",
+    "macroBalance": "Balance de macros",
+    "proteinQuality": "Calidad de proteína",
+    "feedback": "Recomendaciones",
+    "factors": {
+      "protein": "Proteína",
+      "fiber": "Fibra",
+      "satFat": "Grasa saturada",
+      "sugar": "Azúcar",
+      "energyDensity": "Densidad energética",
+      "macroBalance": "Balance de macros",
+      "calorieDensity": "Densidad calórica",
+      "proteinQuality": "Calidad de proteína",
+      "processingLevel": "Nivel de procesamiento"
+    },
+    "feedbackMessages": {
+      "celebrate": "¡Buen trabajo! Esta comida está bien equilibrada.",
+      "increase": "Aumenta {{factor}} para mejorar tu puntaje.",
+      "reduce": "Reduce {{factor}} para mejorar tu puntaje.",
+      "monitor": "Mantén un ojo en {{factor}}."
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "welcomeBack": "Bienvenido de nuevo",
+    "defaultName": "Invitado",
+    "editProfile": "Editar perfil",
+    "details": "Detalles del perfil",
+    "firstName": "Nombre",
+    "lastName": "Apellidos",
+    "email": "Correo electrónico",
+    "height": "Altura (cm)",
+    "weight": "Peso (kg)",
+    "age": "Edad",
+    "dailyCalories": "Calorías diarias",
+    "metricWeight": "Peso",
+    "metricHeight": "Altura",
+    "metricAge": "Edad",
+    "metricCalories": "Calorías/día",
+    "preferences": "Preferencias",
+    "language": "Idioma",
+    "theme": "Tema",
+    "lightMode": "Tema claro",
+    "darkModeSubtitle": "Tema oscuro",
+    "systemTheme": "Seguir tema del sistema",
+    "notifications": "Notificaciones",
+    "notificationsInfo": "Las preferencias de notificaciones estarán disponibles pronto.",
+    "notificationsDailyTitle": "Recordatorio diario",
+    "notificationsDailyDescription": "Te avisaremos cada día a las {{time}}.",
+    "notificationsDailyDisabled": "Activa los recordatorios para no olvidar registrar tus comidas.",
+    "notificationsChangeTime": "Cambiar hora (actualmente {{time}})",
+    "notificationsErrorTitle": "No se pudo actualizar",
+    "notificationsErrorMessage": "No pudimos actualizar las notificaciones. Inténtalo de nuevo.",
+    "savedTitle": "Perfil guardado",
+    "savedMessage": "Tu perfil se actualizó correctamente.",
+    "errorTitle": "Error",
+    "errorMessage": "No se pudo actualizar el perfil. Inténtalo más tarde."
+  },
+  "gallery": {
+    "title": "Seleccionar foto",
+    "loadingGallery": "Cargando galería...",
+    "permissionRequired": "Acceso a galería requerido",
+    "permissionText": "Habilita el acceso a la biblioteca de fotos en la configuración de tu dispositivo para seleccionar fotos de tus comidas.",
+    "goBack": "Volver",
+    "requestingPermission": "Solicitando permiso de galería...",
+    "accessDenied": "Acceso a galería",
+    "accessDeniedText": "Para seleccionar fotos, necesitas otorgar acceso a la galería. Abre la configuración y permite el acceso a fotos.",
+    "settings": "Configuración",
+    "error": "No se pudo cargar la imagen. Inténtalo de nuevo."
+  },
+  "camera": {
+    "requestingPermission": "Solicitando permiso de cámara...",
+    "accessTitle": "Se requiere acceso a la cámara",
+    "accessBody": "Activa el acceso a la cámara en la configuración para fotografiar tus comidas.",
+    "requestPermission": "Conceder acceso",
+    "takePhoto": "Capturar comida",
+    "flashModeOff": "Flash apagado",
+    "flashModeOn": "Flash encendido",
+    "flashModeAuto": "Flash automático",
+    "switchCamera": "Cambiar cámara",
+    "zoomLabel": "Zoom {{value}}x",
+    "captureError": "No pudimos tomar la foto. Inténtalo de nuevo."
+  },
+  "editFood": {
+    "title": "Editar ingrediente",
+    "subtitle": "Haz cambios y guarda",
+    "name": "Nombre",
+    "namePlaceholder": "Nombre del producto",
+    "weight": "Peso (g)",
+    "weightHint": "Masa de porción",
+    "macronutrients": "Macronutrientes",
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa",
+    "calories": "Calorías (kcal)",
+    "calculate": "Calcular: {{value}}",
+    "calculatedAuto": "Calculado automáticamente de macronutrientes"
+  },
+  "auth": {
+    "email": "Correo electrónico",
+    "emailPlaceholder": "Ingresa tu correo",
+    "otpCode": "Código de verificación",
+    "otpPlaceholder": "Ingresa el código de 6 dígitos",
+    "requestOtp": "Solicitar código",
+    "verify": "Verificar",
+    "magicLink": "Enviar enlace mágico",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "welcomeTitle": "Bienvenido a CalorieCam",
+    "welcomeSubtitle": "Inicia sesión para seguir tu nutrición y alcanzar tus objetivos.",
+    "emailLabel": "Dirección de correo",
+    "signInWithOtp": "Iniciar sesión con código",
+    "signInWithMagicLink": "Iniciar sesión con enlace mágico",
+    "otpScreenTitle": "Introduce el código de verificación",
+    "otpScreenSubtitle": "Enviamos un código de 6 dígitos a {{email}}",
+    "verifyCode": "Verificar código",
+    "resendCode": "Enviar un nuevo código",
+    "magicLinkTitle": "Revisa tu bandeja",
+    "magicLinkSubtitle": "Enviamos un enlace a",
+    "magicLinkDescription": "Abre el enlace de tu correo para iniciar sesión. El enlace expira en 15 minutos.",
+    "magicLinkResend": "Reenviar enlace",
+    "sendCode": "Enviar código",
+    "changeEmail": "Usar otro correo",
+    "resendIn": "Reenviar en {{seconds}} s",
+    "codeExpiresIn": "El código expira en {{seconds}} s",
+    "messages": {
+      "codeSent": "Revisa {{email}} para tu código de 6 dígitos.",
+      "codeResent": "Se envió un nuevo código a {{email}}.",
+      "signedIn": "Sesión iniciada."
+    },
+    "errors": {
+      "invalidEmail": "Ingresa un correo válido.",
+      "sendFailed": "No pudimos enviar el código. Inténtalo de nuevo.",
+      "resendFailed": "No pudimos reenviar el código. Inténtalo más tarde.",
+      "verifyFailed": "No pudimos verificar el código. Inténtalo de nuevo.",
+      "invalidCode": "El código es incorrecto.",
+      "expiredCode": "Este código ha expirado. Solicita uno nuevo.",
+      "rateLimited": "Demasiados intentos. Inténtalo en {{seconds}} s.",
+      "codeLength": "Ingresa el código de 6 dígitos de tu correo."
+    }
+  },
+  "onboarding": {
+    "welcome": "Bienvenido a CalorieCam",
+    "getStarted": "Comenzar",
+    "personalInfo": "Información personal",
+    "physicalInfo": "Información física",
+    "activityLevel": "Nivel de actividad",
+    "goals": "Objetivos",
+    "plan": "Elige tu plan"
+  },
+  "tabs": {
+    "dashboard": "Inicio",
+    "articles": "Artículos",
+    "recently": "Recientes",
+    "profile": "Perfil"
+  },
+  "terms": {
+    "title": "Términos de Servicio",
+    "lastUpdated": "Última actualización",
+    "intro": "Por favor, lea estos Términos de Servicio cuidadosamente antes de usar CalorieCam.",
+    "sections": {
+      "acceptance": {
+        "title": "1. Aceptación de Términos",
+        "content": "Al usar CalorieCam, acepta estos Términos de Servicio. Si no está de acuerdo con estos términos, por favor no use la aplicación."
+      },
+      "description": {
+        "title": "2. Descripción del Servicio",
+        "content": "CalorieCam proporciona herramientas para el seguimiento de nutrición, análisis de alimentos y recomendaciones nutricionales personalizadas utilizando inteligencia artificial."
+      },
+      "registration": {
+        "title": "3. Registro y Cuenta",
+        "content": "Usted es responsable de mantener la confidencialidad de sus credenciales de cuenta. Se compromete a notificarnos inmediatamente sobre cualquier uso no autorizado de su cuenta."
+      },
+      "userContent": {
+        "title": "4. Contenido del Usuario",
+        "content": "Usted conserva la propiedad del contenido que sube. Al subir contenido, nos otorga una licencia para usarlo para proporcionar servicios y mejorar la aplicación."
+      },
+      "prohibited": {
+        "title": "5. Usos Prohibidos",
+        "content": "No puede usar el servicio para fines ilegales, para dañar a otros o para violar cualquier ley o regulación."
+      },
+      "intellectual": {
+        "title": "6. Propiedad Intelectual",
+        "content": "Todo el contenido, características y funcionalidad de CalorieCam son de nuestra propiedad y están protegidos por leyes de derechos de autor y otras leyes de propiedad intelectual."
+      },
+      "limitation": {
+        "title": "7. Limitación de Responsabilidad",
+        "content": "CalorieCam se proporciona 'tal cual' sin garantías. No somos responsables de ningún daño derivado del uso de la aplicación."
+      },
+      "changes": {
+        "title": "8. Cambios en los Términos",
+        "content": "Nos reservamos el derecho de modificar estos términos en cualquier momento. El uso continuado de la aplicación después de los cambios constituye la aceptación de los nuevos términos."
+      },
+      "contact": {
+        "title": "9. Contacto",
+        "content": "Para preguntas sobre estos Términos de Servicio, contacte: legal@caloriecam.com"
+      }
+    }
+  },
+  "privacy": {
+    "title": "Política de Privacidad",
+    "lastUpdated": "Última actualización",
+    "intro": "CalorieCam valora su privacidad. Esta política describe cómo recopilamos, usamos y protegemos su información.",
+    "sections": {
+      "collection": {
+        "title": "1. Recopilación de Información",
+        "content": "Recopilamos información que proporciona durante el registro y uso de la aplicación, incluidos datos personales, información nutricional y fotos de alimentos."
+      },
+      "usage": {
+        "title": "2. Uso de la Información",
+        "content": "Su información se utiliza para proporcionar recomendaciones nutricionales personalizadas, análisis de alimentos y mejorar la aplicación."
+      },
+      "protection": {
+        "title": "3. Protección de Datos",
+        "content": "Utilizamos métodos modernos de cifrado y almacenamiento seguro de datos para proteger su información personal."
+      },
+      "sharing": {
+        "title": "4. Compartición de datos",
+        "content": "No vendemos tu información personal. Podemos compartir datos anonimizados con socios para mejorar los servicios."
+      },
+      "changes": {
+        "title": "5. Cambios en esta política",
+        "content": "Te avisaremos de los cambios importantes en esta política de privacidad dentro de la app o por correo electrónico antes de que entren en vigor."
+      },
+      "cookies": {
+        "title": "6. Cookies y seguimiento",
+        "content": "Usamos cookies y tecnologías similares para recordar preferencias, medir el rendimiento y mejorar la experiencia. Puedes gestionar las cookies desde la configuración del dispositivo."
+      },
+      "children": {
+        "title": "7. Privacidad de menores",
+        "content": "CalorieCam no está dirigida a menores de 13 años. No recopilamos deliberadamente sus datos y los eliminaremos si descubrimos que los tenemos."
+      },
+      "rights": {
+        "title": "8. Tus derechos",
+        "content": "Según tu región, puedes solicitar acceso, actualización, eliminación o restricción del tratamiento de tus datos. Contáctanos para ejercer estos derechos."
+      },
+      "choices": {
+        "title": "9. Tus opciones",
+        "content": "Puedes gestionar tus preferencias de privacidad en la app. Puedes solicitar una copia o eliminar tus datos en cualquier momento."
+      },
+      "contact": {
+        "title": "10. Contáctanos",
+        "content": "Para preguntas sobre privacidad, escribe a privacy@caloriecam.com"
+      }
+    }
+  },
+  "analysisFlow": {
+    "uploadPhoto": "Subir foto",
+    "takePhoto": "Tomar foto",
+    "describeMeal": "Describe tu comida",
+    "describeMealPlaceholder": "Añade detalles como ingredientes y tamaños de porción",
+    "analyze": "Analizar",
+    "recentResults": "Resultados recientes",
+    "viewDetails": "Ver detalles"
+  },
+  "aiAssistant": {
+    "title": "Asistente de Nutrición IA",
+    "subtitle": "Pregunta sobre nutrición, comidas o bienestar",
+    "placeholder": "Escribe tu pregunta...",
+    "send": "Enviar",
+    "stop": "Detener",
+    "typing": "El asistente está escribiendo...",
+    "quickActions": "Acciones rápidas",
+    "suggestions": {
+      "mealIdeas": "Ideas de comidas saludables",
+      "dietPlan": "Planificar mi dieta",
+      "calorieAdvice": "Consejo de calorías"
+    }
+  },
+  "assistant": {
+    "title": "Asistente AI",
+    "chooseFlow": "Elige un recorrido",
+    "recentAdvice": "Recomendaciones recientes",
+    "historyEmpty": "Aún no tienes recomendaciones guardadas.",
+    "inputPlaceholder": "Escribe tu respuesta...",
+    "next": "Siguiente",
+    "cancel": "Cancelar",
+    "summaryTitle": "Tu plan personalizado",
+    "done": "Listo",
+    "flow": {
+      "injury": {
+        "title": "Triaje de lesiones",
+        "desc": "Describe síntomas y recibe próximos pasos." },
+      "nutrition": {
+        "title": "Configurar objetivo nutricional",
+        "desc": "Define meta, retos y recursos." },
+      "hydration": {
+        "title": "Revisión de hidratación",
+        "desc": "Evalúa tu hidratación diaria y crea un plan." }
+    }
+  },
+  "recently": {
+    "title": "Recientes",
+    "subtitle": "Tus comidas y análisis más recientes",
+    "noItems": "Aún no hay elementos recientes. ¡Comienza analizando una comida!",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "daysAgo_one": "Hace {{count}} día",
+    "daysAgo_other": "Hace {{count}} días",
+    "empty": {
+      "title": "Sin elementos recientes",
+      "subtitle": "Comienza analizando tu primera comida",
+      "cta": "Analizar comida"
+    },
+    "nutrition": {
+      "calories": "cal",
+      "protein": "proteína",
+      "carbs": "carbohidratos",
+      "fat": "grasa"
+    },
+    "healthScoreLabel": "Puntaje {{score}}"
+  },
+  "meals": {
+    "title": "Comidas",
+    "empty": "Aún no hay comidas registradas.",
+    "addMeal": "Agregar comida",
+    "mealDetails": "Detalles de la comida"
+  }
+}
+

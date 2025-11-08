@@ -1,106 +1,90 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
-import * as speakeasy from 'speakeasy';
+import { Injectable, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
+import { RedisService } from '../redis/redis.service';
+
+const OTP_TTL_SECONDS = 10 * 60; // 10 minutes
+const MAX_ATTEMPTS = 5;
+
+type StoredOtpPayload = {
+  hash: string;
+  attempts: number;
+  createdAt: string;
+};
+
+type VerifyStatus = 'valid' | 'invalid' | 'expired';
 
 @Injectable()
 export class OtpService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(OtpService.name);
 
-  generateOtp() {
-    // Generate OTP code
-    const secret = speakeasy.generateSecret({ length: 32 });
-    const token = speakeasy.totp({
-      secret: secret.base32,
-      encoding: 'base32',
-    });
+  constructor(private readonly redisService: RedisService) {}
 
-    return token;
+  generateOtp(): string {
+    const random = crypto.randomInt(0, 1_000_000);
+    return random.toString().padStart(6, '0');
   }
 
-  async saveOtp(email: string, code: string) {
-    // Find user by email first
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+  async saveOtp(email: string, otp: string): Promise<void> {
+    const key = this.buildKey(email);
+    const payload: StoredOtpPayload = {
+      hash: this.hashCode(otp),
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+    };
 
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Store OTP in database
-    const otp = await this.prisma.otp.create({
-      data: {
-        userId: user.id,
-        code,
-        secret: '', // Not needed for simple OTP
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-      },
-    });
-
-    return otp;
+    await this.redisService.set(key, JSON.stringify(payload), OTP_TTL_SECONDS);
   }
 
-
-  async verifyOtp(email: string, code: string): Promise<boolean> {
-    // Find user by email first
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      return false;
+  async verifyOtp(email: string, code: string): Promise<VerifyStatus> {
+    const key = this.buildKey(email);
+    const raw = await this.redisService.get(key);
+    if (!raw) {
+      return 'expired';
     }
 
-    // Find the most recent OTP for this user
-    const otp = await this.prisma.otp.findFirst({
-      where: {
-        userId: user.id,
-        code,
-        used: false,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    if (!otp || otp.expiresAt < new Date()) {
-      return false;
+    let payload: StoredOtpPayload | null = null;
+    try {
+      payload = JSON.parse(raw) as StoredOtpPayload;
+    } catch (error) {
+      this.logger.warn(`[OtpService] Failed to parse OTP payload for ${email}: ${error instanceof Error ? error.message : 'unknown error'}`);
+      await this.redisService.del(key);
+      return 'expired';
     }
 
-    // Mark OTP as used
-    await this.prisma.otp.update({
-      where: { id: otp.id },
-      data: { used: true },
-    });
+    const normalizedCodeHash = this.hashCode(code);
+    if (payload.hash !== normalizedCodeHash) {
+      payload.attempts = (payload.attempts ?? 0) + 1;
+      const ttl = await this.redisService.ttl(key);
+      if (payload.attempts >= MAX_ATTEMPTS) {
+        await this.redisService.del(key);
+      } else {
+        await this.redisService.set(key, JSON.stringify(payload), ttl > 0 ? ttl : OTP_TTL_SECONDS);
+      }
+      return 'invalid';
+    }
 
-    return true;
+    await this.redisService.del(key);
+    return 'valid';
   }
 
-  async verifyOtpById(otpId: string, code: string): Promise<boolean> {
-    const otp = await this.prisma.otp.findUnique({
-      where: { id: otpId },
-    });
+  async getOtpTtl(email: string): Promise<number> {
+    const ttl = await this.redisService.ttl(this.buildKey(email));
+    return ttl < 0 ? 0 : ttl;
+  }
 
-    if (!otp || otp.expiresAt < new Date()) {
-      return false;
-    }
+  private buildKey(email: string): string {
+    const normalized = this.normalizeEmail(email);
+    return `auth:otp:${normalized}`;
+  }
 
-    // Verify OTP code
-    const verified = speakeasy.totp.verify({
-      secret: otp.secret,
-      encoding: 'base32',
-      token: code,
-      window: 2, // Allow 2 time steps (1 minute) tolerance
-    });
+  private hashCode(code: string): string {
+    return crypto
+      .createHash('sha256')
+      .update((code || '').toString().trim().toUpperCase())
+      .digest('hex');
+  }
 
-    if (verified) {
-      // Mark OTP as used
-      await this.prisma.otp.update({
-        where: { id: otpId },
-        data: { used: true },
-      });
-    }
-
-    return verified;
+  private normalizeEmail(email: string): string {
+    return (email || '').trim().toLowerCase();
   }
 }

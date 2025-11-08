@@ -33,10 +33,7 @@ export class UserProfilesService {
       where: { userId },
     });
 
-    if (!profile) {
-      throw new NotFoundException('Profile not found');
-    }
-
+    // Return null if profile doesn't exist (frontend will handle onboarding)
     return profile;
   }
 

@@ -37,13 +37,13 @@ async function getEmbeddings(texts: string[], retries = 3): Promise<number[][]> 
   throw new Error('Failed to get embeddings after retries');
 }
 
-async function createTsVector(doc: string): Promise<string> {
-  // Create tsvector using raw SQL
+async function updateSearchVector(foodId: string, doc: string): Promise<void> {
+  // Update search_vector directly using executeRaw (no return value, avoids tsvector deserialization)
   const escapedDoc = doc.replace(/'/g, "''");
-  const result = await prisma.$queryRawUnsafe<Array<{ to_tsvector: string }>>(
-    `SELECT to_tsvector('simple', '${escapedDoc}') as to_tsvector`
+  const escapedFoodId = foodId.replace(/'/g, "''");
+  await prisma.$executeRawUnsafe(
+    `UPDATE foods SET search_vector = to_tsvector('simple', '${escapedDoc}') WHERE id = '${escapedFoodId}'`
   );
-  return result[0]?.to_tsvector || '';
 }
 
 async function main() {
@@ -51,11 +51,14 @@ async function main() {
     console.log('Starting reindexing...');
     console.log(`Model: ${EMBEDDING_MODEL}, Dimension: ${EMBEDDING_DIM}`);
 
-    // Get all foods without embeddings
+    // Get all foods without embeddings (exclude Branded - they use lazy cache)
     // Use Prisma client to get foods (it handles column mapping automatically)
     const allFoods = await prisma.food.findMany({
       where: {
         embedding: null,
+        dataType: {
+          not: 'Branded', // Skip Branded foods - they use lazy cache strategy
+        },
       },
       take: 10000,
       select: {
@@ -112,30 +115,27 @@ async function main() {
           continue;
         }
 
-        // Create tsvector
-        let ts: string | null = null;
+        // Update search_vector in foods table (tsvector is handled by trigger, but we update it here for reindex)
         try {
-          ts = await createTsVector(doc);
+          await updateSearchVector(food.id, doc);
         } catch (error: any) {
-          console.error(`Error creating tsvector for food ${food.fdcId}:`, error.message);
+          console.error(`Error updating search_vector for food ${food.fdcId}:`, error.message);
         }
 
         // Convert embedding to Buffer
         const embeddingBuffer = Buffer.from(new Float32Array(embedding).buffer);
 
-        // Upsert embedding using Prisma client
+        // Upsert embedding using Prisma client (ts is stored in foods.search_vector, not here)
         await prisma.foodEmbedding.upsert({
           where: { foodId: food.id },
           update: {
             embedding: embeddingBuffer,
             doc,
-            ts: ts || null,
           },
           create: {
             foodId: food.id,
             embedding: embeddingBuffer,
             doc,
-            ts: ts || null,
           },
         });
 

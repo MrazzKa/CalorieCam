@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,213 +19,298 @@ import ApiService from '../services/apiService';
 import { EditFoodItemModal } from '../components/EditFoodItemModal';
 import { HealthScoreCard } from '../components/HealthScoreCard';
 import { useTheme } from '../contexts/ThemeContext';
-import { useI18n } from '../i18n/hooks';
-import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
+import AppCard from '../components/common/AppCard';
+
+const demoHealthScore = {
+  score: 78,
+  grade: 'B',
+  factors: {
+    protein: { label: 'Protein', score: 82, weight: 0.25 },
+    fiber: { label: 'Fiber', score: 70, weight: 0.2 },
+    satFat: { label: 'Saturated fat', score: 65, weight: -0.2 },
+    sugar: { label: 'Sugar', score: 72, weight: -0.2 },
+    energyDensity: { label: 'Energy density', score: 80, weight: -0.15 },
+  },
+  feedback: [
+    {
+      key: 'fiber',
+      label: 'Fiber',
+      action: 'increase',
+      message: 'Good balance overall. Consider adding more fiber-rich ingredients.',
+    },
+  ],
+};
+
+const createDemoResult = () => ({
+  dishName: 'Mixed Salad',
+  totalCalories: 320,
+  totalProtein: 15,
+  totalCarbs: 25,
+  totalFat: 18,
+  ingredients: [
+    {
+      name: 'Lettuce',
+      calories: 80,
+      protein: 5,
+      carbs: 10,
+      fat: 2,
+      weight: 100,
+    },
+    {
+      name: 'Tomato',
+      calories: 60,
+      protein: 3,
+      carbs: 8,
+      fat: 1,
+      weight: 80,
+    },
+    {
+      name: 'Olive Oil',
+      calories: 180,
+      protein: 0,
+      carbs: 0,
+      fat: 20,
+      weight: 15,
+    },
+  ],
+  healthScore: demoHealthScore,
+  autoSave: {
+    mealId: 'demo',
+    savedAt: new Date().toISOString(),
+  },
+});
+
+const formatMacroValue = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '0';
+  const rounded = Math.round(num * 10) / 10;
+  if (Math.abs(rounded - Math.round(rounded)) < 0.01) {
+    return Math.round(rounded).toString();
+  }
+  return rounded.toFixed(1);
+};
+
+const formatCaloriesValue = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '0';
+  return Math.round(num).toString();
+};
+
+const formatTimestamp = (value) => {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return '';
+  }
+};
 
 export default function AnalysisResultsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { imageUri, source } = route.params;
-  const { colors } = useTheme();
+  const routeParams = route.params || {};
+  const capturedImageUri = routeParams.imageUri ?? null;
+  const initialAnalysisParam = routeParams.analysisResult ?? null;
+  const readOnly = Boolean(routeParams.readOnly);
+  const baseImageUri = capturedImageUri || initialAnalysisParam?.imageUri || null;
+  const { colors, tokens } = useTheme();
   const { t } = useI18n();
 
-  console.log('AnalysisResultsScreen loaded with source:', source);
-
-  const [isAnalyzing, setIsAnalyzing] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(!initialAnalysisParam);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [editingItem, setEditingItem] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
 
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const subduedColor = colors.textSecondary || colors.textMuted || '#6B7280';
+  const tertiaryColor = colors.textSubdued || colors.textTertiary || subduedColor;
+  const allowEditing = !readOnly;
+
+  const normalizeAnalysis = useCallback(
+    (raw, fallbackImage = baseImageUri) => {
+      if (!raw) {
+        return null;
+      }
+
+      const toNumber = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      const toMacro = (value) => Math.round(toNumber(value) * 10) / 10;
+
+      const ingredientsSource = raw.ingredients || raw.items || [];
+      const normalizedIngredients = ingredientsSource.map((item) => ({
+        name: item.name || item.label || 'Ingredient',
+        calories: Math.max(0, Math.round(toNumber(item.calories ?? item.kcal))),
+        protein: toMacro(item.protein),
+        carbs: toMacro(item.carbs),
+        fat: toMacro(item.fat),
+        weight: Math.round(toNumber(item.weight ?? item.gramsMean ?? item.portion_g)),
+      }));
+
+      const sumFromIngredients = (key) =>
+        normalizedIngredients.reduce((acc, ing) => acc + toNumber(ing[key]), 0);
+
+      const providedCalories = toNumber(raw.totalCalories ?? raw.calories);
+      const totalCalories = Math.max(0,
+        providedCalories ? Math.round(providedCalories) : Math.round(sumFromIngredients('calories')),
+      );
+
+      const providedProtein = toNumber(raw.totalProtein ?? raw.protein);
+      const totalProtein = providedProtein
+        ? toMacro(providedProtein)
+        : toMacro(sumFromIngredients('protein'));
+
+      const providedCarbs = toNumber(raw.totalCarbs ?? raw.carbs);
+      const totalCarbs = providedCarbs
+        ? toMacro(providedCarbs)
+        : toMacro(sumFromIngredients('carbs'));
+
+      const providedFat = toNumber(raw.totalFat ?? raw.fat);
+      const totalFat = providedFat
+        ? toMacro(providedFat)
+        : toMacro(sumFromIngredients('fat'));
+
+      const healthScore = raw.healthScore || raw.healthInsights || null;
+      const autoSave = raw.autoSave || raw.savedMeal || null;
+
+      return {
+        id: raw.id || raw.analysisId || null,
+        dishName:
+          raw.dishName ||
+          raw.name ||
+          normalizedIngredients[0]?.name ||
+          'Food Analysis',
+        imageUri: raw.imageUri || fallbackImage || null,
+        totalCalories,
+        totalProtein,
+        totalCarbs,
+        totalFat,
+        ingredients: normalizedIngredients,
+        healthScore,
+        autoSave,
+        consumedAt: raw.consumedAt || raw.date || raw.createdAt || null,
+      };
+    },
+    [baseImageUri],
+  );
+
+  const applyResult = useCallback(
+    (payload, imageOverride) => {
+      const normalized = normalizeAnalysis(payload, imageOverride);
+      if (!normalized) {
+        setIsAnalyzing(false);
+        return;
+      }
+
+      fadeAnim.setValue(0);
+      setAnalysisResult(normalized);
+      setIsAnalyzing(false);
+
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    },
+    [fadeAnim, normalizeAnalysis],
+  );
+
   useEffect(() => {
-    const analyzeImage = async () => {
+    if (initialAnalysisParam) {
+      applyResult(initialAnalysisParam, baseImageUri);
+      return;
+    }
+
+    if (!capturedImageUri) {
+      setIsAnalyzing(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const finish = (payload) => {
+      if (!cancelled) {
+        applyResult(payload, capturedImageUri);
+      }
+    };
+
+    const run = async () => {
       try {
-        // Try to upload image first
-        let uploadResult;
         try {
-          uploadResult = await ApiService.uploadImage(imageUri);
+          await ApiService.uploadImage(capturedImageUri);
         } catch (uploadError) {
           console.log('Upload failed, using demo mode:', uploadError);
         }
 
-        // Try to start analysis
         let analysisResponse;
         try {
-          analysisResponse = await ApiService.analyzeImage(imageUri);
+          analysisResponse = await ApiService.analyzeImage(capturedImageUri);
         } catch (analysisError) {
           console.log('Analysis API failed, using demo mode:', analysisError);
-          // Use demo data when API is not available
-          const demoResult = {
-            dishName: 'Mixed Salad',
-            totalCalories: 320,
-            totalProtein: 15,
-            totalCarbs: 25,
-            totalFat: 18,
-            ingredients: [
-              {
-                name: 'Lettuce',
-                calories: 80,
-                protein: 5,
-                carbs: 10,
-                fat: 2,
-                weight: 100,
-              },
-              {
-                name: 'Tomato',
-                calories: 60,
-                protein: 3,
-                carbs: 8,
-                fat: 1,
-                weight: 80,
-              },
-              {
-                name: 'Olive Oil',
-                calories: 180,
-                protein: 0,
-                carbs: 0,
-                fat: 20,
-                weight: 15,
-              },
-            ],
-          };
-          
-          setAnalysisResult(demoResult);
-          setIsAnalyzing(false);
-
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }).start();
+          finish(createDemoResult());
           return;
         }
 
         if (analysisResponse.analysisId) {
-          // Poll for results
           let attempts = 0;
-          const maxAttempts = 60; // 60 seconds max (analysis can take time)
+          const maxAttempts = 60;
 
           const pollForResults = async () => {
+            if (cancelled) return;
             try {
               const status = await ApiService.getAnalysisStatus(analysisResponse.analysisId);
 
               if (status.status === 'completed') {
                 const result = await ApiService.getAnalysisResult(analysisResponse.analysisId);
-                setAnalysisResult(result);
-                setIsAnalyzing(false);
-
-                Animated.timing(fadeAnim, {
-                  toValue: 1,
-                  duration: 500,
-                  useNativeDriver: true,
-                }).start();
+                finish(result);
               } else if (status.status === 'failed') {
-                // Fallback to demo result instead of crashing
-                const fallback = {
-                  dishName: 'Demo Dish',
-                  totalCalories: 250,
-                  totalProtein: 12,
-                  totalCarbs: 20,
-                  totalFat: 15,
-                  ingredients: [
-                    { name: 'Demo Ingredient', calories: 250, protein: 12, carbs: 20, fat: 15, weight: 150 },
-                  ],
-                };
-                setAnalysisResult(fallback);
-                setIsAnalyzing(false);
-                Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-                return;
+                finish(createDemoResult());
               } else if (attempts < maxAttempts) {
-                attempts++;
-                setTimeout(pollForResults, 1000);
+                attempts += 1;
+                setTimeout(() => {
+                  if (!cancelled) {
+                    pollForResults();
+                  }
+                }, 1000);
               } else {
-                // Timeout -> fallback
-                const fallback = {
-                  dishName: 'Demo Dish',
-                  totalCalories: 250,
-                  totalProtein: 12,
-                  totalCarbs: 20,
-                  totalFat: 15,
-                  ingredients: [
-                    { name: 'Demo Ingredient', calories: 250, protein: 12, carbs: 20, fat: 15, weight: 150 },
-                  ],
-                };
-                setAnalysisResult(fallback);
-                setIsAnalyzing(false);
-                Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-                return;
+                finish(createDemoResult());
               }
             } catch (error) {
               console.error('Polling error:', error);
-              // Fallback on error
-              const fallback = {
-                dishName: 'Demo Dish',
-                totalCalories: 250,
-                totalProtein: 12,
-                totalCarbs: 20,
-                totalFat: 15,
-                ingredients: [
-                  { name: 'Demo Ingredient', calories: 250, protein: 12, carbs: 20, fat: 15, weight: 150 },
-                ],
-              };
-              setAnalysisResult(fallback);
-              setIsAnalyzing(false);
-              Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-              return;
+              finish(createDemoResult());
             }
           };
 
           pollForResults();
         } else {
-          // Direct result
-          setAnalysisResult(analysisResponse);
-          setIsAnalyzing(false);
-
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }).start();
+          finish(analysisResponse);
         }
       } catch (error) {
         console.error('Analysis error:', error);
-        // Use demo data as fallback
-        const demoResult = {
-          dishName: 'Demo Dish',
-          totalCalories: 250,
-          totalProtein: 12,
-          totalCarbs: 20,
-          totalFat: 15,
-          ingredients: [
-            {
-              name: 'Demo Ingredient',
-              calories: 250,
-              protein: 12,
-              carbs: 20,
-              fat: 15,
-              weight: 150,
-            },
-          ],
-        };
-        
-        setAnalysisResult(demoResult);
-        setIsAnalyzing(false);
-
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
+        finish(createDemoResult());
       }
     };
 
-    analyzeImage();
-  }, []);
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyResult, baseImageUri, capturedImageUri, initialAnalysisParam]);
+
+  const autoSaveInfo = analysisResult?.autoSave || null;
+  const hasAutoSave = Boolean(autoSaveInfo?.mealId);
+  const previewImage = analysisResult?.imageUri || baseImageUri;
 
   const handleShare = async () => {
+    if (!analysisResult) return;
     try {
       await Share.share({
-        message: `I just analyzed my meal: ${analysisResult?.dishName}! ${analysisResult?.totalCalories} calories.`,
+        message: `I just analyzed my meal: ${analysisResult.dishName}! ${analysisResult.totalCalories} calories.`,
         title: 'CalorieCam Analysis',
       });
     } catch (error) {
@@ -234,52 +319,91 @@ export default function AnalysisResultsScreen() {
   };
 
   const handleCorrect = (item, index) => {
+    if (!allowEditing) return;
     setEditingItem(item);
     setEditingIndex(index);
   };
 
   const handleSaveEdit = (updatedItem, index) => {
-    const updatedIngredients = [...analysisResult.ingredients];
-    updatedIngredients[index] = updatedItem;
-    
-    // Recalculate totals
-    const newTotalCalories = updatedIngredients.reduce((sum, ing) => sum + (ing.calories || 0), 0);
-    const newTotalProtein = updatedIngredients.reduce((sum, ing) => sum + (ing.protein || 0), 0);
-    const newTotalCarbs = updatedIngredients.reduce((sum, ing) => sum + (ing.carbs || 0), 0);
-    const newTotalFat = updatedIngredients.reduce((sum, ing) => sum + (ing.fat || 0), 0);
-    
-    setAnalysisResult({
-      ...analysisResult,
-      ingredients: updatedIngredients,
-      totalCalories: newTotalCalories,
-      totalProtein: newTotalProtein,
-      totalCarbs: newTotalCarbs,
-      totalFat: newTotalFat,
-    });
+    const updatedIngredients = [...(analysisResult?.ingredients || [])];
+    updatedIngredients[index] = {
+      ...updatedItem,
+      calories: Math.max(0, Math.round(Number(updatedItem.calories) || 0)),
+      protein: Number(updatedItem.protein) || 0,
+      carbs: Number(updatedItem.carbs) || 0,
+      fat: Number(updatedItem.fat) || 0,
+      weight: Number(updatedItem.weight) || 0,
+    };
+
+    const newTotalCalories = updatedIngredients.reduce((sum, ing) => sum + (Number(ing.calories) || 0), 0);
+    const newTotalProtein = updatedIngredients.reduce((sum, ing) => sum + (Number(ing.protein) || 0), 0);
+    const newTotalCarbs = updatedIngredients.reduce((sum, ing) => sum + (Number(ing.carbs) || 0), 0);
+    const newTotalFat = updatedIngredients.reduce((sum, ing) => sum + (Number(ing.fat) || 0), 0);
+
+    setAnalysisResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            ingredients: updatedIngredients,
+            totalCalories: newTotalCalories,
+            totalProtein: newTotalProtein,
+            totalCarbs: newTotalCarbs,
+            totalFat: newTotalFat,
+          }
+        : prev,
+    );
   };
 
   const handleSave = async () => {
+    if (!analysisResult) return;
+
     try {
       const mealData = {
         name: analysisResult.dishName,
         type: 'meal',
-        items: analysisResult.ingredients.map(ingredient => ({
+        items: (analysisResult.ingredients || []).map((ingredient) => ({
           name: ingredient.name,
-          calories: ingredient.calories,
-          protein: ingredient.protein,
-          fat: ingredient.fat,
-          carbs: ingredient.carbs,
-          weight: ingredient.weight,
+          calories: Number(ingredient.calories) || 0,
+          protein: Number(ingredient.protein) || 0,
+          fat: Number(ingredient.fat) || 0,
+          carbs: Number(ingredient.carbs) || 0,
+          weight: Number(ingredient.weight) || 0,
         })),
+        healthScore: analysisResult.healthScore,
       };
 
       await ApiService.createMeal(mealData);
-      Alert.alert('Saved', 'Your meal has been saved to your journal!');
+      Alert.alert(t('analysis.autoSavedTitle'), t('analysis.autoSavedDescription'));
       navigation.navigate('Dashboard');
     } catch (error) {
       console.error('Save error:', error);
-      Alert.alert('Error', 'Failed to save meal. Please try again.');
+      Alert.alert(t('common.error'), t('common.retry'));
     }
+  };
+
+  const handleViewMeal = () => {
+    navigation.navigate('Recently');
+  };
+
+  const renderImage = (uri, style, showBadge = false) => {
+    if (uri) {
+      return (
+        <>
+          <Image source={{ uri }} style={style} />
+          {showBadge && (
+            <View style={styles.successOverlay}>
+              <Ionicons name="checkmark-circle" size={32} color={colors.success} />
+            </View>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <View style={[style, styles.imageFallback]}>
+        <Ionicons name="image-outline" size={36} color={colors.textTertiary} />
+      </View>
+    );
   };
 
   if (isAnalyzing) {
@@ -287,44 +411,42 @@ export default function AnalysisResultsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="close" size={24} color="#1C1C1E" />
+            <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.analyzingContainer}>
           <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.analyzingImage} />
+            {renderImage(baseImageUri, styles.analyzingImage, false)}
             <View style={styles.analyzingOverlay}>
               <View style={styles.analyzingContent}>
                 <View style={styles.analyzingIconContainer}>
-                  <ActivityIndicator size="large" color="#007AFF" />
+                  <ActivityIndicator size="large" color={colors.primary} />
                 </View>
                 <Text style={styles.analyzingText}>{t('analysis.analyzing')}</Text>
-                <Text style={styles.analyzingSubtext}>
-                  {t('analysis.subtitle')}
-                </Text>
+                <Text style={styles.analyzingSubtext}>{t('analysis.subtitle')}</Text>
               </View>
             </View>
           </View>
-          
+
           <View style={styles.progressSteps}>
             <View style={styles.step}>
               <View style={[styles.stepIcon, styles.stepCompleted]}>
-                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                <Ionicons name="checkmark" size={20} color={colors.inverseText} />
               </View>
               <Text style={styles.stepText}>{t('analysis.uploaded')}</Text>
             </View>
-            
+
             <View style={styles.step}>
               <View style={[styles.stepIcon, styles.stepActive]}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.inverseText} />
               </View>
               <Text style={styles.stepText}>{t('analysis.analyzingStep')}</Text>
             </View>
-            
+
             <View style={styles.step}>
               <View style={[styles.stepIcon, styles.stepPending]}>
-                <Ionicons name="calculator" size={20} color="#8E8E93" />
+                <Ionicons name="calculator" size={20} color={colors.textSecondary} />
               </View>
               <Text style={styles.stepText}>{t('analysis.calculating')}</Text>
             </View>
@@ -334,24 +456,37 @@ export default function AnalysisResultsScreen() {
     );
   }
 
+  if (!analysisResult) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle" size={36} color={colors.textSecondary} />
+          <Text style={[styles.emptyText, { color: colors.text }]}>{t('common.error')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const totalCaloriesLabel = formatCaloriesValue(analysisResult.totalCalories);
+  const totalProteinLabel = formatMacroValue(analysisResult.totalProtein);
+  const totalCarbsLabel = formatMacroValue(analysisResult.totalCarbs);
+  const totalFatLabel = formatMacroValue(analysisResult.totalFat);
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('analysis.title')}</Text>
+          <Text style={styles.headerTitle}>{t('analysis.title')}</Text>
           <View style={styles.headerButton} />
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Image */}
           <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.resultImage} />
-            <View style={styles.successOverlay}>
-              <Ionicons name="checkmark-circle" size={32} color="#34C759" />
-            </View>
+            {renderImage(previewImage, styles.resultImage, true)}
           </View>
 
           {/* Dish Name */}
@@ -361,7 +496,7 @@ export default function AnalysisResultsScreen() {
             transition={{ type: 'spring', damping: 15 }}
           >
             <View style={styles.dishNameContainer}>
-              <Text style={[styles.dishName, { color: colors.text }]}>{analysisResult?.dishName}</Text>
+              <Text style={styles.dishName}>{analysisResult?.dishName}</Text>
             </View>
           </MotiView>
 
@@ -372,24 +507,24 @@ export default function AnalysisResultsScreen() {
             transition={{ type: 'spring', damping: 15, delay: 100 }}
           >
             <View style={styles.nutritionContainer}>
-              <View style={[styles.nutritionCard, { backgroundColor: colors.card }]}>
-                <Text style={[styles.nutritionTitle, { color: colors.text }]}>{t('analysis.totalNutrition')}</Text>
+              <View style={styles.nutritionCard}>
+                <Text style={styles.nutritionTitle}>{t('analysis.totalNutrition')}</Text>
               <View style={styles.nutritionGrid}>
                 <View style={styles.nutritionItem}>
-                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalCalories}</Text>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{t('analysis.calories')}</Text>
+                  <Text style={styles.nutritionValue}>{totalCaloriesLabel}</Text>
+                  <Text style={styles.nutritionLabel}>{t('analysis.calories')}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalProtein}g</Text>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{t('dashboard.protein')}</Text>
+                  <Text style={styles.nutritionValue}>{totalProteinLabel}g</Text>
+                  <Text style={styles.nutritionLabel}>{t('dashboard.protein')}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalCarbs}g</Text>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{t('dashboard.carbs')}</Text>
+                  <Text style={styles.nutritionValue}>{totalCarbsLabel}g</Text>
+                  <Text style={styles.nutritionLabel}>{t('dashboard.carbs')}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={[styles.nutritionValue, { color: colors.primary }]}>{analysisResult?.totalFat}g</Text>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{t('dashboard.fat')}</Text>
+                  <Text style={styles.nutritionValue}>{totalFatLabel}g</Text>
+                  <Text style={styles.nutritionLabel}>{t('dashboard.fat')}</Text>
                 </View>
               </View>
             </View>
@@ -401,6 +536,28 @@ export default function AnalysisResultsScreen() {
             <HealthScoreCard healthScore={analysisResult.healthScore} />
           )}
 
+          {/* Auto Save Banner */}
+          {hasAutoSave && (
+            <MotiView
+              from={{ opacity: 0, translateY: 16 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 20, delay: 180 }}
+            >
+              <AppCard style={styles.autoSaveCard}>
+                <View style={styles.autoSaveHeader}>
+                  <Ionicons name="cloud-done-outline" size={22} color={colors.success} />
+                  <Text style={styles.autoSaveTitle}>{t('analysis.autoSavedTitle')}</Text>
+                </View>
+                <Text style={[styles.autoSaveDescription, { color: subduedColor }]}>
+                  {t('analysis.autoSavedDescription')}
+                </Text>
+                <Text style={[styles.autoSaveMeta, { color: tertiaryColor }]}>
+                  {formatTimestamp(autoSaveInfo?.savedAt)}
+                </Text>
+              </AppCard>
+            </MotiView>
+          )}
+
           {/* Ingredients */}
           <MotiView
             from={{ opacity: 0 }}
@@ -408,7 +565,7 @@ export default function AnalysisResultsScreen() {
             transition={{ delay: 200 }}
           >
             <View style={styles.ingredientsContainer}>
-              <Text style={[styles.ingredientsTitle, { color: colors.text }]}>{t('analysis.ingredients')}</Text>
+              <Text style={styles.ingredientsTitle}>{t('analysis.ingredients')}</Text>
             {analysisResult?.ingredients?.map((ingredient, index) => (
               <MotiView
                 key={index}
@@ -417,26 +574,30 @@ export default function AnalysisResultsScreen() {
                 transition={{ type: 'spring', damping: 15, delay: index * 50 }}
               >
                 <TouchableOpacity
-                  style={[styles.ingredientItem, { backgroundColor: colors.card }]}
-                  onPress={() => handleCorrect(ingredient, index)}
+                  style={[styles.ingredientItem, !allowEditing && styles.ingredientItemDisabled]}
+                  onPress={allowEditing ? () => handleCorrect(ingredient, index) : undefined}
+                  disabled={!allowEditing}
+                  activeOpacity={allowEditing ? 0.7 : 1}
                 >
-                <View style={styles.ingredientInfo}>
-                  <Text style={[styles.ingredientName, { color: colors.text }]}>{ingredient.name}</Text>
-                  <Text style={[styles.ingredientWeight, { color: colors.textSecondary }]}>{ingredient.weight}g</Text>
-                </View>
-                <View style={styles.ingredientNutrition}>
-                  <Text style={[styles.ingredientCalories, { color: colors.primary }]}>{ingredient.calories} cal</Text>
-                  <Text style={[styles.ingredientMacros, { color: colors.textSecondary }]}>
-                    P: {ingredient.protein}g • C: {ingredient.carbs}g • F: {ingredient.fat}g
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.editIcon}
-                  onPress={() => handleCorrect(ingredient, index)}
-                >
-                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                  <View style={styles.ingredientInfo}>
+                    <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                    <Text style={styles.ingredientWeight}>{ingredient.weight}g</Text>
+                  </View>
+                  <View style={styles.ingredientNutrition}>
+                    <Text style={styles.ingredientCalories}>{ingredient.calories} cal</Text>
+                    <Text style={styles.ingredientMacros}>
+                      P: {ingredient.protein}g • C: {ingredient.carbs}g • F: {ingredient.fat}g
+                    </Text>
+                  </View>
+                  {allowEditing && (
+                    <TouchableOpacity
+                      style={styles.editIcon}
+                      onPress={() => handleCorrect(ingredient, index)}
+                    >
+                      <Ionicons name="create-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
-              </TouchableOpacity>
               </MotiView>
             ))}
             </View>
@@ -448,23 +609,25 @@ export default function AnalysisResultsScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 300 }}
           >
-            <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-              <Ionicons name="share-outline" size={20} color="#007AFF" />
-              <Text style={styles.shareButtonText}>{t('analysis.share')}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.correctButton} 
-              onPress={() => {
-                if (analysisResult?.ingredients?.length > 0) {
-                  handleCorrect(analysisResult.ingredients[0], 0);
-                }
-              }}
-            >
-              <Ionicons name="create-outline" size={20} color="#FF9500" />
-              <Text style={styles.correctButtonText}>{t('common.edit')}</Text>
-            </TouchableOpacity>
+            <View style={[styles.actionButtons, !allowEditing && styles.actionButtonsSingle]}>
+              <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+                <Ionicons name="share-outline" size={20} color={colors.primary} />
+                <Text style={styles.shareButtonText}>{t('analysis.share')}</Text>
+              </TouchableOpacity>
+
+              {allowEditing && (
+                <TouchableOpacity
+                  style={styles.correctButton}
+                  onPress={() => {
+                    if (analysisResult?.ingredients?.length > 0) {
+                      handleCorrect(analysisResult.ingredients[0], 0);
+                    }
+                  }}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.warning} />
+                  <Text style={styles.correctButtonText}>{t('common.edit')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </MotiView>
 
@@ -474,15 +637,29 @@ export default function AnalysisResultsScreen() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 15, delay: 400 }}
           >
+            {hasAutoSave ? (
+              <View style={styles.autoSaveActions}>
+                <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={handleViewMeal}>
+                  <Ionicons name="arrow-forward-circle" size={20} color={colors.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+                    {t('analysis.viewMeal')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveButton, styles.saveButtonInline]} onPress={handleSave}>
+                  <Text style={styles.saveButtonText}>{t('analysis.saveAsNewEntry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                     <Text style={styles.saveButtonText}>{t('analysis.saveToJournal')}</Text>
-            </TouchableOpacity>
+                <Text style={styles.saveButtonText}>{t('analysis.saveToJournal')}</Text>
+              </TouchableOpacity>
+            )}
           </MotiView>
         </ScrollView>
       </Animated.View>
 
       {/* Edit Modal */}
-      {editingItem && (
+      {allowEditing && editingItem && (
         <EditFoodItemModal
           visible={!!editingItem}
           onClose={() => {
@@ -498,258 +675,375 @@ export default function AnalysisResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  headerButton: {
-    width: 24,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  analyzingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  imageContainer: {
-    position: 'relative',
-    marginBottom: 40,
-  },
-  analyzingImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-  },
-  resultImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 20,
-  },
-  analyzingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  analyzingContent: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  analyzingIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  successOverlay: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 4,
-  },
-  analyzingText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  analyzingSubtext: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  progressSteps: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  step: {
-    alignItems: 'center',
-  },
-  stepIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  stepCompleted: {
-    backgroundColor: '#34C759',
-  },
-  stepActive: {
-    backgroundColor: '#007AFF',
-  },
-  stepPending: {
-    backgroundColor: '#E5E5E7',
-  },
-  stepText: {
-    fontSize: 12,
-    color: '#8E8E93',
-  },
-  dishNameContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  dishName: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  nutritionContainer: {
-    paddingHorizontal: PADDING.screen,
-    marginBottom: SPACING.xl,
-  },
-  nutritionCard: {
-    borderRadius: BORDER_RADIUS.lg,
-    padding: PADDING.xl,
-    ...SHADOW.md,
-  },
-  nutritionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: PADDING.lg,
-    paddingTop: PADDING.sm,
-  },
-  nutritionGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  nutritionItem: {
-    alignItems: 'center',
-  },
-  nutritionValue: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  nutritionLabel: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  ingredientsContainer: {
-    paddingHorizontal: PADDING.screen,
-    marginBottom: SPACING.xl,
-  },
-  ingredientsTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: PADDING.lg,
-    paddingTop: PADDING.sm,
-  },
-  ingredientItem: {
-    borderRadius: BORDER_RADIUS.md,
-    padding: PADDING.card,
-    marginBottom: SPACING.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    ...SHADOW.sm,
-  },
-  editIcon: {
-    padding: 8,
-    marginLeft: 'auto',
-  },
-  ingredientInfo: {
-    flex: 1,
-  },
-  ingredientName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  ingredientWeight: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  ingredientNutrition: {
-    alignItems: 'flex-end',
-  },
-  ingredientCalories: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  ingredientMacros: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: PADDING.screen,
-    marginBottom: SPACING.xl,
-    gap: SPACING.md,
-  },
-  shareButton: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  shareButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  correctButton: {
-    flex: 1,
-    backgroundColor: '#FFF4E6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  correctButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF9500',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    marginHorizontal: 20,
-    marginBottom: 40,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (tokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: tokens.colors.background,
+    },
+    content: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.colors.border,
+      backgroundColor: tokens.states.surface.base ?? tokens.colors.surface,
+    },
+    headerTitle: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+    },
+    headerButton: {
+      width: 24,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    analyzingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+    },
+    imageContainer: {
+      position: 'relative',
+      marginBottom: tokens.spacing.xxxl,
+      width: '100%',
+    },
+    analyzingImage: {
+      width: '100%',
+      height: 240,
+      borderRadius: tokens.radii.lg,
+    },
+    resultImage: {
+      width: '100%',
+      height: 200,
+      borderRadius: tokens.radii.lg,
+      marginTop: tokens.spacing.lg,
+      resizeMode: 'cover',
+    },
+    analyzingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: tokens.states.scrim,
+      borderRadius: tokens.radii.lg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    analyzingContent: {
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+    },
+    analyzingIconContainer: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: tokens.colors.overlayTint,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: tokens.spacing.lg,
+    },
+    successOverlay: {
+      position: 'absolute',
+      top: tokens.spacing.md,
+      right: tokens.spacing.md,
+      backgroundColor: tokens.colors.surfaceMuted,
+      borderRadius: tokens.radii.md,
+      padding: tokens.spacing.xs,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+    },
+    analyzingText: {
+      color: tokens.colors.inverseText,
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+      marginTop: tokens.spacing.md,
+    },
+    analyzingSubtext: {
+      color: tokens.colors.inverseText,
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+      marginTop: tokens.spacing.xs,
+      textAlign: 'center',
+    },
+    progressSteps: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      width: '100%',
+    },
+    step: {
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    stepIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    stepCompleted: {
+      backgroundColor: tokens.colors.success,
+    },
+    stepActive: {
+      backgroundColor: tokens.colors.primary,
+    },
+    stepPending: {
+      backgroundColor: tokens.colors.borderMuted,
+    },
+    stepText: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: tokens.colors.textSecondary,
+    },
+    progressContainer: {
+      width: '100%',
+      paddingHorizontal: tokens.spacing.xl,
+      gap: tokens.spacing.xs,
+    },
+    progressBar: {
+      width: '100%',
+      height: 8,
+      borderRadius: tokens.radii.sm,
+      overflow: 'hidden',
+      backgroundColor: tokens.colors.surfaceMuted,
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: tokens.radii.sm,
+      backgroundColor: tokens.colors.primary,
+    },
+    progressText: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: tokens.colors.textSecondary,
+      textAlign: 'center',
+    },
+    dishNameContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.xl,
+      alignItems: 'center',
+    },
+    dishName: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.headingL.fontSize,
+      fontWeight: tokens.typography.headingL.fontWeight,
+      textAlign: 'center',
+    },
+    nutritionContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xxl,
+    },
+    nutritionCard: {
+      borderRadius: tokens.radii.lg,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      padding: tokens.spacing.xl,
+      ...(tokens.states.cardShadow || tokens.elevations.md),
+      gap: tokens.spacing.lg,
+    },
+    nutritionTitle: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+    },
+    nutritionGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: tokens.spacing.lg,
+    },
+    nutritionItem: {
+      flex: 1,
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    nutritionValue: {
+      color: tokens.colors.primary,
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+    },
+    nutritionLabel: {
+      color: tokens.colors.textSecondary,
+      fontSize: tokens.typography.caption.fontSize,
+    },
+    ingredientsContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xxl,
+      gap: tokens.spacing.sm,
+    },
+    ingredientsTitle: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+    },
+    ingredientItem: {
+      backgroundColor: tokens.colors.card,
+      borderRadius: tokens.radii.md,
+      padding: tokens.spacing.lg,
+      marginBottom: tokens.spacing.sm,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    ingredientItemDisabled: {
+      opacity: 0.65,
+    },
+    editIcon: {
+      padding: tokens.spacing.xs,
+      marginLeft: tokens.spacing.sm,
+    },
+    ingredientInfo: {
+      flex: 1,
+      gap: tokens.spacing.xs,
+    },
+    ingredientName: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    ingredientWeight: {
+      color: tokens.colors.textSecondary,
+      fontSize: tokens.typography.caption.fontSize,
+    },
+    ingredientNutrition: {
+      alignItems: 'flex-end',
+      gap: tokens.spacing.xs,
+    },
+    ingredientCalories: {
+      color: tokens.colors.primary,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    ingredientMacros: {
+      color: tokens.colors.textSecondary,
+      fontSize: tokens.typography.caption.fontSize,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xxl,
+      gap: tokens.spacing.md,
+    },
+    actionButtonsSingle: {
+      justifyContent: 'center',
+    },
+    shareButton: {
+      flex: 1,
+      backgroundColor: tokens.colors.primaryTint,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: tokens.spacing.sm,
+    },
+    shareButtonText: {
+      color: tokens.colors.primary,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    correctButton: {
+      flex: 1,
+      backgroundColor: tokens.colors.warningTint,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: tokens.spacing.sm,
+    },
+    correctButtonText: {
+      color: tokens.colors.warning,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    saveButton: {
+      backgroundColor: tokens.states.primary.base,
+      marginHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xxxl,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.lg,
+      alignItems: 'center',
+    },
+    saveButtonInline: {
+      width: '100%',
+      marginHorizontal: 0,
+      marginBottom: 0,
+    },
+    saveButtonText: {
+      color: tokens.states.primary.on,
+      fontSize: tokens.typography.bodyStrong.fontSize + 1,
+      fontWeight: tokens.typography.headingS.fontWeight,
+    },
+    autoSaveCard: {
+      marginHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.lg,
+      gap: tokens.spacing.xs,
+    },
+    autoSaveHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+    },
+    autoSaveTitle: {
+      color: tokens.colors.textPrimary,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    autoSaveDescription: {
+      color: tokens.colors.textSecondary,
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+    },
+    autoSaveMeta: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: tokens.colors.textTertiary,
+    },
+    autoSaveActions: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xxxl,
+      gap: tokens.spacing.md,
+    },
+    secondaryButton: {
+      width: '100%',
+      borderWidth: 1,
+      borderColor: tokens.colors.primary,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: tokens.spacing.sm,
+    },
+    secondaryButtonText: {
+      fontSize: tokens.typography.body.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+      color: tokens.colors.primary,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: tokens.spacing.xl,
+    },
+    emptyText: {
+      marginTop: tokens.spacing.md,
+      textAlign: 'center',
+    },
+    imageFallback: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: tokens.colors.surfaceMuted,
+    },
+  });

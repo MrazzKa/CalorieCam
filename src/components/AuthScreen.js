@@ -1,393 +1,486 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/apiService';
-import { PADDING, SPACING, BORDER_RADIUS } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
+import { useTheme } from '../contexts/ThemeContext';
+
+function maskEmail(email) {
+  if (!email) {
+    return '';
+  }
+  const [local, domain] = email.split('@');
+  if (!domain) {
+    return email;
+  }
+  const maskedLocal = local.length <= 2 ? `${local[0] || ''}***` : `${local.slice(0, 2)}***`;
+  return `${maskedLocal}@${domain}`;
+}
+
+const OTP_LENGTH = 6;
 
 export default function AuthScreen({ onAuthSuccess }) {
+  const { t } = useI18n();
+  const { tokens, colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(tokens, colors, isDark), [tokens, colors, isDark]);
+
+  const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [authMethod, setAuthMethod] = useState(null); // 'otp' or 'magic'
-  const [isLoading, setIsLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [codeExpiresIn, setCodeExpiresIn] = useState(0);
 
-  const handleRequestOtp = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Неверный email', 'Пожалуйста, введите корректный email адрес');
-      return;
-    }
+  const codeInputRef = useRef(null);
 
-    setIsLoading(true);
-    try {
-      await ApiService.requestOtp(email);
-      setAuthMethod('otp');
-      setOtpSent(true);
-      Alert.alert(
-        'Код отправлен',
-        'Проверьте почту - мы отправили код подтверждения.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('OTP request error:', error);
-      Alert.alert(
-        'Ошибка',
-        error.message || 'Не удалось отправить код. Попробуйте еще раз.'
-      );
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (step !== 'verify' || resendCooldown <= 0) {
+      return undefined;
     }
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
+
+  useEffect(() => {
+    if (step !== 'verify' || codeExpiresIn <= 0) {
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      setCodeExpiresIn((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, codeExpiresIn]);
+
+  const resetFeedback = () => {
+    setErrorMessage('');
+    setStatusMessage('');
   };
 
-  const handleRequestMagicLink = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Неверный email', 'Пожалуйста, введите корректный email адрес');
-      return;
+  const getErrorMessage = (error, fallbackKey) => {
+    if (!error) {
+      return t(fallbackKey);
     }
 
-    setIsLoading(true);
-    try {
-      await ApiService.requestMagicLink(email);
-      setAuthMethod('magic');
-      Alert.alert(
-        'Ссылка отправлена',
-        'Проверьте почту и перейдите по ссылке для входа.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Magic link request error:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to send magic link. Please try again.'
-      );
-    } finally {
-      setIsLoading(false);
+    const codeName = error?.payload?.code;
+    const retryAfter = error?.payload?.retryAfter;
+
+    if (codeName === 'OTP_INVALID') {
+      return t('auth.errors.invalidCode');
     }
+
+    if (codeName === 'OTP_EXPIRED') {
+      return t('auth.errors.expiredCode');
+    }
+
+    if (codeName === 'OTP_RATE_LIMIT' || error?.status === 429) {
+      return t('auth.errors.rateLimited', { seconds: retryAfter ?? resendCooldown ?? 60 });
+    }
+
+    if (error?.message) {
+      return error.message;
+    }
+
+    return t(fallbackKey);
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otpCode.trim() || otpCode.length !== 6) {
-      Alert.alert('Неверный код', 'Пожалуйста, введите 6-значный код из письма');
+  const handleRequestCode = async ({ isResend = false } = {}) => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      setErrorMessage(t('auth.errors.invalidEmail'));
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
+    resetFeedback();
+
     try {
-      const response = await ApiService.verifyOtp(email, otpCode);
-      
-      // Save tokens
-      if (response.accessToken && response.refreshToken) {
-        await ApiService.setToken(response.accessToken, response.refreshToken);
-        Alert.alert('Успешно', 'Вы вошли в аккаунт!', [
-          { text: 'OK', onPress: () => onAuthSuccess && onAuthSuccess() }
-        ]);
+      const response = await ApiService.requestOtp(trimmedEmail);
+      setStatusMessage(
+        t(isResend ? 'auth.messages.codeResent' : 'auth.messages.codeSent', {
+          email: maskEmail(trimmedEmail),
+        }),
+      );
+      setResendCooldown(response?.retryAfter ?? 60);
+      setCodeExpiresIn(response?.expiresIn ?? 600);
+
+      if (!isResend) {
+        setStep('verify');
+        setCode('');
+        setTimeout(() => {
+          codeInputRef.current?.focus();
+        }, 200);
+      } else {
+        setCode('');
+        setTimeout(() => {
+          codeInputRef.current?.focus();
+        }, 50);
       }
     } catch (error) {
-      console.error('OTP verification error:', error);
-      Alert.alert(
-        'Неверный код',
-        error.message || 'Введенный код неверен. Пожалуйста, попробуйте еще раз.'
-      );
+      if (error?.payload?.retryAfter) {
+        setResendCooldown(error.payload.retryAfter);
+      }
+      setErrorMessage(getErrorMessage(error, isResend ? 'auth.errors.resendFailed' : 'auth.errors.sendFailed'));
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleBack = () => {
-    setAuthMethod(null);
-    setOtpSent(false);
-    setOtpCode('');
+  const handleVerifyCode = async () => {
+    const sanitizedCode = code.replace(/[^0-9]/g, '');
+    if (sanitizedCode.length !== OTP_LENGTH) {
+      setErrorMessage(t('auth.errors.codeLength'));
+      return;
+    }
+
+    setIsSubmitting(true);
+    resetFeedback();
+
+    try {
+      const response = await ApiService.verifyOtp(email.trim().toLowerCase(), sanitizedCode);
+      if (response?.accessToken) {
+        await ApiService.setToken(response.accessToken, response.refreshToken);
+      }
+      setStatusMessage(t('auth.messages.signedIn'));
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      }
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
+      if (error?.payload?.code === 'OTP_EXPIRED') {
+        setStep('email');
+        setResendCooldown(0);
+        setCodeExpiresIn(0);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (!authMethod) {
-    // Initial screen - choose auth method
-    return (
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <View style={styles.content}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="camera" size={64} color="#007AFF" />
-            </View>
-            
-            <Text style={styles.title}>Добро пожаловать в CalorieCam</Text>
-            <Text style={styles.subtitle}>
-              Войдите, чтобы отслеживать питание и достигать ваших целей
-            </Text>
+  const handleResend = () => {
+    if (isSubmitting || resendCooldown > 0) {
+      return;
+    }
+    handleRequestCode({ isResend: true });
+  };
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email адрес</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="example@email.com"
-                placeholderTextColor="#8E8E93"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                editable={!isLoading}
-              />
-            </View>
+  const handleChangeEmail = () => {
+    setStep('email');
+    setCode('');
+    setResendCooldown(0);
+    setCodeExpiresIn(0);
+    resetFeedback();
+  };
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                onPress={handleRequestOtp}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="mail-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.primaryButtonText}>Войти по коду из email</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+  const emailStep = (
+    <View style={styles.card}>
+      <View style={styles.iconWrap}>
+        <Ionicons name="mail" size={40} color={colors.primary} />
+      </View>
+      <Text style={styles.title}>{t('auth.welcomeTitle')}</Text>
+      <Text style={styles.subtitle}>{t('auth.welcomeSubtitle')}</Text>
 
-              <TouchableOpacity
-                style={[styles.secondaryButton, isLoading && styles.buttonDisabled]}
-                onPress={handleRequestMagicLink}
-                disabled={isLoading}
-              >
-                <Ionicons name="link-outline" size={20} color="#007AFF" />
-                <Text style={styles.secondaryButtonText}>Войти по ссылке</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>{t('auth.emailLabel')}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={t('auth.emailPlaceholder')}
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          value={email}
+          onChangeText={(value) => setEmail(value.trim())}
+          editable={!isSubmitting}
+        />
+      </View>
 
-  if (authMethod === 'otp' && otpSent) {
-    // OTP verification screen
-    return (
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <View style={styles.content}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-              <Ionicons name="chevron-back" size={24} color="#007AFF" />
-            </TouchableOpacity>
+      {Boolean(errorMessage) && (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      )}
 
-            <View style={styles.logoContainer}>
-              <Ionicons name="mail" size={64} color="#007AFF" />
-            </View>
-            
-            <Text style={styles.title}>Введите код подтверждения</Text>
-            <Text style={styles.subtitle}>
-              Мы отправили 6-значный код на{'\n'}
-              <Text style={styles.emailText}>{email}</Text>
-            </Text>
+      {Boolean(statusMessage) && !errorMessage && (
+        <Text style={styles.successText}>{statusMessage}</Text>
+      )}
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Код подтверждения</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="123456"
-                placeholderTextColor="#8E8E93"
-                value={otpCode}
-                onChangeText={setOtpCode}
-                keyboardType="number-pad"
-                maxLength={6}
-                editable={!isLoading}
-                autoFocus
-              />
-            </View>
+      <TouchableOpacity
+        style={[styles.primaryButton, isSubmitting && styles.disabledButton]}
+        onPress={() => handleRequestCode({ isResend: false })}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.onPrimary} />
+        ) : (
+          <>
+            <Ionicons name="paper-plane" size={18} color={colors.onPrimary} style={styles.buttonIcon} />
+            <Text style={styles.primaryButtonText}>{t('auth.sendCode')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 
-            <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-              onPress={handleVerifyOtp}
-              disabled={isLoading || otpCode.length !== 6}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Text style={styles.primaryButtonText}>Подтвердить</Text>
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                </>
-              )}
-            </TouchableOpacity>
+  const verifyStep = (
+    <View style={styles.card}>
+      <TouchableOpacity style={styles.backButton} onPress={handleChangeEmail}>
+        <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        <Text style={styles.backButtonText}>{t('auth.changeEmail')}</Text>
+      </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.resendButton}
-              onPress={handleRequestOtp}
-              disabled={isLoading}
-            >
-              <Text style={styles.resendText}>Отправить код повторно</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
+      <View style={styles.iconWrap}>
+        <Ionicons name="shield-checkmark" size={40} color={colors.primary} />
+      </View>
 
-  // Magic link sent screen
+      <Text style={styles.title}>{t('auth.otpScreenTitle')}</Text>
+      <Text style={styles.subtitle}>{t('auth.otpScreenSubtitle', { email: maskEmail(email) })}</Text>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>{t('auth.otpCode')}</Text>
+        <TextInput
+          ref={codeInputRef}
+          style={styles.otpInput}
+          value={code}
+          editable={!isSubmitting}
+          onChangeText={(value) => {
+            setCode(value.replace(/[^0-9]/g, '').slice(0, OTP_LENGTH));
+            if (errorMessage) {
+              setErrorMessage('');
+            }
+          }}
+          keyboardType="number-pad"
+          returnKeyType="done"
+          maxLength={OTP_LENGTH}
+          autoFocus
+          onSubmitEditing={handleVerifyCode}
+        />
+      </View>
+
+      {codeExpiresIn > 0 && (
+        <Text style={styles.helperText}>
+          {t('auth.codeExpiresIn', { seconds: codeExpiresIn })}
+        </Text>
+      )}
+
+      {Boolean(errorMessage) && (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      )}
+
+      {Boolean(statusMessage) && !errorMessage && (
+        <Text style={styles.successText}>{statusMessage}</Text>
+      )}
+
+      <TouchableOpacity
+        style={[styles.primaryButton, (isSubmitting || code.length !== OTP_LENGTH) && styles.disabledButton]}
+        onPress={handleVerifyCode}
+        disabled={isSubmitting || code.length !== OTP_LENGTH}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color={colors.onPrimary} />
+        ) : (
+          <>
+            <Ionicons name="lock-open" size={18} color={colors.onPrimary} style={styles.buttonIcon} />
+            <Text style={styles.primaryButtonText}>{t('auth.verifyCode')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.secondaryButton, (isSubmitting || resendCooldown > 0) && styles.disabledButton]}
+        onPress={handleResend}
+        disabled={isSubmitting || resendCooldown > 0}
+      >
+        <Ionicons name="refresh" size={18} color={colors.primary} style={styles.buttonIcon} />
+        <Text style={styles.secondaryButtonText}>
+          {resendCooldown > 0
+            ? t('auth.resendIn', { seconds: resendCooldown })
+            : t('auth.resendCode')}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
-
-        <View style={styles.logoContainer}>
-          <Ionicons name="mail-open" size={64} color="#007AFF" />
-        </View>
-        
-        <Text style={styles.title}>Проверьте почту</Text>
-        <Text style={styles.subtitle}>
-          Мы отправили ссылку для входа на{'\n'}
-          <Text style={styles.emailText}>{email}</Text>
-        </Text>
-        <Text style={styles.magicLinkText}>
-          Перейдите по ссылке в письме, чтобы войти. Ссылка действительна 15 минут.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleRequestMagicLink}
-          disabled={isLoading}
-        >
-          <Text style={styles.secondaryButtonText}>Отправить ссылку повторно</Text>
-        </TouchableOpacity>
-      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {step === 'email' ? emailStep : verifyStep}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: PADDING.screen,
-    paddingTop: 40,
-    justifyContent: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: PADDING.screen,
-    zIndex: 1,
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-    alignSelf: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 22,
-  },
-  emailText: {
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: '#E5E5E7',
-  },
-  buttonContainer: {
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  resendButton: {
-    marginTop: 20,
-    alignSelf: 'center',
-  },
-  resendText: {
-    color: '#007AFF',
-    fontSize: 16,
-  },
-  magicLinkText: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-    lineHeight: 20,
-  },
-});
+function createStyles(tokens, colors, isDark) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: tokens.spacing.xxl,
+      paddingVertical: tokens.spacing.xxxl,
+      justifyContent: 'center',
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: tokens.radii.xl,
+      padding: tokens.spacing.xxl,
+      gap: tokens.spacing.lg,
+      ...tokens.elevations.md,
+    },
+    iconWrap: {
+      alignSelf: 'center',
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: isDark ? colors.surfaceMuted : colors.primaryTint,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: tokens.spacing.md,
+    },
+    title: {
+      fontSize: tokens.typography.headingM.fontSize,
+      lineHeight: tokens.typography.headingM.lineHeight,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginHorizontal: tokens.spacing.md,
+    },
+    fieldGroup: {
+      marginTop: tokens.spacing.lg,
+    },
+    label: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: colors.textSecondary,
+      marginBottom: tokens.spacing.xs,
+      fontWeight: tokens.typography.caption.fontWeight,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    input: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.inputBackground,
+      borderRadius: tokens.radii.lg,
+      paddingHorizontal: tokens.spacing.lg,
+      paddingVertical: tokens.spacing.md,
+      fontSize: tokens.typography.body.fontSize,
+      color: colors.textPrimary,
+      borderWidth: 1,
+      borderColor: isDark ? colors.borderMuted : colors.border,
+    },
+    otpInput: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.inputBackground,
+      borderRadius: tokens.radii.lg,
+      paddingHorizontal: tokens.spacing.lg,
+      paddingVertical: tokens.spacing.md,
+      fontSize: 28,
+      fontWeight: tokens.fontWeights.semibold,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      letterSpacing: 12,
+      borderWidth: 1,
+      borderColor: isDark ? colors.borderMuted : colors.border,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: tokens.radii.lg,
+      paddingVertical: tokens.spacing.md,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+      marginTop: tokens.spacing.xl,
+    },
+    secondaryButton: {
+      backgroundColor: isDark ? colors.surfaceMuted : colors.surface,
+      borderRadius: tokens.radii.lg,
+      paddingVertical: tokens.spacing.md,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+    },
+    primaryButtonText: {
+      color: colors.onPrimary,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    secondaryButtonText: {
+      color: colors.primary,
+      fontSize: tokens.typography.body.fontSize,
+      fontWeight: tokens.typography.body.fontWeight,
+    },
+    disabledButton: {
+      opacity: 0.6,
+    },
+    errorText: {
+      color: colors.error,
+      textAlign: 'center',
+      fontSize: tokens.typography.body.fontSize,
+    },
+    successText: {
+      color: colors.success,
+      textAlign: 'center',
+      fontSize: tokens.typography.body.fontSize,
+    },
+    helperText: {
+      textAlign: 'center',
+      color: colors.textTertiary,
+      fontSize: tokens.typography.caption.fontSize,
+    },
+    buttonIcon: {
+      marginRight: tokens.spacing.xs,
+    },
+    backButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+      marginBottom: tokens.spacing.md,
+    },
+    backButtonText: {
+      color: colors.primary,
+      fontSize: tokens.typography.body.fontSize,
+      fontWeight: tokens.fontWeights.medium,
+    },
+  });
+}
 

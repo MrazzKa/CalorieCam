@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { FdcService } from './fdc.service';
+import { SearchFoodsDto } from './dto/search-foods.dto';
 
 @ApiTags('USDA FoodData Central')
 @Controller('v1/integrations/fdc')
@@ -13,7 +14,7 @@ export class FdcController {
   @Post('search')
   @ApiOperation({ summary: 'Search foods in USDA database' })
   @ApiResponse({ status: 200, description: 'Search results' })
-  async search(@Body() body: any) {
+  async search(@Body() body: SearchFoodsDto) {
     return this.fdcService.searchFoods(body);
   }
 

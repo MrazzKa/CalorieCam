@@ -6,6 +6,19 @@ export default {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
+    extra: {
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+      environment: process.env.EXPO_PUBLIC_ENV,
+      eas: {
+        projectId: process.env.EAS_PROJECT_ID || "replace-with-eas-project-id"
+      }
+    },
+    runtimeVersion: {
+      policy: "appVersion"
+    },
+    updates: {
+      url: process.env.EXPO_UPDATES_URL
+    },
     splash: {
       image: "./assets/splash.png", // Using PNG for native splash - custom SVG logo shown in app
       resizeMode: "contain",
@@ -44,7 +57,8 @@ export default {
         "WRITE_EXTERNAL_STORAGE",
         "READ_MEDIA_IMAGES",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS"
       ],
       intentFilters: [
         {
@@ -67,10 +81,18 @@ export default {
     web: {
       favicon: "./assets/favicon.png"
     },
+    notification: {
+      icon: "./assets/icon.png",
+      color: "#FF6B6B",
+      androidMode: "default",
+      androidCollapsedTitle: "CalorieCam"
+    },
     plugins: [
       "expo-camera",
       "expo-image-picker",
-      "expo-media-library"
+      "expo-media-library",
+      "expo-localization",
+      "expo-notifications"
     ]
   }
 };

@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { FdcService } from './fdc.service';
 import { FdcController } from './fdc.controller';
-import { RedisModule } from '../../redis/redis.module';
+import { PrismaModule } from '../../prisma.module';
+import { FtsService } from './fts/fts.service';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
@@ -13,9 +15,10 @@ import { RedisModule } from '../../redis/redis.module';
         'X-Api-Key': process.env.FDC_API_KEY || '',
       },
     }),
-    RedisModule,
+    PrismaModule,
+    CacheModule,
   ],
-  providers: [FdcService],
+  providers: [FdcService, FtsService],
   controllers: [FdcController],
   exports: [FdcService],
 })

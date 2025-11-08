@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { AccessibilityInfo, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { tokens as baseTokens, palettes } from '../design/tokens';
 
 const ThemeContext = createContext();
 
@@ -12,10 +13,16 @@ export const useTheme = () => {
   return context;
 };
 
+export const useDesignTokens = () => {
+  const { tokens } = useTheme();
+  return tokens;
+};
+
 export const ThemeProvider = ({ children }) => {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
   const [isDark, setIsDark] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     loadThemePreference();
@@ -28,6 +35,34 @@ export const ThemeProvider = ({ children }) => {
       setIsDark(themeMode === 'dark');
     }
   }, [themeMode, systemColorScheme]);
+
+  useEffect(() => {
+    const loadReduceMotion = async () => {
+      try {
+        const value = await AccessibilityInfo.isReduceMotionEnabled();
+        setReduceMotion(value);
+      } catch {
+        setReduceMotion(false);
+      }
+    };
+
+    loadReduceMotion();
+
+    const handleReduceMotionChange = (enabled) => setReduceMotion(enabled);
+
+    const subscription = AccessibilityInfo.addEventListener?.(
+      'reduceMotionChanged',
+      handleReduceMotionChange,
+    );
+
+    return () => {
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      } else if (AccessibilityInfo.removeEventListener) {
+        AccessibilityInfo.removeEventListener('reduceMotionChanged', handleReduceMotionChange);
+      }
+    };
+  }, []);
 
   const loadThemePreference = async () => {
     try {
@@ -49,47 +84,28 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  const colors = isDark ? {
-    background: '#000000',
-    surface: '#1C1C1E',
-    primary: '#4DA3FF',
-    secondary: '#5856D6',
-    text: '#FFFFFF',
-    textSecondary: '#EBEBF5',
-    textTertiary: '#9BA1A6',
-    border: '#38383A',
-    error: '#FF3B30',
-    success: '#34C759',
-    warning: '#FF9500',
-    card: '#1C1C1E',
-    input: '#FFFFFF',
-    inputBackground: '#2C2C2E',
-    tabBackground: '#1C1C1E',
-    shadow: '#000000',
-  } : {
-    background: '#F2F2F7',
-    surface: '#FFFFFF',
-    primary: '#007AFF',
-    secondary: '#5856D6',
-    text: '#1C1C1E',
-    textSecondary: '#3A3A3C',
-    textTertiary: '#8E8E93',
-    border: '#E5E5E7',
-    error: '#FF3B30',
-    success: '#34C759',
-    warning: '#FF9500',
-    card: '#FFFFFF',
-    input: '#1C1C1E',
-    inputBackground: '#F8F9FA',
-    tabBackground: '#FFFFFF',
-    shadow: '#000000',
-  };
+  const palette = isDark ? palettes.dark : palettes.light;
+  const themeTokens = useMemo(() => {
+    const { states: stateTokens, ...restTokens } = baseTokens;
+    const resolvedStates = stateTokens ? (isDark ? stateTokens.dark : stateTokens.light) : {};
+
+    return {
+      ...restTokens,
+      colors: palette,
+      states: resolvedStates,
+    };
+  }, [isDark, palette]);
+
+  const getColor = (key) => palette[key] ?? key;
 
   const value = {
     isDark,
     themeMode,
-    colors,
+    colors: palette,
+    tokens: themeTokens,
     toggleTheme,
+    reduceMotion,
+    getColor,
   };
 
   return (

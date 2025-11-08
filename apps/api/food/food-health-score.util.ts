@@ -12,6 +12,15 @@ export interface HealthScoreInput {
   }>;
 }
 
+export type HealthScoreFeedbackAction = 'celebrate' | 'increase' | 'reduce' | 'monitor';
+
+export interface HealthScoreFeedback {
+  key: string;
+  label: string;
+  action: HealthScoreFeedbackAction;
+  message: string;
+}
+
 export interface HealthScoreResult {
   score: number; // 0-100
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -21,7 +30,7 @@ export interface HealthScoreResult {
     proteinQuality: number; // 0-100
     processingLevel: number; // 0-100 (lower processing = higher score)
   };
-  feedback: string[];
+  feedback: HealthScoreFeedback[];
 }
 
 /**
@@ -105,34 +114,74 @@ export function calculateHealthScore(input: HealthScoreInput): HealthScoreResult
   else grade = 'F';
 
   // Generate feedback
-  const feedback: string[] = [];
+  const feedback: HealthScoreFeedback[] = [];
   
   if (factors.macroBalance < 50) {
-    feedback.push('Macronutrient balance could be improved');
+    feedback.push({
+      key: 'macroBalance',
+      label: 'Macro balance',
+      action: 'increase',
+      message: 'Macronutrient balance could be improved',
+    });
   }
   
   if (factors.calorieDensity < 50) {
     if (calories > 700) {
-      feedback.push('High calorie content - consider portion size');
+      feedback.push({
+        key: 'calorieDensity',
+        label: 'Calorie density',
+        action: 'reduce',
+        message: 'High calorie content - consider portion size',
+      });
     } else if (calories < 300) {
-      feedback.push('Low calorie content - may need additional nutrients');
+      feedback.push({
+        key: 'calorieDensity',
+        label: 'Calorie density',
+        action: 'monitor',
+        message: 'Low calorie content - may need additional nutrients',
+      });
     }
   }
   
   if (factors.proteinQuality < 50) {
-    feedback.push('Consider adding more protein sources');
+    feedback.push({
+      key: 'proteinQuality',
+      label: 'Protein quality',
+      action: 'increase',
+      message: 'Consider adding more protein sources',
+    });
   }
   
   if (factors.processingLevel < 50) {
-    feedback.push('Contains processed ingredients - whole foods are better');
+    feedback.push({
+      key: 'processingLevel',
+      label: 'Processing level',
+      action: 'reduce',
+      message: 'Contains processed ingredients - whole foods are better',
+    });
   }
   
   if (score >= 80) {
-    feedback.push('Great nutritional balance!');
+    feedback.push({
+      key: 'overall',
+      label: 'Overall balance',
+      action: 'celebrate',
+      message: 'Great nutritional balance!',
+    });
   } else if (score >= 60) {
-    feedback.push('Good nutritional profile with room for improvement');
+    feedback.push({
+      key: 'overall',
+      label: 'Overall balance',
+      action: 'monitor',
+      message: 'Good nutritional profile with room for improvement',
+    });
   } else {
-    feedback.push('Consider healthier alternatives');
+    feedback.push({
+      key: 'overall',
+      label: 'Overall balance',
+      action: 'reduce',
+      message: 'Consider healthier alternatives',
+    });
   }
 
   return {

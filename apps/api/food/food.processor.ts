@@ -3,6 +3,7 @@ import { Job } from 'bull';
 import { PrismaService } from '../prisma.service';
 import { FoodAnalyzerService } from './food-analyzer/food-analyzer.service';
 import { AnalyzeService } from '../src/analysis/analyze.service';
+import { MealsService } from '../meals/meals.service';
 import * as sharp from 'sharp';
 
 @Processor('food-analysis')
@@ -11,11 +12,19 @@ export class FoodProcessor {
     private readonly prisma: PrismaService,
     private readonly foodAnalyzer: FoodAnalyzerService,
     private readonly analyzeService: AnalyzeService,
+    private readonly mealsService: MealsService,
   ) {}
 
   @Process('analyze-image')
   async handleImageAnalysis(job: Job) {
-    const { analysisId, imageBufferBase64, userId } = job.data;
+    const { analysisId, imageBufferBase64, userId: jobUserId } = job.data;
+    
+    // Получаем userId из анализа, так как он точно правильный
+    const analysis = await this.prisma.analysis.findUnique({
+      where: { id: analysisId },
+      select: { userId: true },
+    });
+    const userId = analysis?.userId || jobUserId;
 
     try {
       // Update status to processing
@@ -74,7 +83,7 @@ export class FoodProcessor {
       });
 
       // Transform to old format for compatibility
-      const result = {
+      const result: any = {
         items: analysisResult.items.map(item => ({
           label: item.name,
           kcal: item.nutrients.calories,
@@ -85,9 +94,47 @@ export class FoodProcessor {
         })),
         total: analysisResult.total,
         trace: analysisResult.trace,
+        healthScore: analysisResult.healthScore,
       };
 
-      // Save results
+      // Automatically save to meals (Recently)
+      try {
+        const items = analysisResult.items || [];
+        if (items.length > 0 && userId && userId !== 'test-user' && userId !== 'temp-user') {
+          // Проверяем, существует ли пользователь
+          const user = await this.prisma.user.findUnique({ where: { id: userId } });
+          if (user) {
+            const dishName = items[0]?.name || 'Analyzed Meal';
+            const meal = await this.mealsService.createMeal(userId, {
+              name: dishName,
+              type: 'MEAL',
+              items: items.map(item => ({
+                name: item.name,
+                calories: item.nutrients?.calories || 0,
+                protein: item.nutrients?.protein || 0,
+                fat: item.nutrients?.fat || 0,
+                carbs: item.nutrients?.carbs || 0,
+                weight: item.portion_g || 100,
+              })),
+              healthScore: analysisResult.healthScore,
+            });
+            console.log(`Automatically saved analysis ${analysisId} to meals`);
+            result.autoSave = {
+              mealId: meal.id,
+              savedAt: new Date().toISOString(),
+            };
+          } else {
+            console.log(`Skipping auto-save: user ${userId} not found`);
+          }
+        } else {
+          console.log(`Skipping auto-save: invalid userId (${userId})`);
+        }
+      } catch (mealError: any) {
+        console.error(`Failed to auto-save analysis ${analysisId} to meals:`, mealError.message);
+        // Don't fail the analysis if meal save fails
+      }
+
+      // Save results (with optional auto-save metadata)
       await this.prisma.analysisResult.create({
         data: {
           analysisId,
@@ -131,7 +178,7 @@ export class FoodProcessor {
       const analysisResult = await this.analyzeService.analyzeText(description);
 
       // Transform to old format for compatibility
-      const result = {
+      const result: any = {
         items: analysisResult.items.map(item => ({
           label: item.name,
           kcal: item.nutrients.calories,
@@ -142,7 +189,39 @@ export class FoodProcessor {
         })),
         total: analysisResult.total,
         trace: analysisResult.trace,
+        healthScore: analysisResult.healthScore,
       };
+
+      // Auto-save text analyses as well
+      try {
+        const items = analysisResult.items || [];
+        if (items.length > 0 && userId && userId !== 'test-user' && userId !== 'temp-user') {
+          const user = await this.prisma.user.findUnique({ where: { id: userId } });
+          if (user) {
+            const dishName = items[0]?.name || 'Analyzed Meal';
+            const meal = await this.mealsService.createMeal(userId, {
+              name: dishName,
+              type: 'MEAL',
+              items: items.map(item => ({
+                name: item.name,
+                calories: item.nutrients?.calories || 0,
+                protein: item.nutrients?.protein || 0,
+                fat: item.nutrients?.fat || 0,
+                carbs: item.nutrients?.carbs || 0,
+                weight: item.portion_g || 100,
+              })),
+              healthScore: analysisResult.healthScore,
+            });
+            result.autoSave = {
+              mealId: meal.id,
+              savedAt: new Date().toISOString(),
+            };
+            console.log(`Automatically saved text analysis ${analysisId} to meals`);
+          }
+        }
+      } catch (mealError: any) {
+        console.error(`Failed to auto-save text analysis ${analysisId} to meals:`, mealError.message);
+      }
 
       // Save results
       await this.prisma.analysisResult.create({

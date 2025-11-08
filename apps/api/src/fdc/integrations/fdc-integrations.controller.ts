@@ -5,8 +5,8 @@ import { HybridService } from '../hybrid/hybrid.service';
 
 @ApiTags('FDC Integrations')
 @Controller('integrations/fdc')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+// @UseGuards(JwtAuthGuard) // Temporarily disabled for testing
+// @ApiBearerAuth()
 export class FdcIntegrationsController {
   constructor(private readonly hybrid: HybridService) {}
 

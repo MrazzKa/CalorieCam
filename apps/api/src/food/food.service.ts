@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { FoodAnalyzerService } from '../../food/food-analyzer/food-analyzer.service';
-import { MediaService } from '../../media/media.service';
+import { MediaService, UploadResult } from '../../media/media.service';
 import { PrismaService } from '../../prisma.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -14,10 +14,14 @@ export class FoodService {
     @InjectQueue('food-analysis') private foodAnalysisQueue: Queue,
   ) {}
 
-  async analyzeImage(file: any, userId: string = 'temp-user') {
-    const imageUrl = await this.mediaService.uploadFile(file, userId);
-    const job = await this.foodAnalysisQueue.add('analyze-image', { imageUrl, userId }, {});
-    return { jobId: job.id, message: 'Image analysis started' };
+  async analyzeImage(file: any, userId: string = 'temp-user'): Promise<{
+    jobId: string | number;
+    message: string;
+    media: UploadResult;
+  }> {
+    const media = await this.mediaService.uploadFile(file, userId);
+    const job = await this.foodAnalysisQueue.add('analyze-image', { imageUrl: media.url, userId }, {});
+    return { jobId: job.id, message: 'Image analysis started', media };
   }
 
   async analyzeText(description: string) {

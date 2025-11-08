@@ -17,12 +17,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       url: redisUrl,
       password: redisPassword || undefined,
       socket: {
+        connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT_MS || '5000', 10),
+        keepAlive: parseInt(process.env.REDIS_KEEP_ALIVE_MS || '5000', 10),
         reconnectStrategy: (retries) => {
           if (retries > 10) {
             console.warn('[Redis] Max reconnection attempts reached. Redis features will be disabled.');
             return false;
           }
-          return Math.min(retries * 100, 3000);
+          const backoff = Math.min(500, 100 * Math.pow(2, retries));
+          return backoff;
         },
       },
     });
@@ -39,6 +42,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.client.on('ready', () => {
       console.log('[Redis] Connected successfully');
       this.isConnected = true;
+    });
+
+    this.client.on('end', () => {
+      console.warn('[Redis] Connection closed');
+      this.isConnected = false;
     });
 
     try {
@@ -149,6 +157,34 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       console.warn('[Redis] ttl error:', error.message);
       return -1;
+    }
+  }
+
+  async incr(key: string): Promise<number> {
+    if (!(await this.ensureConnected())) {
+      return 0;
+    }
+    try {
+      return await this.client.incr(key);
+    } catch (error) {
+      console.warn('[Redis] incr error:', error.message);
+      return 0;
+    }
+  }
+
+  async setNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    if (!(await this.ensureConnected())) {
+      return false;
+    }
+    try {
+      const result = await this.client.set(key, value, {
+        NX: true,
+        EX: ttlSeconds,
+      });
+      return result === 'OK';
+    } catch (error) {
+      console.warn('[Redis] setNx error:', error.message);
+      return false;
     }
   }
 }

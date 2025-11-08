@@ -1,0 +1,427 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "back": "戻る",
+    "next": "次へ",
+    "skip": "スキップ",
+    "done": "完了",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "retry": "再試行",
+    "search": "検索",
+    "viewAll": "すべて表示",
+    "ok": "OK"
+  },
+  "dashboard": {
+    "title": "ダッシュボード",
+    "calories": "カロリー",
+    "ofGoal": "目標 {{goal}} の",
+    "protein": "タンパク質",
+    "carbs": "炭水化物",
+    "fat": "脂肪",
+    "quickStats": "クイック統計",
+    "articles": "記事",
+    "aiAssistant": "AIアシスタント",
+    "aiAssistantSubtitle": "個別の栄養アドバイスを取得",
+    "healthScoreTitle": "{{meal}} のヘルススコア",
+    "healthScoreSubtitle": "カードをタップすると「最近」から詳しい分析を開けます。",
+    "recent": "最近",
+    "recentEmptyTitle": "最近のアイテムはありません",
+    "recentEmptySubtitle": "食事の写真を撮って分析を始めましょう",
+    "mealFallback": "食事",
+    "recentMacroSummary": "{{calories}} kcal • たんぱく質 {{protein}} • 炭水化物 {{carbs}} • 脂質 {{fat}}",
+    "monthlyStats": {
+      "title": "月間ハイライト",
+      "loading": "データを集計しています...",
+      "empty": "まだ食事が記録されていません。記録すると傾向が表示されます。",
+      "topFoods": "よく食べる食品",
+      "foodMeta": "{{count}}件 • 合計 {{calories}} kcal",
+      "mealDistribution": "食事タイプの内訳",
+      "mealMeta": "{{count}}回 • {{calories}} kcal"
+    },
+    "mealTypes": {
+      "breakfast": "朝食",
+      "lunch": "昼食",
+      "dinner": "夕食"
+    },
+    "addFood": {
+      "title": "食事を追加",
+      "subtitle": "食事を追加する方法を選択してください",
+      "camera": {
+        "title": "写真を撮る",
+        "description": "カメラで食事を撮影しましょう"
+      },
+      "gallery": {
+        "title": "ギャラリーから選択",
+        "description": "ギャラリーから写真を選びましょう"
+      }
+    }
+  },
+  "articles": {
+    "title": "記事",
+    "searchPlaceholder": "記事を検索...",
+    "featured": "注目",
+    "allArticles": "すべての記事",
+    "searching": "検索中...",
+    "found": "検索結果: {{count}}",
+    "noArticles": "該当する記事が見つかりません",
+    "comingSoon": "近日中に新しい記事が追加されます",
+    "errorLoading": "記事を読み込めませんでした。もう一度お試しください。",
+    "retry": "再試行",
+    "quickRead": "サクッと読む",
+    "readingTime": "読了時間 約{{minutes}}分",
+    "updatedRecently": "最近更新されました",
+    "featuredBadge": "注目",
+    "browseByTag": "タグで探す",
+    "clearTag": "クリア",
+    "loadingTag": "「{{tag}}」の記事を読み込み中...",
+    "tagResultCount": "「{{tag}}」の記事 {{count}} 件",
+    "searchResultCount": "{{count}} 件ヒット",
+    "article": "記事",
+    "openSource": "元の記事を見る",
+    "loading": "記事を読み込み中..."
+  },
+  "analysis": {
+    "title": "分析完了",
+    "analyzing": "料理を分析中...",
+    "subtitle": "AIが食材とカロリーを識別しています",
+    "uploaded": "アップロード済み",
+    "analyzingStep": "分析中",
+    "calculating": "計算中",
+    "totalNutrition": "総栄養",
+    "calories": "カロリー",
+    "ingredients": "食材",
+    "share": "共有",
+    "saveToJournal": "ジャーナルに保存",
+    "autoSavedTitle": "ジャーナルに自動保存しました",
+    "autoSavedDescription": "この食事を最近のエントリーに保存しました。いつでも確認・編集できます。",
+    "viewMeal": "食事を表示",
+    "saveAsNewEntry": "新しいエントリーとして保存"
+  },
+  "healthScore": {
+    "title": "ヘルススコア",
+    "qualityFactors": "品質指標",
+    "macroBalance": "マクロバランス",
+    "proteinQuality": "たんぱく質の質",
+    "feedback": "フィードバック",
+    "factors": {
+      "protein": "たんぱく質",
+      "fiber": "食物繊維",
+      "satFat": "飽和脂肪",
+      "sugar": "糖質",
+      "energyDensity": "エネルギー密度",
+      "macroBalance": "マクロバランス",
+      "calorieDensity": "カロリー密度",
+      "proteinQuality": "たんぱく質の質",
+      "processingLevel": "加工レベル"
+    },
+    "feedbackMessages": {
+      "celebrate": "素晴らしいです！この食事はバランスが取れています。",
+      "increase": "{{factor}}を増やしてスコアを改善しましょう。",
+      "reduce": "{{factor}}を減らしてスコアを改善しましょう。",
+      "monitor": "{{factor}}に注意を払いましょう。"
+    }
+  },
+  "profile": {
+    "title": "プロフィール",
+    "welcomeBack": "お帰りなさい",
+    "defaultName": "ゲスト",
+    "editProfile": "プロフィールを編集",
+    "details": "プロフィール詳細",
+    "firstName": "名",
+    "lastName": "姓",
+    "email": "メールアドレス",
+    "height": "身長 (cm)",
+    "weight": "体重 (kg)",
+    "age": "年齢",
+    "dailyCalories": "1日のカロリー",
+    "metricWeight": "体重",
+    "metricHeight": "身長",
+    "metricAge": "年齢",
+    "metricCalories": "カロリー/日",
+    "preferences": "設定",
+    "language": "言語",
+    "theme": "テーマ",
+    "lightMode": "ライトテーマ",
+    "darkModeSubtitle": "ダークテーマ",
+    "systemTheme": "システムに合わせる",
+    "notifications": "通知",
+    "notificationsInfo": "通知設定は近日追加予定です。",
+    "notificationsDailyTitle": "毎日のリマインダー",
+    "notificationsDailyDescription": "毎日{{time}}にお知らせします。",
+    "notificationsDailyDisabled": "リマインダーを有効にして記録を忘れないようにしましょう。",
+    "notificationsChangeTime": "時間を変更（現在 {{time}}）",
+    "notificationsErrorTitle": "更新に失敗しました",
+    "notificationsErrorMessage": "通知設定を更新できませんでした。もう一度お試しください。",
+    "savedTitle": "プロフィールを保存しました",
+    "savedMessage": "プロフィールが正常に更新されました。",
+    "errorTitle": "エラー",
+    "errorMessage": "プロフィールを更新できませんでした。後でもう一度お試しください。"
+  },
+  "gallery": {
+    "title": "写真を選択",
+    "loadingGallery": "ギャラリーを読み込み中...",
+    "permissionRequired": "ギャラリーへのアクセスが必要です",
+    "permissionText": "食事の写真を選択するには、デバイスの設定でフォトライブラリへのアクセスを有効にしてください。",
+    "goBack": "戻る",
+    "requestingPermission": "ギャラリーの権限をリクエスト中...",
+    "accessDenied": "ギャラリーアクセス",
+    "accessDeniedText": "写真を選択するには、ギャラリーへのアクセスを許可する必要があります。設定を開き、写真へのアクセスを許可してください。",
+    "settings": "設定",
+    "error": "画像の読み込みに失敗しました。もう一度お試しください。"
+  },
+  "camera": {
+    "requestingPermission": "カメラの許可をリクエストしています...",
+    "accessTitle": "カメラへのアクセスが必要です",
+    "accessBody": "設定でカメラアクセスを有効にして食事を撮影してください。",
+    "requestPermission": "アクセスを許可",
+    "takePhoto": "食事を撮影",
+    "flashModeOff": "フラッシュオフ",
+    "flashModeOn": "フラッシュオン",
+    "flashModeAuto": "フラッシュ自動",
+    "switchCamera": "カメラを切り替え",
+    "zoomLabel": "ズーム {{value}}倍",
+    "captureError": "写真を撮影できませんでした。もう一度お試しください。"
+  },
+  "editFood": {
+    "title": "食材を編集",
+    "subtitle": "変更を加えて保存",
+    "name": "名前",
+    "namePlaceholder": "製品名",
+    "weight": "重量（g）",
+    "weightHint": "分量",
+    "macronutrients": "マクロ栄養素",
+    "protein": "タンパク質",
+    "carbs": "炭水化物",
+    "fat": "脂肪",
+    "calories": "カロリー（kcal）",
+    "calculate": "計算: {{value}}",
+    "calculatedAuto": "マクロ栄養素から自動計算"
+  },
+  "auth": {
+    "email": "メールアドレス",
+    "emailPlaceholder": "メールアドレスを入力",
+    "otpCode": "確認コード",
+    "otpPlaceholder": "6桁のコードを入力",
+    "requestOtp": "コードをリクエスト",
+    "verify": "確認",
+    "magicLink": "マジックリンクを送信",
+    "signIn": "ログイン",
+    "signUp": "登録",
+    "welcomeTitle": "CalorieCamへようこそ",
+    "welcomeSubtitle": "ログインして栄養を記録し、目標を達成しましょう。",
+    "emailLabel": "メールアドレス",
+    "signInWithOtp": "メールコードでログイン",
+    "signInWithMagicLink": "マジックリンクでログイン",
+    "otpScreenTitle": "確認コードを入力",
+    "otpScreenSubtitle": "6桁のコードを {{email}} に送信しました",
+    "verifyCode": "コードを確認",
+    "resendCode": "新しいコードを送信",
+    "magicLinkTitle": "メールを確認してください",
+    "magicLinkSubtitle": "次の宛先にリンクを送りました",
+    "magicLinkDescription": "メールのリンクを開くとログインできます。リンクは15分間有効です。",
+    "magicLinkResend": "リンクを再送",
+    "sendCode": "コードを送信",
+    "changeEmail": "別のメールアドレスを使う",
+    "resendIn": "{{seconds}}秒後に再送",
+    "codeExpiresIn": "コードは{{seconds}}秒後に失効します",
+    "messages": {
+      "codeSent": "{{email}}で6桁のコードを確認してください。",
+      "codeResent": "{{email}}に新しいコードを送信しました。",
+      "signedIn": "ログインしました。"
+    },
+    "errors": {
+      "invalidEmail": "有効なメールアドレスを入力してください。",
+      "sendFailed": "コードを送信できませんでした。もう一度お試しください。",
+      "resendFailed": "コードを再送できませんでした。しばらくしてからお試しください。",
+      "verifyFailed": "コードを確認できませんでした。もう一度お試しください。",
+      "invalidCode": "コードが正しくありません。",
+      "expiredCode": "コードの有効期限が切れました。新しいコードを取得してください。",
+      "rateLimited": "試行回数が多すぎます。{{seconds}}秒後に再度お試しください。",
+      "codeLength": "メールで受け取った6桁のコードを入力してください。"
+    }
+  },
+  "onboarding": {
+    "welcome": "CalorieCamへようこそ",
+    "getStarted": "始める",
+    "personalInfo": "個人情報",
+    "physicalInfo": "身体情報",
+    "activityLevel": "活動レベル",
+    "goals": "目標",
+    "plan": "プランを選択"
+  },
+  "tabs": {
+    "dashboard": "ホーム",
+    "articles": "記事",
+    "recently": "最近",
+    "profile": "プロフィール"
+  },
+  "terms": {
+    "title": "利用規約",
+    "lastUpdated": "最終更新",
+    "intro": "CalorieCamを使用する前に、これらの利用規約を注意深くお読みください。",
+    "sections": {
+      "acceptance": {
+        "title": "1. 規約の受諾",
+        "content": "CalorieCamを使用することで、これらの利用規約に同意したものとみなされます。これらの規約に同意しない場合は、アプリケーションを使用しないでください。"
+      },
+      "description": {
+        "title": "2. サービスの説明",
+        "content": "CalorieCamは、人工知能を使用した栄養追跡、食品分析、および個別化された栄養推奨のためのツールを提供します。"
+      },
+      "registration": {
+        "title": "3. 登録とアカウント",
+        "content": "アカウントの認証情報の機密性を維持する責任があります。アカウントの不正使用を即座に通知することに同意します。"
+      },
+      "userContent": {
+        "title": "4. ユーザーコンテンツ",
+        "content": "アップロードするコンテンツの所有権を保持します。コンテンツをアップロードすることで、サービスを提供し、アプリケーションを改善するために使用するライセンスを付与します。"
+      },
+      "prohibited": {
+        "title": "5. 禁止される使用",
+        "content": "サービスを違法な目的、他者への危害、または法律や規制の違反に使用することはできません。"
+      },
+      "intellectual": {
+        "title": "6. 知的財産",
+        "content": "CalorieCamのすべてのコンテンツ、機能、機能性は当社の所有物であり、著作権法およびその他の知的財産法によって保護されています。"
+      },
+      "limitation": {
+        "title": "7. 責任の制限",
+        "content": "CalorieCamは「現状のまま」保証なしで提供されます。アプリケーションの使用に起因する損害について責任を負いません。"
+      },
+      "changes": {
+        "title": "8. 規約の変更",
+        "content": "これらの規約をいつでも変更する権利を留保します。変更後のアプリケーションの継続使用は、新しい規約の受諾を意味します。"
+      },
+      "contact": {
+        "title": "9. お問い合わせ",
+        "content": "これらの利用規約に関する質問については、以下にお問い合わせください：legal@caloriecam.com"
+      }
+    }
+  },
+  "privacy": {
+    "title": "プライバシーポリシー",
+    "lastUpdated": "最終更新",
+    "intro": "CalorieCamはお客様のプライバシーを大切にしています。このポリシーは、お客様の情報をどのように収集、使用、保護するかを説明しています。",
+    "sections": {
+      "collection": {
+        "title": "1. 情報の収集",
+        "content": "登録時およびアプリ使用時に提供される情報を収集します。これには個人データ、栄養情報、食品写真が含まれます。"
+      },
+      "usage": {
+        "title": "2. 情報の使用",
+        "content": "お客様の情報は、個別化された栄養推奨、食品分析、およびアプリケーションの改善を提供するために使用されます。"
+      },
+      "protection": {
+        "title": "3. データ保護",
+        "content": "最新の暗号化および安全なデータ保存方法を使用して、お客様の個人情報を保護します。"
+      },
+      "sharing": {
+        "title": "4. データの共有",
+        "content": "お客様の個人情報を販売することはありません。サービスを改善するために、匿名化されたデータをパートナーと共有する場合があります。"
+      },
+      "changes": {
+        "title": "5. この方針の変更",
+        "content": "本プライバシーポリシーに重要な変更がある場合は、施行前にアプリやメールで事前にお知らせします。"
+      },
+      "cookies": {
+        "title": "6. クッキーとトラッキング",
+        "content": "設定の記憶、パフォーマンス測定、体験向上のためにクッキーなどの技術を使用します。クッキーは端末の設定で管理できます。"
+      },
+      "children": {
+        "title": "7. 子どものプライバシー",
+        "content": "CalorieCamは13歳未満のお子様を対象としていません。お子様のデータを意図的に収集せず、保有が判明した場合は速やかに削除します。"
+      },
+      "rights": {
+        "title": "8. お客様の権利",
+        "content": "地域によって、データへのアクセス、更新、削除、処理制限を要求する権利があります。これらの権利を行使するにはご連絡ください。"
+      },
+      "choices": {
+        "title": "9. 選択肢",
+        "content": "アプリの設定でプライバシー設定を管理できます。いつでもデータのコピーや削除をリクエストできます。"
+      },
+      "contact": {
+        "title": "10. お問い合わせ",
+        "content": "プライバシーに関するお問い合わせ: privacy@caloriecam.com"
+      }
+    }
+  },
+  "analysisFlow": {
+    "uploadPhoto": "写真をアップロード",
+    "takePhoto": "写真を撮る",
+    "describeMeal": "食事を説明する",
+    "describeMealPlaceholder": "食材や分量などの詳細を追加してください",
+    "analyze": "分析する",
+    "recentResults": "最近の結果",
+    "viewDetails": "詳細を見る"
+  },
+  "aiAssistant": {
+    "title": "AI栄養アシスタント",
+    "subtitle": "栄養や食事、ウェルネスについて質問してください",
+    "placeholder": "質問を入力してください...",
+    "send": "送信",
+    "stop": "停止",
+    "typing": "アシスタントが入力しています...",
+    "quickActions": "クイックアクション",
+    "suggestions": {
+      "mealIdeas": "健康的な食事アイデア",
+      "dietPlan": "食事プランを立てる",
+      "calorieAdvice": "カロリーのアドバイス"
+    }
+  },
+  "assistant": {
+    "title": "AIコーチ",
+    "chooseFlow": "フローを選択",
+    "recentAdvice": "最近の提案",
+    "historyEmpty": "保存された提案はまだありません。",
+    "inputPlaceholder": "回答を入力してください...",
+    "next": "次へ",
+    "cancel": "キャンセル",
+    "summaryTitle": "パーソナルプラン",
+    "done": "完了",
+    "flow": {
+      "injury": {
+        "title": "ケガのトリアージ",
+        "desc": "症状を整理して次のステップを確認。" },
+      "nutrition": {
+        "title": "栄養目標セットアップ",
+        "desc": "目標・課題・リソースを明確に。" },
+      "hydration": {
+        "title": "水分チェック",
+        "desc": "日々の水分摂取を見直してプランを作成。" }
+    }
+  },
+  "recently": {
+    "title": "最近",
+    "subtitle": "最近の食事と分析",
+    "noItems": "最近のアイテムはありません。食事の分析から始めましょう！",
+    "today": "今日",
+    "yesterday": "昨日",
+    "daysAgo_one": "{{count}}日前",
+    "daysAgo_other": "{{count}}日前",
+    "empty": {
+      "title": "最近のアイテムはありません",
+      "subtitle": "最初の食事を分析してみましょう",
+      "cta": "食事を分析する"
+    },
+    "nutrition": {
+      "calories": "カロリー",
+      "protein": "たんぱく質",
+      "carbs": "炭水化物",
+      "fat": "脂質"
+    },
+    "healthScoreLabel": "スコア {{score}}"
+  },
+  "meals": {
+    "title": "食事",
+    "empty": "記録された食事はまだありません。",
+    "addMeal": "食事を追加",
+    "mealDetails": "食事の詳細"
+  }
+}
+

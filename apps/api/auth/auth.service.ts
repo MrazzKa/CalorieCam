@@ -1,15 +1,40 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  Logger,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { OtpService } from './otp.service';
 import { RedisService } from '../redis/redis.service';
 import { MailerService } from '../mailer/mailer.service';
-import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto, RequestOtpDto, RequestMagicLinkDto } from './dto';
+import {
+  LoginDto,
+  RegisterDto,
+  VerifyOtpDto,
+  RefreshTokenDto,
+  RequestOtpDto,
+  RequestMagicLinkDto,
+} from './dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
+const OTP_TTL_SECONDS = 10 * 60;
+const OTP_EMAIL_COOLDOWN_SECONDS = 60;
+const OTP_EMAIL_HOURLY_LIMIT = 5;
+const OTP_IP_HOURLY_LIMIT = 40;
+const MAGIC_LINK_HOURLY_LIMIT = 5;
+const MAGIC_LINK_TTL_MINUTES = 15;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -18,112 +43,64 @@ export class AuthService {
     private readonly mailerService: MailerService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password } = registerDto;
+  async register(_: RegisterDto) {
+    throw new BadRequestException('Password registration is disabled. Use email code login.');
+  }
 
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
+  async validateUser(): Promise<any> {
+    return null;
+  }
 
-    if (existingUser) {
-      throw new BadRequestException('User already exists');
-    }
+  async login(_: LoginDto) {
+    throw new BadRequestException('Password login is disabled. Use email code login.');
+  }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+  async requestOtp(requestOtpDto: RequestOtpDto, clientIp?: string) {
+    const normalizedEmail = this.normalizeEmail(requestOtpDto.email);
+    const sanitizedIp = this.sanitizeIp(clientIp);
 
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-      },
-    });
+    await this.enforceOtpRateLimits(normalizedEmail, sanitizedIp);
 
-    // Generate OTP
     const otpCode = this.otpService.generateOtp();
-    const otp = await this.otpService.saveOtp(email, otpCode);
+    await this.otpService.saveOtp(normalizedEmail, otpCode);
+
+    try {
+      await this.mailerService.sendOtpEmail(normalizedEmail, otpCode);
+    } catch (error) {
+      this.logger.error(`[AuthService] Failed to dispatch OTP email for ${this.maskEmail(normalizedEmail)}`);
+      throw new ServiceUnavailableException('We could not send the verification email. Please try again later.');
+    }
+
+    const retryAfter = await this.redisService.ttl(this.cooldownKey(normalizedEmail));
+    const otpTtl = await this.otpService.getOtpTtl(normalizedEmail);
+
+    this.logger.log(`[AuthService] OTP requested for ${this.maskEmail(normalizedEmail)}`);
 
     return {
-      message: 'User registered successfully. Please verify your email.',
-      userId: user.id,
-      otpId: otp.id,
-    };
-  }
-
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    const { password: _, ...result } = user;
-    return result;
-  }
-
-  async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
-
-    // Find user
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
-
-    return {
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-      ...tokens,
+      message: 'If this email is registered, we just sent a 6-digit code.',
+      retryAfter: retryAfter > 0 ? retryAfter : OTP_EMAIL_COOLDOWN_SECONDS,
+      expiresIn: otpTtl > 0 ? otpTtl : OTP_TTL_SECONDS,
     };
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto) {
-    const { email, code } = verifyOtpDto;
+    const normalizedEmail = this.normalizeEmail(verifyOtpDto.email);
+    const status = await this.otpService.verifyOtp(normalizedEmail, verifyOtpDto.code);
 
-    // Verify OTP
-    const isValid = await this.otpService.verifyOtp(email, code);
-    if (!isValid) {
-      throw new BadRequestException('Invalid OTP');
+    if (status === 'expired') {
+      throw new BadRequestException({ message: 'Verification code expired. Request a new one.', code: 'OTP_EXPIRED' });
+    }
+    if (status === 'invalid') {
+      throw new BadRequestException({ message: 'Incorrect verification code. Check the email and try again.', code: 'OTP_INVALID' });
     }
 
-    // Get user
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-
-    // Generate tokens
+    const user = await this.findOrCreateUser(normalizedEmail);
     const tokens = await this.generateTokens(user.id, user.email);
 
+    this.logger.log(`[AuthService] OTP verified for ${this.maskEmail(normalizedEmail)}`);
+
     return {
-      message: 'OTP verified successfully',
+      message: 'Signed in successfully.',
       user: {
         id: user.id,
         email: user.email,
@@ -132,117 +109,43 @@ export class AuthService {
     };
   }
 
-  async requestOtp(requestOtpDto: RequestOtpDto) {
-    const { email } = requestOtpDto;
+  async requestMagicLink(requestMagicLinkDto: RequestMagicLinkDto, clientIp?: string) {
+    const normalizedEmail = this.normalizeEmail(requestMagicLinkDto.email);
+    const sanitizedIp = this.sanitizeIp(clientIp);
 
-    // Rate limiting: 5 requests per hour per email
-    const rateLimitKey = `otp:rate:${email}`;
-    const rateLimitCount = await this.redisService.get(rateLimitKey);
-    const currentCount = rateLimitCount ? parseInt(rateLimitCount, 10) : 0;
+    await this.enforceMagicLinkRateLimits(normalizedEmail, sanitizedIp);
 
-    if (currentCount >= 5) {
-      throw new BadRequestException('Too many OTP requests. Please try again later.');
-    }
-
-    // Create user if doesn't exist
-    let user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      // Create user without password (OTP-only auth)
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          password: '', // No password needed for OTP auth
-        },
-      });
-    }
-
-    // Generate and save OTP
-    const otpCode = this.otpService.generateOtp();
-    await this.otpService.saveOtp(email, otpCode);
-
-    // Increment rate limit counter
-    await this.redisService.set(rateLimitKey, (currentCount + 1).toString(), 3600); // 1 hour TTL
-
-    // Send OTP email
-    try {
-      await this.mailerService.sendOTPEmail(email, otpCode);
-    } catch (error) {
-      console.error('Failed to send OTP email:', error);
-      // Don't fail the request if email fails
-    }
-
-    return {
-      message: 'OTP sent successfully',
-      email,
-    };
-  }
-
-  async requestMagicLink(requestMagicLinkDto: RequestMagicLinkDto) {
-    const { email } = requestMagicLinkDto;
-
-    // Rate limiting: 5 requests per hour per email
-    const rateLimitKey = `magic:rate:${email}`;
-    const rateLimitCount = await this.redisService.get(rateLimitKey);
-    const currentCount = rateLimitCount ? parseInt(rateLimitCount, 10) : 0;
-
-    if (currentCount >= 5) {
-      throw new BadRequestException('Too many magic link requests. Please try again later.');
-    }
-
-    // Create user if doesn't exist
-    let user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          password: '', // No password needed for magic link auth
-        },
-      });
-    }
-
-    // Generate secure token
+    const user = await this.findOrCreateUser(normalizedEmail);
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MINUTES * 60 * 1000);
 
-    // Store magic link
     await this.prisma.magicLink.create({
       data: {
         userId: user.id,
-        email,
+        email: user.email,
         token,
         expiresAt,
       },
     });
 
-    // Increment rate limit counter
-    await this.redisService.set(rateLimitKey, (currentCount + 1).toString(), 3600); // 1 hour TTL
-
-    // Generate magic link URL
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
-    const magicLinkUrl = `${baseUrl}/v1/auth/magic/consume?token=${token}`;
+    const magicLinkUrl = `${baseUrl}/v1/auth/magic-link?token=${token}`;
 
-    // Send magic link email
     try {
-      await this.mailerService.sendMagicLinkEmail(email, magicLinkUrl);
+      await this.mailerService.sendMagicLinkEmail(user.email, magicLinkUrl);
     } catch (error) {
-      console.error('Failed to send magic link email:', error);
-      // Don't fail the request if email fails
+      this.logger.error(`[AuthService] Failed to dispatch magic link for ${this.maskEmail(user.email)}`);
+      throw new ServiceUnavailableException('We could not send the magic link. Please try again later.');
     }
 
+    this.logger.log(`[AuthService] Magic link requested for ${this.maskEmail(user.email)}`);
+
     return {
-      message: 'Magic link sent successfully',
-      email,
+      message: 'If this email is registered, we sent a magic link to your inbox.',
     };
   }
 
   async consumeMagicLink(token: string) {
-    // Find magic link
     const magicLink = await this.prisma.magicLink.findUnique({
       where: { token },
       include: { user: true },
@@ -260,17 +163,17 @@ export class AuthService {
       throw new BadRequestException('Magic link expired');
     }
 
-    // Mark as used
     await this.prisma.magicLink.update({
       where: { id: magicLink.id },
       data: { used: true },
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(magicLink.user.id, magicLink.user.email);
 
+    this.logger.log(`[AuthService] Magic link consumed for ${this.maskEmail(magicLink.user.email)}`);
+
     return {
-      message: 'Magic link verified successfully',
+      message: 'Signed in successfully.',
       user: {
         id: magicLink.user.id,
         email: magicLink.user.email,
@@ -283,12 +186,10 @@ export class AuthService {
     const { refreshToken } = refreshTokenDto;
 
     try {
-      // Verify refresh token
       const payload = this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
       });
 
-      // Check if token exists in database
       const tokenRecord = await this.prisma.refreshToken.findUnique({
         where: { token: refreshToken },
         include: { user: true },
@@ -298,10 +199,8 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      // Generate new tokens
       const tokens = await this.generateTokens(tokenRecord.user.id, tokenRecord.user.email);
 
-      // Revoke old token
       await this.prisma.refreshToken.update({
         where: { id: tokenRecord.id },
         data: { revoked: true },
@@ -317,7 +216,6 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    // Revoke all refresh tokens for user
     await this.prisma.refreshToken.updateMany({
       where: { userId, revoked: false },
       data: { revoked: true },
@@ -328,7 +226,7 @@ export class AuthService {
 
   private async generateTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
-    
+
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: '15m',
     });
@@ -338,12 +236,11 @@ export class AuthService {
       expiresIn: '30d',
     });
 
-    // Store refresh token in database
     await this.prisma.refreshToken.create({
       data: {
         token: refreshToken,
         userId,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -351,5 +248,137 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  private async findOrCreateUser(email: string) {
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      const password = await this.generateRandomPasswordHash();
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          password,
+        },
+      });
+      return user;
+    }
+
+    if (!user.password || user.password.trim().length === 0) {
+      const password = await this.generateRandomPasswordHash();
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password },
+      });
+    }
+
+    return user;
+  }
+
+  private async generateRandomPasswordHash() {
+    const random = crypto.randomBytes(32).toString('hex');
+    return bcrypt.hash(random, 10);
+  }
+
+  private async enforceOtpRateLimits(email: string, ip?: string | null) {
+    await this.ensureCooldown(email);
+    await this.ensureHourlyLimit(OTP_EMAIL_HOURLY_LIMIT, this.emailHourlyKey(email));
+
+    if (ip) {
+      await this.ensureHourlyLimit(OTP_IP_HOURLY_LIMIT, this.ipHourlyKey(ip));
+    }
+  }
+
+  private async enforceMagicLinkRateLimits(email: string, ip?: string | null) {
+    await this.ensureHourlyLimit(MAGIC_LINK_HOURLY_LIMIT, this.magicHourlyKey(email));
+
+    if (ip) {
+      await this.ensureHourlyLimit(MAGIC_LINK_HOURLY_LIMIT * 2, this.magicIpHourlyKey(ip));
+    }
+  }
+
+  private async ensureCooldown(email: string) {
+    const key = this.cooldownKey(email);
+    const acquired = await this.redisService.setNx(key, '1', OTP_EMAIL_COOLDOWN_SECONDS);
+
+    if (!acquired) {
+      const ttl = await this.redisService.ttl(key);
+      if (ttl > 0) {
+        throw new HttpException(
+          {
+            message: 'Too many requests. Wait a moment before trying again.',
+            retryAfter: ttl,
+            code: 'OTP_RATE_LIMIT',
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+  }
+
+  private async ensureHourlyLimit(limit: number, key: string) {
+    const count = await this.redisService.incr(key);
+    if (count <= 0) {
+      return;
+    }
+
+    if (count === 1) {
+      await this.redisService.expire(key, 60 * 60);
+    }
+
+    if (count > limit) {
+      const ttl = await this.redisService.ttl(key);
+      throw new HttpException(
+        {
+          message: 'Too many requests. Please try again later.',
+          retryAfter: ttl > 0 ? ttl : 60 * 60,
+          code: 'OTP_RATE_LIMIT',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  private normalizeEmail(email: string): string {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private sanitizeIp(ip?: string | null): string | null {
+    if (!ip) {
+      return null;
+    }
+    const first = ip.split(',')[0].trim();
+    return first.replace('::ffff:', '') || null;
+  }
+
+  private cooldownKey(email: string) {
+    return `auth:otp:cooldown:${email}`;
+  }
+
+  private emailHourlyKey(email: string) {
+    return `auth:otp:rate:${email}`;
+  }
+
+  private ipHourlyKey(ip: string) {
+    return `auth:otp:rate:ip:${ip}`;
+  }
+
+  private magicHourlyKey(email: string) {
+    return `auth:magic:rate:${email}`;
+  }
+
+  private magicIpHourlyKey(ip: string) {
+    return `auth:magic:rate:ip:${ip}`;
+  }
+
+  private maskEmail(email: string) {
+    const [local, domain] = email.split('@');
+    if (!domain) {
+      return `${email.slice(0, 3)}***`;
+    }
+    const visibleLocal = local.slice(0, Math.min(2, local.length));
+    return `${visibleLocal}***@${domain}`;
   }
 }

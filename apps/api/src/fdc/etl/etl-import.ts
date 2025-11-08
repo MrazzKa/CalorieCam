@@ -136,8 +136,20 @@ async function importFood(foodData: any, dataType: string) {
         const nutrientData = NutrientSchema.parse(fn.nutrient);
         await prisma.nutrient.upsert({
           where: { id: nutrientData.id },
-          update: nutrientData,
-          create: nutrientData,
+          update: {
+            id: nutrientData.id,
+            number: nutrientData.number || null,
+            name: nutrientData.name,
+            unitName: nutrientData.unitName,
+            rank: nutrientData.rank || null,
+          },
+          create: {
+            id: nutrientData.id,
+            number: nutrientData.number || null,
+            name: nutrientData.name,
+            unitName: nutrientData.unitName,
+            rank: nutrientData.rank || null,
+          },
         });
       }
     }

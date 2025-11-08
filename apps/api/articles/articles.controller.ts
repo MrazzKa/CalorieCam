@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service';
+import { ArticleFeedDto } from './dto/article.dto';
 
 @ApiTags('Articles')
 @Controller('articles')
@@ -14,7 +15,7 @@ export class ArticlesController {
   getFeed(
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-  ) {
+  ): Promise<ArticleFeedDto> {
     return this.articlesService.getFeed(
       page ? parseInt(page) : 1,
       pageSize ? parseInt(pageSize) : 20,
@@ -35,9 +36,9 @@ export class ArticlesController {
     @Query('q') query: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-  ) {
+  ): Promise<ArticleFeedDto> {
     if (!query) {
-      return { articles: [], page: 1, pageSize: 20, total: 0 };
+      return Promise.resolve({ articles: [], page: 1, pageSize: 20, total: 0 });
     }
     return this.articlesService.search(
       query,
@@ -53,7 +54,7 @@ export class ArticlesController {
     @Param('tag') tag: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-  ) {
+  ): Promise<ArticleFeedDto> {
     return this.articlesService.getByTag(
       tag,
       page ? parseInt(page) : 1,

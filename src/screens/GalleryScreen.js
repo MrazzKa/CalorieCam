@@ -1,187 +1,286 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
-  Image,
-  Alert,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { useI18n } from '../i18n/hooks';
+import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING } from '../utils/designConstants';
+
+const STATE = {
+  IDLE: 'idle',
+  CHECKING: 'checking',
+  READY: 'ready',
+  DENIED: 'denied',
+  LIMITED: 'limited',
+  OPENING: 'opening',
+  CANCELED: 'canceled',
+  ERROR: 'error',
+};
 
 export default function GalleryScreen() {
   const navigation = useNavigation();
   const { t } = useI18n();
-  const [hasPermission, setHasPermission] = useState(null);
-  const [images, setImages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, setState] = useState(STATE.CHECKING);
+  const [error, setError] = useState(null);
+  const isOpeningRef = useRef(false);
 
   console.log('GalleryScreen loaded');
 
-  const [openedOnce, setOpenedOnce] = useState(false);
+  const ensurePermission = useCallback(async () => {
+    setState(STATE.CHECKING);
+    setError(null);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!openedOnce) {
-        // Request permissions first, then open picker (on focus to avoid iOS hangs)
-        getMediaLibraryPermissions();
-        setOpenedOnce(true);
-      }
-      return () => {};
-    }, [openedOnce])
-  );
-
-  const getMediaLibraryPermissions = async () => {
     try {
-      console.log('[GalleryScreen] Checking media library permissions...');
-      const current = await ImagePicker.getMediaLibraryPermissionsAsync();
-      console.log('[GalleryScreen] Current permission status:', current.status);
-      
-      // On iOS, if permission is denied, we can still try to launch picker
-      // Expo will handle permission request automatically
-      if (current.status === 'denied') {
-        console.log('[GalleryScreen] Permission denied - trying to launch picker anyway (Expo will request)');
-        // Just try to launch - Expo will show permission dialog if needed
-        loadImages();
-        return;
+      const p0 = await ImagePicker.getMediaLibraryPermissionsAsync();
+      // Отладочный лог полного объекта разрешений
+      console.log('[GalleryScreen] Permission object:', JSON.stringify(p0, null, 2));
+      console.log('[GalleryScreen] status:', p0.status);
+      console.log('[GalleryScreen] granted:', p0.granted);
+      console.log('[GalleryScreen] canAskAgain:', p0.canAskAgain);
+      if (Platform.OS === 'ios' && p0.accessPrivileges) {
+        console.log('[GalleryScreen] accessPrivileges:', p0.accessPrivileges);
       }
-      
-      let status = current.status;
-      if (status !== 'granted' && status !== 'limited') {
+
+      // Проверяем granted или limited (iOS частичный доступ)
+      if (p0.granted) {
+        // На iOS может быть частичный доступ (limited)
+        if (Platform.OS === 'ios' && p0.accessPrivileges === 'limited') {
+          console.log('[GalleryScreen] Limited access granted - treating as allowed');
+          setState(STATE.LIMITED);
+          return true;
+        }
+        console.log('[GalleryScreen] Full access granted');
+        setState(STATE.READY);
+        return true;
+      }
+
+      // Если не granted, но статус limited - тоже допустимо
+      if (p0.status === 'limited') {
+        console.log('[GalleryScreen] Limited status - treating as allowed');
+        setState(STATE.LIMITED);
+        return true;
+      }
+
+      // Если можно спросить снова - запрашиваем
+      if (p0.canAskAgain !== false) {
         console.log('[GalleryScreen] Requesting permission...');
-        const req = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        status = req.status;
-        console.log('[GalleryScreen] Permission request result:', status);
+        const p1 = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log('[GalleryScreen] Request result:', JSON.stringify(p1, null, 2));
+        
+        if (p1.granted) {
+          if (Platform.OS === 'ios' && p1.accessPrivileges === 'limited') {
+            console.log('[GalleryScreen] Limited access after request - treating as allowed');
+            setState(STATE.LIMITED);
+            return true;
+          }
+          console.log('[GalleryScreen] Full access granted after request');
+          setState(STATE.READY);
+          return true;
+        }
+        
+        // Если статус limited после запроса - тоже допустимо
+        if (p1.status === 'limited') {
+          console.log('[GalleryScreen] Limited status after request - treating as allowed');
+          setState(STATE.LIMITED);
+          return true;
+        }
+        
+        // iOS странность: accessPrivileges="all" но granted=false - попробуем открыть пикер
+        if (Platform.OS === 'ios' && p1.accessPrivileges === 'all' && p1.canAskAgain === true) {
+          console.log('[GalleryScreen] iOS quirk: accessPrivileges=all but granted=false - allowing anyway');
+          setState(STATE.READY);
+          return true;
+        }
       }
-      
-      const allowed = status === 'granted' || status === 'limited';
-      console.log('[GalleryScreen] Permission allowed:', allowed);
-      setHasPermission(allowed);
-      
-      if (allowed) {
-        // Small delay to ensure state is updated
-        setTimeout(() => {
-          loadImages();
-        }, 100);
-      } else {
-        // If still not allowed, try launching anyway - Expo might handle it
-        console.log('[GalleryScreen] Permission not granted, but trying to launch picker...');
-        loadImages();
+
+      // iOS странность: accessPrivileges="all" но granted=false - попробуем открыть пикер
+      if (Platform.OS === 'ios' && p0.accessPrivileges === 'all' && p0.canAskAgain === true) {
+        console.log('[GalleryScreen] iOS quirk detected: accessPrivileges=all but granted=false - allowing anyway');
+        setState(STATE.READY);
+        return true;
       }
+
+      // Отказ; возможно нельзя повторно спрашивать
+      console.log('[GalleryScreen] Permission denied, canAskAgain:', p0.canAskAgain);
+      setState(STATE.DENIED);
+      return false;
     } catch (e) {
       console.error('[GalleryScreen] Permission error:', e);
-      // Try to launch picker anyway - might work
-      console.log('[GalleryScreen] Trying to launch picker despite error...');
-      loadImages();
+      setState(STATE.ERROR);
+      setError(String(e?.message ?? e));
+      return false;
     }
-  };
+  }, []);
 
-  const loadImages = async () => {
+  const openSettings = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  }, []);
+
+  const pickImage = useCallback(async () => {
+    if (isOpeningRef.current) {
+      console.log('[GalleryScreen] Picker already opening, skipping...');
+      return;
+    }
+
+    isOpeningRef.current = true;
+    setError(null);
+    setState(STATE.OPENING);
+
     try {
-      setIsLoading(true);
-      setHasPermission(true); // Set to true to allow loading
-      console.log('[GalleryScreen] Launching image library...');
+      // Проверяем разрешения, но даже если denied - пробуем открыть пикер
+      const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+      console.log('[GalleryScreen] Permission before pick:', JSON.stringify(permission, null, 2));
       
+      // iOS странность: accessPrivileges="all" но granted=false - пробуем открыть
+      const shouldTryOpen = permission.granted || 
+        (Platform.OS === 'ios' && permission.accessPrivileges === 'all') ||
+        permission.status === 'limited';
+      
+      if (!shouldTryOpen && permission.canAskAgain) {
+        const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log('[GalleryScreen] Permission after request:', JSON.stringify(requested, null, 2));
+      }
+
+      // Пробуем открыть пикер даже если разрешение denied (iOS может разрешить)
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: false,
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: false,
+        quality: 1,
         selectionLimit: 1,
+        exif: false,
       });
 
-      console.log('[GalleryScreen] Image picker result:', {
-        canceled: result.canceled,
-        hasAssets: !!result.assets?.[0],
-      });
-
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        console.log('[GalleryScreen] Image selected, compressing...');
-        
-        // Compress the image
-        const compressedImage = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [{ resize: { width: 1024 } }],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
-        console.log('[GalleryScreen] Image compressed, navigating...');
-        setIsLoading(false);
-        // Navigate to analysis results with the image
-        navigation.navigate('AnalysisResults', {
-          imageUri: compressedImage.uri,
-          source: 'gallery',
-        });
-      } else {
-        // User cancelled, go back immediately
-        console.log('[GalleryScreen] User cancelled or no image selected');
-        setIsLoading(false);
-        navigation.goBack();
+      if (result.canceled) {
+        setState(STATE.CANCELED);
+        isOpeningRef.current = false;
+        // Не закрываем экран, показываем кнопку для повторной попытки
+        return;
       }
-    } catch (error) {
-      console.error('[GalleryScreen] Error loading images:', error);
-      setIsLoading(false);
+
+      const asset = result.assets?.[0];
+      if (!asset) {
+        setState(STATE.ERROR);
+        setError('No asset returned');
+        isOpeningRef.current = false;
+        return;
+      }
+
+      console.log('[GalleryScreen] Image selected, compressing...');
       
-      // Check if it's a permission error
-      if (error.code === 'E_PERMISSION_MISSING' || error.message?.includes('permission')) {
-        Alert.alert(
-          t('gallery.accessDenied'),
-          t('gallery.accessDeniedText'),
-          [
-            { text: t('common.cancel'), onPress: () => navigation.goBack(), style: 'cancel' },
-            { text: t('gallery.settings'), onPress: () => {
-              // On iOS, can't open settings directly, but Expo handles it
-              navigation.goBack();
-            }},
-          ]
-        );
-      } else {
-        Alert.alert(t('common.error'), t('gallery.error'));
-        navigation.goBack();
-      }
+      // Compress the image
+      const compressedImage = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      console.log('[GalleryScreen] Image compressed, navigating...');
+      setState(STATE.READY);
+      isOpeningRef.current = false;
+      
+      // Navigate to analysis results with the image
+      navigation.navigate('AnalysisResults', {
+        imageUri: compressedImage.uri,
+        source: 'gallery',
+      });
+    } catch (e) {
+      console.error('[GalleryScreen] Error picking image:', e);
+      setState(STATE.ERROR);
+      setError(String(e?.message ?? e));
+      isOpeningRef.current = false;
     }
-  };
+  }, [ensurePermission, navigation]);
+
+  // One-time permission check on first mount
+  useEffect(() => {
+    // Не запускаем пикер; только проверяем разрешение
+    ensurePermission();
+  }, [ensurePermission]);
 
   const handleClose = () => {
     navigation.goBack();
   };
 
-  if (hasPermission === null) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionContainer}>
+  const renderContent = () => {
+    if (state === STATE.CHECKING || state === STATE.OPENING) {
+      return (
+        <View style={styles.content}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.permissionText}>Requesting gallery permission...</Text>
+          <Text style={styles.loadingText}>
+            {state === STATE.CHECKING ? 'Checking permissions...' : 'Opening gallery...'}
+          </Text>
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  if (hasPermission === false) {
-    return (
-      <SafeAreaView style={styles.container}>
+    if (state === STATE.DENIED) {
+      return (
         <View style={styles.permissionContainer}>
           <Ionicons name="images-outline" size={64} color="#8E8E93" />
           <Text style={styles.permissionTitle}>Gallery Access Required</Text>
           <Text style={styles.permissionText}>
             Please enable photo library access in your device settings to select photos of your meals.
           </Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={handleClose}>
-            <Text style={styles.permissionButtonText}>Go Back</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={openSettings}>
+            <Text style={styles.permissionButtonText}>Open Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleClose}>
+            <Text style={styles.secondaryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      );
+    }
+
+    if (state === STATE.ERROR) {
+      return (
+        <View style={styles.permissionContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
+          <Text style={styles.permissionTitle}>Error</Text>
+          <Text style={styles.permissionText}>{error || 'Failed to open gallery'}</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={pickImage}>
+            <Text style={styles.permissionButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleClose}>
+            <Text style={styles.secondaryButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // READY, CANCELED, LIMITED - показываем кнопку для открытия пикера
+    return (
+      <View style={styles.content}>
+        {state === STATE.CANCELED && (
+          <View style={styles.messageContainer}>
+            <Text style={styles.messageText}>Selection canceled</Text>
+          </View>
+        )}
+        {state === STATE.LIMITED && (
+          <View style={styles.messageContainer}>
+            <Text style={styles.messageText}>Limited photo access. You can select photos from your library.</Text>
+          </View>
+        )}
+        <TouchableOpacity style={styles.pickButton} onPress={pickImage}>
+          <Ionicons name="images" size={24} color="#FFFFFF" />
+          <Text style={styles.pickButtonText}>Pick from Library</Text>
+        </TouchableOpacity>
+      </View>
     );
-  }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -193,10 +292,7 @@ export default function GalleryScreen() {
         <View style={styles.headerButton} />
       </View>
       
-      <View style={styles.content}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading gallery...</Text>
-      </View>
+      {renderContent()}
     </SafeAreaView>
   );
 }
@@ -232,6 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: PADDING.screen,
   },
   loadingText: {
     fontSize: 16,
@@ -264,10 +361,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
+    marginBottom: 12,
+    minWidth: 200,
+    alignItems: 'center',
   },
   permissionButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  secondaryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pickButton: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  pickButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  messageContainer: {
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#FFF3CD',
+    borderRadius: 8,
+  },
+  messageText: {
+    fontSize: 16,
+    color: '#856404',
+    textAlign: 'center',
   },
 });

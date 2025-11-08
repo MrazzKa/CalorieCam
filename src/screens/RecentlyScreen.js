@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,16 +15,156 @@ import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
-import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
+
+const demoHealthScore = {
+  score: 78,
+  grade: 'B',
+  factors: {
+    protein: { label: 'Protein', score: 82, weight: 0.25 },
+    fiber: { label: 'Fiber', score: 70, weight: 0.2 },
+    satFat: { label: 'Saturated fat', score: 65, weight: -0.2 },
+    sugar: { label: 'Sugar', score: 72, weight: -0.2 },
+    energyDensity: { label: 'Energy density', score: 80, weight: -0.15 },
+  },
+  feedback: [
+    {
+      key: 'fiber',
+      label: 'Fiber',
+      action: 'increase',
+      message: 'Good balance overall. Consider adding more fiber-rich ingredients.',
+    },
+  ],
+};
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const formatDateLabel = (date, t, language) => {
+  if (!date) return '';
+  const now = new Date();
+  const dayDiff = Math.floor((now - date) / MS_PER_DAY);
+
+  if (dayDiff <= 0) {
+    return t('recently.today');
+  }
+  if (dayDiff === 1) {
+    return t('recently.yesterday');
+  }
+  if (dayDiff <= 6) {
+    return t('recently.daysAgo', { count: dayDiff });
+  }
+
+  try {
+    return date.toLocaleDateString(language || 'en', {
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+};
+
+const normalizeMeal = (meal) => {
+  if (!meal) return null;
+  const items = meal.items || [];
+  const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const sumMacro = (key) => items.reduce((sum, item) => sum + toNumber(item[key]), 0);
+
+  const totalCalories = Math.round(sumMacro('calories'));
+  const totalProtein = Math.round(sumMacro('protein'));
+  const totalCarbs = Math.round(sumMacro('carbs'));
+  const totalFat = Math.round(sumMacro('fat'));
+
+  const normalizedIngredients = items.map((item) => ({
+    name: item.name || 'Ingredient',
+    calories: toNumber(item.calories),
+    protein: toNumber(item.protein),
+    carbs: toNumber(item.carbs),
+    fat: toNumber(item.fat),
+    weight: toNumber(item.weight),
+  }));
+
+  const healthScore = meal.healthInsights || null;
+  const healthGrade = meal.healthGrade || healthScore?.grade || null;
+
+  return {
+    id: meal.id,
+    dishName: meal.name || 'Meal',
+    date: meal.consumedAt ? new Date(meal.consumedAt) : new Date(meal.createdAt),
+    calories: totalCalories,
+    protein: totalProtein,
+    carbs: totalCarbs,
+    fat: totalFat,
+    imageUri: meal.imageUri || meal.coverUrl || null,
+    healthScore,
+    healthGrade,
+    analysisResult: {
+      dishName: meal.name || 'Meal',
+      totalCalories,
+      totalProtein,
+      totalCarbs,
+      totalFat,
+      ingredients: normalizedIngredients,
+      healthScore,
+      autoSave: meal.id
+        ? {
+            mealId: meal.id,
+            savedAt: meal.createdAt,
+          }
+        : null,
+      imageUri: meal.imageUri || meal.coverUrl || null,
+    },
+  };
+};
+
+const createFallbackMeals = () => {
+  const now = new Date();
+  return [
+    normalizeMeal({
+      id: 'demo-1',
+      name: 'Mixed Salad',
+      createdAt: now.toISOString(),
+      items: [
+        { name: 'Lettuce', calories: 80, protein: 5, carbs: 10, fat: 2, weight: 100 },
+        { name: 'Tomato', calories: 60, protein: 3, carbs: 8, fat: 1, weight: 80 },
+        { name: 'Olive Oil', calories: 180, protein: 0, carbs: 0, fat: 20, weight: 15 },
+      ],
+      healthInsights: demoHealthScore,
+    }),
+    normalizeMeal({
+      id: 'demo-2',
+      name: 'Grilled Chicken',
+      createdAt: new Date(now.getTime() - MS_PER_DAY).toISOString(),
+      items: [
+        { name: 'Chicken Breast', calories: 320, protein: 30, carbs: 0, fat: 8, weight: 150 },
+        { name: 'Roasted Veggies', calories: 120, protein: 5, carbs: 18, fat: 4, weight: 100 },
+      ],
+      healthInsights: {
+        score: 84,
+        grade: 'B',
+        factors: demoHealthScore.factors,
+        feedback: demoHealthScore.feedback,
+      },
+    }),
+  ].filter(Boolean);
+};
 
 export default function RecentlyScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
-  const [refreshing, setRefreshing] = useState(false);
-  
-  // Mock data - in real app this would come from database
+  const { colors, tokens } = useTheme();
+  const { t, language } = useI18n();
+
+  const styles = useMemo(() => createStyles(tokens, colors), [tokens, colors]);
   const [recentItems, setRecentItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadRecentItems();
@@ -33,32 +174,17 @@ export default function RecentlyScreen() {
     try {
       setLoading(true);
       const meals = await ApiService.getMeals();
-      setRecentItems(meals);
+      const normalized = Array.isArray(meals)
+        ? meals.map(normalizeMeal).filter(Boolean)
+        : [];
+      if (normalized.length > 0) {
+        setRecentItems(normalized);
+      } else {
+        setRecentItems(createFallbackMeals());
+      }
     } catch (error) {
       console.error('Error loading recent items:', error);
-      // Use demo data when API is not available
-      setRecentItems([
-        {
-          id: '1',
-          name: 'Mixed Salad',
-          totalCalories: 320,
-          totalProtein: 15,
-          totalCarbs: 25,
-          totalFat: 18,
-          imageUrl: 'https://via.placeholder.com/100x100/4CAF50/white?text=Salad',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          name: 'Grilled Chicken',
-          totalCalories: 450,
-          totalProtein: 35,
-          totalCarbs: 5,
-          totalFat: 25,
-          imageUrl: 'https://via.placeholder.com/100x100/FF9800/white?text=Chicken',
-          createdAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-        },
-      ]);
+      setRecentItems(createFallbackMeals());
     } finally {
       setLoading(false);
     }
@@ -70,87 +196,105 @@ export default function RecentlyScreen() {
     setRefreshing(false);
   };
 
-  const formatDate = (date) => {
-    const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) {
-      return 'Today';
-    } else if (diffDays === 2) {
-      return 'Yesterday';
-    } else if (diffDays <= 7) {
-      return `${diffDays - 1} days ago`;
-    } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-    }
-  };
+  const renderRecentItem = ({ item, index }) => {
+    const dateLabel = formatDateLabel(item.date, t, language);
+    const healthScoreValue = item.healthScore?.score ? Math.round(item.healthScore.score) : null;
 
-  const renderRecentItem = ({ item, index }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 15, delay: index * 50 }}
-    >
-      <TouchableOpacity
-        style={[styles.recentItem, { backgroundColor: colors.card }]}
-        onPress={() => {
-          // Navigate to detailed view
-          navigation.navigate('AnalysisResults', {
-            imageUri: item.imageUri,
-            analysisResult: item,
-            readOnly: true,
-          });
-        }}
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 15, delay: index * 50 }}
       >
-      <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
-      
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={[styles.itemName, { color: colors.text }]}>{item.dishName}</Text>
-          <Text style={[styles.itemDate, { color: colors.textSecondary }]}>{formatDate(item.date)}</Text>
-        </View>
-        
-        <View style={styles.itemNutrition}>
-          <View style={styles.nutritionItem}>
-            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.calories}</Text>
-            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>cal</Text>
+        <TouchableOpacity
+          style={[styles.recentItem, { backgroundColor: colors.card, borderColor: colors.borderMuted }]}
+          onPress={() => {
+            navigation.navigate('AnalysisResults', {
+              imageUri: item.imageUri,
+              analysisResult: item.analysisResult,
+              readOnly: true,
+            });
+          }}
+        >
+          {item.imageUri ? (
+            <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
+          ) : (
+            <View style={styles.itemPlaceholder}>
+              <Ionicons name="fast-food" size={24} color={colors.textSecondary} />
+            </View>
+          )}
+
+          <View style={styles.itemContent}>
+            <View style={styles.itemHeader}>
+              <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
+                {item.dishName}
+              </Text>
+              <Text style={[styles.itemDate, { color: colors.textSecondary }]}>{dateLabel}</Text>
+            </View>
+
+            <View style={styles.itemNutrition}>
+              <View style={styles.nutritionBlock}>
+                <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.calories}</Text>
+                <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>
+                  {t('recently.nutrition.calories')}
+                </Text>
+              </View>
+              <View style={styles.nutritionBlock}>
+                <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.protein}g</Text>
+                <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>
+                  {t('recently.nutrition.protein')}
+                </Text>
+              </View>
+              <View style={styles.nutritionBlock}>
+                <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.carbs}g</Text>
+                <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>
+                  {t('recently.nutrition.carbs')}
+                </Text>
+              </View>
+              <View style={styles.nutritionBlock}>
+                <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.fat}g</Text>
+                <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>
+                  {t('recently.nutrition.fat')}
+                </Text>
+              </View>
+            </View>
+
+            {healthScoreValue !== null && (
+              <View
+                style={[
+                  styles.healthBadge,
+                  { borderColor: colors.borderMuted, backgroundColor: colors.surfaceMuted },
+                ]}
+              >
+                <Ionicons name="heart" size={14} color={colors.primary} />
+                <Text style={[styles.healthBadgeText, { color: colors.text }]}>
+                  {t('recently.healthScoreLabel', { score: healthScoreValue })}
+                </Text>
+                {item.healthGrade && (
+                  <Text style={[styles.healthBadgeGrade, { color: colors.textSecondary }]}>
+                    {item.healthGrade}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
-          <View style={styles.nutritionItem}>
-            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.protein}g</Text>
-            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>protein</Text>
-          </View>
-          <View style={styles.nutritionItem}>
-            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.carbs}g</Text>
-            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>carbs</Text>
-          </View>
-          <View style={styles.nutritionItem}>
-            <Text style={[styles.nutritionValue, { color: colors.primary }]}>{item.fat}g</Text>
-            <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>fat</Text>
-          </View>
-        </View>
-      </View>
-      
-      <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-    </TouchableOpacity>
-    </MotiView>
-  );
+        </TouchableOpacity>
+      </MotiView>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="restaurant-outline" size={64} color={colors.textTertiary} />
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>No Recent Items</Text>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('recently.empty.title')}</Text>
       <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-        Start by analyzing your first meal
+        {t('recently.empty.subtitle')}
       </Text>
       <TouchableOpacity
         style={[styles.emptyButton, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate('Camera')}
       >
-        <Text style={styles.emptyButtonText}>Analyze Food</Text>
+        <Text style={styles.emptyButtonText}>{t('recently.empty.cta')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -158,7 +302,7 @@ export default function RecentlyScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Recently</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('recently.title')}</Text>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => {
@@ -169,7 +313,11 @@ export default function RecentlyScreen() {
         </TouchableOpacity>
       </View>
 
-      {recentItems.length > 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : recentItems.length > 0 ? (
         <FlatList
           data={recentItems}
           renderItem={renderRecentItem}
@@ -187,112 +335,149 @@ export default function RecentlyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: PADDING.screen,
-    paddingVertical: SPACING.lg,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1C1C1E',
-  },
-  filterButton: {
-    padding: 4,
-  },
-  listContainer: {
-    paddingHorizontal: PADDING.screen,
-    paddingTop: SPACING.lg,
-  },
-  recentItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: PADDING.card,
-    marginBottom: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    ...SHADOW.sm,
-  },
-  itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    flex: 1,
-  },
-  itemDate: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  itemNutrition: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  nutritionItem: {
-    alignItems: 'center',
-  },
-  nutritionValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  nutritionLabel: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  emptyButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const createStyles = (tokens, colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.lg,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: colors.text,
+    },
+    filterButton: {
+      padding: tokens.spacing.xs,
+    },
+    listContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingTop: tokens.spacing.lg,
+      paddingBottom: tokens.spacing.xl,
+    },
+    recentItem: {
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.lg,
+      marginBottom: tokens.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    itemImage: {
+      width: 60,
+      height: 60,
+      borderRadius: tokens.radii.md,
+      marginRight: tokens.spacing.md,
+    },
+    itemPlaceholder: {
+      width: 60,
+      height: 60,
+      borderRadius: tokens.radii.md,
+      marginRight: tokens.spacing.md,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    itemContent: {
+      flex: 1,
+    },
+    itemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: tokens.spacing.xs,
+    },
+    itemName: {
+      flex: 1,
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+      color: colors.text,
+    },
+    itemDate: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: colors.textSecondary,
+    },
+    itemNutrition: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: tokens.spacing.sm,
+    },
+    nutritionBlock: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    nutritionValue: {
+      fontSize: tokens.typography.body.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+      color: colors.primary,
+    },
+    nutritionLabel: {
+      fontSize: tokens.typography.caption.fontSize,
+      color: colors.textSecondary,
+      marginTop: tokens.spacing.xxs || 2,
+    },
+    healthBadge: {
+      alignSelf: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.sm,
+      paddingVertical: tokens.spacing.xs,
+      borderRadius: tokens.radii.md,
+      borderWidth: 1,
+      marginTop: tokens.spacing.sm,
+    },
+    healthBadgeText: {
+      fontSize: tokens.typography.caption.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+      marginLeft: tokens.spacing.xs,
+    },
+    healthBadgeGrade: {
+      fontSize: tokens.typography.caption.fontSize,
+      fontWeight: tokens.typography.caption.fontWeight,
+      marginLeft: tokens.spacing.xxs || 2,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xxxl,
+      gap: tokens.spacing.md,
+    },
+    emptyTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: tokens.typography.body.fontSize,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyButton: {
+      backgroundColor: colors.primary,
+      borderRadius: tokens.radii.md,
+      paddingHorizontal: tokens.spacing.lg,
+      paddingVertical: tokens.spacing.md,
+    },
+    emptyButtonText: {
+      color: colors.onPrimary ?? '#FFFFFF',
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });

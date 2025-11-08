@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { FoodModule } from './food/food.module';
@@ -28,6 +29,7 @@ import { FdcSchedulerModule } from './src/fdc/scheduler/fdc-scheduler.module';
 import { ArticlesModule } from './articles/articles.module';
 import { HealthController } from './health.controller';
 import { configSchema } from './src/config/config.schema';
+import { NotificationsModule } from './src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import { configSchema } from './src/config/config.schema';
       validationSchema: configSchema,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute
@@ -73,6 +76,7 @@ import { configSchema } from './src/config/config.schema';
     FdcIntegrationsModule,
     FdcSchedulerModule,
     ArticlesModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
 })

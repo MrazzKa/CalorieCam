@@ -1,57 +1,124 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { AiAssistantService } from './ai-assistant.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { DailyLimitGuard } from '../limits/daily-limit.guard';
-import { DailyLimit } from '../limits/daily-limit.decorator';
+import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 
-@ApiTags('AI Assistant')
 @Controller('ai-assistant')
-@UseGuards(JwtAuthGuard, DailyLimitGuard)
-@ApiBearerAuth()
 export class AiAssistantController {
-  constructor(private readonly aiAssistantService: AiAssistantService) {}
+  constructor(
+    private readonly assistantService: AiAssistantService,
+    private readonly orchestrator: AssistantOrchestratorService,
+  ) {}
+
+  @Get('flows')
+  listFlows() {
+    return this.orchestrator.listFlows();
+  }
+
+  @Post('session')
+  async createSession(
+    @Body('flowId') flowId: string,
+    @Body('userId') userId: string,
+    @Body('resume') resume?: boolean,
+  ) {
+    if (!flowId || !userId) {
+      throw new BadRequestException('flowId and userId are required');
+    }
+    const response = await this.orchestrator.startSession(flowId, userId, resume ?? true);
+    if (response.complete && response.summary) {
+      await this.assistantService.logFlowCompletion(userId, response.flowId, response.summary, response.collected);
+    }
+    return response;
+  }
+
+  @Get('session/:sessionId')
+  async getSession(@Param('sessionId') sessionId: string) {
+    const response = await this.orchestrator.resumeSession(sessionId);
+    if (!response) {
+      throw new NotFoundException('Session not found');
+    }
+    return response;
+  }
+
+  @Post('step')
+  async submitStep(
+    @Body('sessionId') sessionId: string,
+    @Body('userId') userId: string,
+    @Body('input') input: string,
+  ) {
+    if (!sessionId || !userId) {
+      throw new BadRequestException('sessionId and userId are required');
+    }
+    const response = await this.orchestrator.submitStep(sessionId, userId, input);
+    if (response.complete && response.summary) {
+      await this.assistantService.logFlowCompletion(userId, response.flowId, response.summary, response.collected);
+    }
+    return response;
+  }
+
+  @Delete('session/:sessionId')
+  async cancelSession(
+    @Param('sessionId') sessionId: string,
+    @Query('userId') userIdQuery?: string,
+    @Body('userId') userIdBody?: string,
+  ) {
+    const userId = userIdQuery ?? userIdBody;
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    await this.orchestrator.cancelSession(sessionId, userId);
+    return { status: 'cancelled' };
+  }
+
+  @Post('flows/:flowId/start')
+  async startFlow(@Param('flowId') flowId: string, @Body('userId') userId: string) {
+    const response = await this.orchestrator.startSession(flowId, userId, true);
+    if (response.complete && response.summary) {
+      await this.assistantService.logFlowCompletion(userId, response.flowId, response.summary, response.collected);
+    }
+    return response;
+  }
+
+  @Post('flows/:flowId/step')
+  async respondToFlow(
+    @Param('flowId') flowId: string,
+    @Body('userId') userId: string,
+    @Body('input') input: string,
+  ) {
+    const response = await this.orchestrator.submitStepForFlow(flowId, userId, input);
+    if (response.complete && response.summary) {
+      await this.assistantService.logFlowCompletion(userId, response.flowId, response.summary, response.collected);
+    }
+    return response;
+  }
+
+  @Post('flows/:flowId/cancel')
+  async cancelFlow(@Param('flowId') flowId: string, @Body('userId') userId: string) {
+    await this.orchestrator.cancelActiveFlow(flowId, userId);
+    return { status: 'cancelled' };
+  }
 
   @Post('nutrition-advice')
-  @DailyLimit({ limit: 10, resource: 'chat' })
-  @ApiOperation({ summary: 'Get personalized nutrition advice' })
-  @ApiResponse({ status: 200, description: 'Nutrition advice provided' })
-  async getNutritionAdvice(@Request() req, @Body() body: { question: string; context?: any }) {
-    const userId = req.user.id;
-    return this.aiAssistantService.getNutritionAdvice(userId, body.question, body.context);
+  getNutritionAdvice(@Body('userId') userId: string, @Body('question') question: string, @Body('context') context?: any) {
+    return this.assistantService.getNutritionAdvice(userId, question, context);
   }
 
   @Post('health-check')
-  @DailyLimit({ limit: 10, resource: 'chat' })
-  @ApiOperation({ summary: 'Get health check advice' })
-  @ApiResponse({ status: 200, description: 'Health check advice provided' })
-  async getHealthCheck(@Request() req, @Body() body: { question: string }) {
-    const userId = req.user.id;
-    return this.aiAssistantService.getHealthCheck(userId, body.question);
+  getHealthCheck(@Body('userId') userId: string, @Body('question') question: string) {
+    return this.assistantService.getHealthCheck(userId, question);
   }
 
   @Post('general-question')
-  @DailyLimit({ limit: 10, resource: 'chat' })
-  @ApiOperation({ summary: 'Ask a general question' })
-  @ApiResponse({ status: 200, description: 'General question answered' })
-  async getGeneralQuestion(@Request() req, @Body() body: { question: string }) {
-    const userId = req.user.id;
-    return this.aiAssistantService.getGeneralQuestion(userId, body.question);
+  getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string) {
+    return this.assistantService.getGeneralQuestion(userId, question);
   }
 
   @Get('conversation-history')
-  @ApiOperation({ summary: 'Get conversation history' })
-  @ApiResponse({ status: 200, description: 'Conversation history retrieved' })
-  async getConversationHistory(@Request() req) {
-    const userId = req.user.id;
-    return this.aiAssistantService.getConversationHistory(userId);
+  getConversationHistory(@Query('userId') userId: string, @Query('limit') limit?: string) {
+    return this.assistantService.getConversationHistory(userId, limit ? parseInt(limit, 10) : 10);
   }
 
   @Get('token-usage')
-  @ApiOperation({ summary: 'Get OpenAI token usage statistics' })
-  @ApiResponse({ status: 200, description: 'Token usage statistics retrieved' })
-  async getTokenUsage(@Request() req, @Query('days') days?: number) {
-    const userId = req.user.id;
-    return this.aiAssistantService.getTokenUsageStats(userId, days ? parseInt(days.toString()) : 30);
+  getTokenUsage(@Query('userId') userId: string, @Query('days') days?: string) {
+    return this.assistantService.getTokenUsageStats(userId, days ? parseInt(days, 10) : 30);
   }
 }

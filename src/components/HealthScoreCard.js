@@ -3,8 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
-import { useI18n } from '../i18n/hooks';
-import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
+import { spacing, radii, elevations } from '../design/tokens';
 
 export const HealthScoreCard = ({ healthScore }) => {
   const { colors } = useTheme();
@@ -14,16 +14,37 @@ export const HealthScoreCard = ({ healthScore }) => {
     return null;
   }
 
-  const { score, grade, factors, feedback } = healthScore;
+  const { score, grade, factors = {}, feedback } = healthScore;
+
+  const factorEntries = Object.entries(factors).map(([key, value]) => {
+    if (typeof value === 'number') {
+      const translatedLabel = t(`healthScore.factors.${key}`, { defaultValue: key });
+      return { key, label: translatedLabel, score: value };
+    }
+    const fallbackLabel = value.label || key;
+    const translatedLabel = t(`healthScore.factors.${key}`, { defaultValue: fallbackLabel });
+    return {
+      key,
+      label: translatedLabel,
+      score: value.score ?? 0,
+      weight: value.weight,
+    };
+  });
 
   const getGradeColor = () => {
     switch (grade) {
-      case 'A': return colors.success;
-      case 'B': return '#34C759';
-      case 'C': return colors.warning;
-      case 'D': return '#FF9500';
-      case 'F': return colors.error;
-      default: return colors.textTertiary;
+      case 'A':
+        return colors.success;
+      case 'B':
+        return '#34C759';
+      case 'C':
+        return colors.warning;
+      case 'D':
+        return '#FF9500';
+      case 'F':
+        return colors.error;
+      default:
+        return colors.textTertiary;
     }
   };
 
@@ -39,6 +60,62 @@ export const HealthScoreCard = ({ healthScore }) => {
   };
 
   const gradeColor = getGradeColor();
+
+  const feedbackEntries = Array.isArray(feedback)
+    ? feedback.map((entry, index) => {
+        if (typeof entry === 'string') {
+          return {
+            key: `note-${index}`,
+            label: 'overall',
+            action: 'monitor',
+            message: entry,
+          };
+        }
+        const fallbackLabel = entry.label || entry.key || 'overall';
+        const translatedLabel = entry.key
+          ? t(`healthScore.factors.${entry.key}`, { defaultValue: fallbackLabel })
+          : fallbackLabel;
+        const action = entry.action || 'monitor';
+        return {
+          key: entry.key || `note-${index}`,
+          label: translatedLabel,
+          action,
+          message:
+            entry.message ||
+            t(`healthScore.feedbackMessages.${action}`, {
+              defaultValue: entry.message,
+              factor: translatedLabel,
+            }),
+        };
+      })
+    : [];
+
+  const actionColorMap = {
+    celebrate: colors.success,
+    increase: colors.primary,
+    reduce: colors.error,
+    monitor: colors.warning,
+  };
+
+  const actionIconMap = {
+    celebrate: 'sparkles-outline',
+    increase: 'trending-up-outline',
+    reduce: 'trending-down-outline',
+    monitor: 'information-circle-outline',
+  };
+
+  const getFeedbackMessage = (entry) => {
+    const translatedFactor = entry.label || t(`healthScore.factors.${entry.key}`, {
+      defaultValue: entry.label || entry.key,
+    });
+    return (
+      entry.message ||
+      t(`healthScore.feedbackMessages.${entry.action}`, {
+        defaultValue: entry.message,
+        factor: translatedFactor,
+      })
+    );
+  };
 
   return (
     <MotiView
@@ -73,45 +150,48 @@ export const HealthScoreCard = ({ healthScore }) => {
 
       {/* Factors */}
       <View style={styles.factorsContainer}>
-            <Text style={[styles.factorsTitle, { color: colors.textSecondary }]}>{t('healthScore.qualityFactors')}</Text>
+        <Text style={[styles.factorsTitle, { color: colors.textSecondary }]}>{t('healthScore.qualityFactors')}</Text>
         <View style={styles.factorsGrid}>
-          <View style={styles.factorItem}>
-            <Text style={[styles.factorLabel, { color: colors.textTertiary }]}>{t('healthScore.macroBalance')}</Text>
-            <View style={[styles.factorBar, { backgroundColor: colors.inputBackground }]}>
-              <View style={[styles.factorFill, { width: `${factors.macroBalance}%`, backgroundColor: colors.primary }]} />
+          {factorEntries.map(entry => (
+            <View key={entry.key} style={styles.factorItem}>
+              <View style={styles.factorHeader}>
+                <Text style={[styles.factorLabel, { color: colors.textTertiary }]}>{entry.label}</Text>
+                {entry.weight !== undefined && (
+                  <Text style={[styles.factorWeight, { color: colors.textSubdued }]}>
+                    {Math.round(Math.abs(entry.weight || 0) * 100)}%
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.factorBar, { backgroundColor: colors.inputBackground }]}>
+                <View
+                  style={[
+                    styles.factorFill,
+                    { width: `${Math.round(entry.score)}%`, backgroundColor: colors.primary },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.factorValue, { color: colors.textSecondary }]}>
+                {Math.round(entry.score)}%
+              </Text>
             </View>
-            <Text style={[styles.factorValue, { color: colors.textSecondary }]}>
-              {Math.round(factors.macroBalance)}%
-            </Text>
-          </View>
-          
-          <View style={styles.factorItem}>
-            <Text style={[styles.factorLabel, { color: colors.textTertiary }]}>{t('healthScore.proteinQuality')}</Text>
-            <View style={[styles.factorBar, { backgroundColor: colors.inputBackground }]}>
-              <View style={[styles.factorFill, { width: `${factors.proteinQuality}%`, backgroundColor: colors.success }]} />
-            </View>
-            <Text style={[styles.factorValue, { color: colors.textSecondary }]}>
-              {Math.round(factors.proteinQuality)}%
-            </Text>
-          </View>
+          ))}
         </View>
       </View>
 
       {/* Feedback */}
-      {feedback && feedback.length > 0 && (
+      {feedbackEntries.length > 0 && (
         <View style={styles.feedbackContainer}>
-            <Text style={[styles.feedbackTitle, { color: colors.textSecondary }]}>{t('healthScore.feedback')}</Text>
-          {feedback.map((item, index) => (
+          <Text style={[styles.feedbackTitle, { color: colors.textSecondary }]}>{t('healthScore.feedback')}</Text>
+          {feedbackEntries.map((entry, index) => {
+            const color = actionColorMap[entry.action] || colors.textSecondary;
+            const icon = actionIconMap[entry.action] || 'information-circle-outline';
+            return (
             <View key={index} style={styles.feedbackItem}>
-              <Ionicons 
-                name={score >= 70 ? "checkmark-circle" : "information-circle"} 
-                size={16} 
-                color={score >= 70 ? colors.success : colors.warning} 
-                style={styles.feedbackIcon}
-              />
-              <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>{item}</Text>
+                <Ionicons name={icon} size={16} color={color} style={styles.feedbackIcon} />
+                <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>{getFeedbackMessage(entry)}</Text>
             </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </MotiView>
@@ -120,23 +200,23 @@ export const HealthScoreCard = ({ healthScore }) => {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: BORDER_RADIUS.lg,
-    padding: PADDING.lg,
-    marginHorizontal: PADDING.screen,
-    marginBottom: SPACING.xl,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xxxl,
     borderWidth: 1,
-    ...SHADOW.sm,
+    ...elevations.sm,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: spacing.lg,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: spacing.sm,
   },
   title: {
     fontSize: 20,
@@ -145,10 +225,10 @@ const styles = StyleSheet.create({
   scoreBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    gap: spacing.xs,
   },
   scoreText: {
     fontSize: 20,
@@ -159,7 +239,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressContainer: {
-    marginBottom: SPACING.md,
+    marginBottom: spacing.lg,
   },
   progressBar: {
     height: 8,
@@ -171,21 +251,30 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   factorsContainer: {
-    marginBottom: SPACING.md,
+    marginBottom: spacing.lg,
   },
   factorsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: SPACING.sm,
+    marginBottom: spacing.sm,
   },
   factorsGrid: {
-    gap: SPACING.sm,
+    gap: spacing.md,
   },
   factorItem: {
-    gap: 4,
+    gap: spacing.xs,
+  },
+  factorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   factorLabel: {
     fontSize: 12,
+    fontWeight: '500',
+  },
+  factorWeight: {
+    fontSize: 11,
     fontWeight: '500',
   },
   factorBar: {
@@ -202,21 +291,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   feedbackContainer: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.md,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
   },
   feedbackTitle: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: SPACING.xs,
+    marginBottom: spacing.xs,
   },
   feedbackItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: SPACING.xs,
-    gap: SPACING.xs,
+    marginTop: spacing.xs,
+    gap: spacing.sm,
   },
   feedbackIcon: {
     marginTop: 2,

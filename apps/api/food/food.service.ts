@@ -216,14 +216,52 @@ export class FoodService {
     const totalCarbs = ingredients.reduce((sum: number, ing: any) => sum + (ing.carbs || 0), 0);
     const totalFat = ingredients.reduce((sum: number, ing: any) => sum + (ing.fat || 0), 0);
 
-    // Calculate Health Score
-    const healthScore = calculateHealthScore({
-      calories: totalCalories,
-      protein: totalProtein,
-      carbs: totalCarbs,
-      fat: totalFat,
-      items: items,
-    });
+    // Extract Health Score (new pipeline provides this)
+    let healthScore = resultData.healthScore;
+
+    if (!healthScore) {
+      const fallbackScore = calculateHealthScore({
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fat: totalFat,
+        items: items,
+      });
+      healthScore = {
+        score: fallbackScore.score,
+        grade: fallbackScore.grade,
+        factors: {
+          macroBalance: {
+            label: 'Macro balance',
+            score: fallbackScore.factors.macroBalance,
+            weight: 0.35,
+          },
+          calorieDensity: {
+            label: 'Calorie density',
+            score: fallbackScore.factors.calorieDensity,
+            weight: 0.25,
+          },
+          proteinQuality: {
+            label: 'Protein quality',
+            score: fallbackScore.factors.proteinQuality,
+            weight: 0.25,
+          },
+          processingLevel: {
+            label: 'Processing level',
+            score: fallbackScore.factors.processingLevel,
+            weight: 0.15,
+          },
+        },
+        feedback: fallbackScore.feedback,
+      };
+    }
+
+    const autoSave = resultData.autoSave
+      ? {
+          mealId: resultData.autoSave.mealId,
+          savedAt: resultData.autoSave.savedAt,
+        }
+      : null;
 
     return {
       dishName: items.length > 0 ? (items[0].label || 'Food Analysis') : 'Food Analysis',
@@ -232,12 +270,8 @@ export class FoodService {
       totalCarbs,
       totalFat,
       ingredients,
-      healthScore: {
-        score: healthScore.score,
-        grade: healthScore.grade,
-        factors: healthScore.factors,
-        feedback: healthScore.feedback,
-      },
+      healthScore,
+      autoSave,
     };
   }
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsNumber, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, ValidateNested, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -64,4 +64,20 @@ export class CreateMealDto {
   @ValidateNested({ each: true })
   @Type(() => Object)
   items!: any[];
+
+  @ApiProperty({
+    required: false,
+    description: 'Optional health score payload attached to the meal',
+    example: {
+      score: 82,
+      grade: 'B',
+      factors: {
+        protein: { label: 'Protein', score: 90, weight: 0.25 },
+      },
+      feedback: ['Add more fiber.'],
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  healthScore?: Record<string, any>;
 }

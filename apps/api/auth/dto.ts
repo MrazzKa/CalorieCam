@@ -1,10 +1,12 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value || '').toString().trim().toLowerCase())
   email!: string;
 
   @ApiProperty({ example: 'password123' })
@@ -18,6 +20,7 @@ export class LoginDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value || '').toString().trim().toLowerCase())
   email!: string;
 
   @ApiProperty({ example: 'password123' })
@@ -30,6 +33,7 @@ export class RequestOtpDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value || '').toString().trim().toLowerCase())
   email!: string;
 }
 
@@ -37,6 +41,7 @@ export class RequestMagicLinkDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value || '').toString().trim().toLowerCase())
   email!: string;
 }
 
@@ -44,11 +49,14 @@ export class VerifyOtpDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value || '').toString().trim().toLowerCase())
   email!: string;
 
   @ApiProperty({ example: '123456' })
   @IsString()
   @IsNotEmpty()
+  @Length(6, 6)
+  @Matches(/^[0-9]{6}$/)
   code!: string;
 }
 

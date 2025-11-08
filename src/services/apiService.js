@@ -1,12 +1,15 @@
 import { API_BASE_URL, DEV_TOKEN, DEV_REFRESH_TOKEN } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { ArticleFeed, ArticleDetail, ArticleSummary } from '../types/articles';
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = DEV_TOKEN || null;
     this.refreshTokenValue = DEV_REFRESH_TOKEN || null;
+    /** @type {string | null} */
+    this.expoPushToken = null;
     
     // Log configuration on init
     console.log('[ApiService] Initialized with baseURL:', this.baseURL);
@@ -84,34 +87,29 @@ class ApiService {
     const config = {
       headers: this.getHeaders(),
       ...options,
-      // Increase timeout for slow networks
-      signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined, // 30 seconds
+      signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
     };
 
     try {
-      // If FormData, let fetch set proper multipart boundaries
-      // But keep Authorization header
       if (config.body instanceof FormData && config.headers) {
         delete config.headers['Content-Type'];
-        // Ensure Authorization header is preserved
         if (this.token || DEV_TOKEN) {
           config.headers['Authorization'] = `Bearer ${this.token || DEV_TOKEN}`;
         }
       }
-      
-      console.log(`[ApiService] Fetch config:`, { 
+
+      console.log(`[ApiService] Fetch config:`, {
         method: config.method || 'GET',
-        headers: Object.keys(config.headers),
+        headers: Object.keys(config.headers || {}),
         hasBody: !!config.body,
-        hasAuth: !!(config.headers && config.headers['Authorization'])
+        hasAuth: !!(config.headers && config.headers['Authorization']),
       });
-      
+
       let response = await fetch(url, config);
-      
+
       console.log(`[ApiService] Response status: ${response.status}`);
-      
+
       if (response.status === 401 && this.refreshTokenValue) {
-        // try refresh once
         try {
           const refreshRes = await fetch(`${this.baseURL}/auth/refresh-token`, {
             method: 'POST',
@@ -126,20 +124,60 @@ class ApiService {
               response = await fetch(url, config);
             }
           }
-        } catch {}
+        } catch (refreshError) {
+          console.warn('[ApiService] Token refresh failed', refreshError);
+        }
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw await this.buildHttpError(response);
       }
 
-      const data = await response.json();
-      return data;
+      return await this.parseResponseBody(response);
     } catch (error) {
       console.error(`[ApiService] Request failed for ${url}:`, error.message);
       console.error('[ApiService] Error details:', error);
       throw error;
     }
+  }
+
+  async parseResponseBody(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (response.status === 204) {
+      return null;
+    }
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    }
+    return await response.text();
+  }
+
+  async buildHttpError(response) {
+    const contentType = response.headers.get('content-type') || '';
+    let payload = null;
+    let message = `HTTP error! status: ${response.status}`;
+
+    if (contentType.includes('application/json')) {
+      payload = await response.json().catch(() => null);
+      if (payload) {
+        const payloadMessage = payload.message || payload.error || payload.detail || payload.title;
+        if (payloadMessage) {
+          message = Array.isArray(payloadMessage) ? payloadMessage.join(', ') : payloadMessage;
+        }
+      }
+    } else {
+      const text = await response.text().catch(() => '');
+      if (text) {
+        message = text;
+      }
+    }
+
+    const error = new Error(message);
+    error.status = response.status;
+    if (payload) {
+      error.payload = payload;
+    }
+    return error;
   }
 
   // Authentication
@@ -151,7 +189,7 @@ class ApiService {
   }
 
   async requestOtp(email) {
-    return this.request('/auth/otp/request', {
+    return this.request('/auth/request-otp', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
@@ -165,7 +203,7 @@ class ApiService {
   }
 
   async requestMagicLink(email) {
-    return this.request('/auth/magic/request', {
+    return this.request('/auth/request-magic-link', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
@@ -251,8 +289,19 @@ class ApiService {
     });
   }
 
-  async getTokenUsage(days = 30) {
-    return this.request(`/ai-assistant/token-usage?days=${days}`);
+  async getNotificationPreferences() {
+    return this.request('/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(preferences) {
+    return this.request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  async getTokenUsage(userId, days = 30) {
+    return this.request(`/ai-assistant/token-usage?userId=${encodeURIComponent(userId)}&days=${days}`);
   }
 
   // User Profile
@@ -277,6 +326,18 @@ class ApiService {
   async getStats(period = 'week') {
     // align with backend routes
     return this.request(`/stats/dashboard`);
+  }
+
+  async getMonthlyStats(from, to) {
+    const params = new URLSearchParams();
+    if (from) {
+      params.append('from', from);
+    }
+    if (to) {
+      params.append('to', to);
+    }
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/me/stats${query}`);
   }
 
   // Media
@@ -350,29 +411,94 @@ class ApiService {
     });
   }
 
-  async getConversationHistory() {
-    return this.request('/ai-assistant/conversation-history');
+  async getConversationHistory(userId, limit = 10) {
+    return this.request(`/ai-assistant/conversation-history?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+  }
+
+  async listAssistantFlows() {
+    return this.request('/ai-assistant/flows');
+  }
+
+  async startAssistantSession(flowId, userId, resume = true) {
+    return this.request('/ai-assistant/session', {
+      method: 'POST',
+      body: JSON.stringify({ flowId, userId, resume }),
+    });
+  }
+
+  async resumeAssistantSession(sessionId) {
+    return this.request(`/ai-assistant/session/${encodeURIComponent(sessionId)}`);
+  }
+
+  async sendAssistantSessionStep(sessionId, userId, input) {
+    return this.request('/ai-assistant/step', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, userId, input }),
+    });
+  }
+
+  async cancelAssistantSession(sessionId, userId) {
+    return this.request(`/ai-assistant/session/${encodeURIComponent(sessionId)}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Legacy helpers (deprecated)
+  async startAssistantFlow(flowId, userId) {
+    return this.startAssistantSession(flowId, userId, true);
+  }
+
+  async sendAssistantFlowStep(flowId, userId, input) {
+    const session = await this.startAssistantSession(flowId, userId, true);
+    return this.sendAssistantSessionStep(session.sessionId, userId, input);
+  }
+
+  async cancelAssistantFlow(flowId, userId) {
+    const session = await this.startAssistantSession(flowId, userId, true);
+    return this.cancelAssistantSession(session.sessionId, userId);
   }
 
   // Articles
   async getArticlesFeed(page = 1, pageSize = 20) {
-    return this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
+    /** @type {import('../types/articles').ArticleFeed} */
+    const response = await this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
+    return response;
   }
 
   async getFeaturedArticles() {
-    return this.request('/articles/featured');
+    /** @type {import('../types/articles').ArticleSummary[]} */
+    const response = await this.request('/articles/featured');
+    return response;
   }
 
   async getArticleBySlug(slug) {
-    return this.request(`/articles/slug/${slug}`);
+    /** @type {import('../types/articles').ArticleDetail} */
+    const response = await this.request(`/articles/slug/${slug}`);
+    return response;
   }
 
   async searchArticles(query, page = 1, pageSize = 20) {
-    return this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
+    /** @type {import('../types/articles').ArticleFeed} */
+    const response = await this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
+    return response;
   }
 
   async getArticlesByTag(tag, page = 1, pageSize = 20) {
-    return this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
+    /** @type {import('../types/articles').ArticleFeed} */
+    const response = await this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
+    return response;
+  }
+
+  async registerPushToken(token, deviceId, platform, appVersion) {
+    try {
+      await this.request('/notifications/push-token', {
+        method: 'POST',
+        body: JSON.stringify({ token, deviceId, platform, appVersion }),
+      });
+      this.expoPushToken = token;
+    } catch (error) {
+      console.error('[ApiService] Failed to register push token', error);
+    }
   }
 }
 

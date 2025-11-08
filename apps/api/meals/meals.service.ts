@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { MealLogMealType } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateMealDto, UpdateMealItemDto } from './dto';
 
 @Injectable()
 export class MealsService {
+  private readonly logger = new Logger(MealsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getMeals(userId: string) {
@@ -19,27 +22,96 @@ export class MealsService {
   }
 
   async createMeal(userId: string, createMealDto: CreateMealDto) {
-    const { items, ...mealData } = createMealDto;
+    const { items, consumedAt, healthScore: healthScorePayload, ...mealData } = createMealDto;
+    
+    // Валидация: проверяем, что есть хотя бы один item
+    if (!items || items.length === 0) {
+      throw new BadRequestException('Meal must have at least one item');
+    }
+    
+    // Валидация: проверяем, что name существует
+    if (!mealData.name || mealData.name.trim().length === 0) {
+      throw new BadRequestException('Meal name is required');
+    }
+    
+    // Преобразуем consumedAt из строки в Date, если передано
+    const consumedAtDate = consumedAt ? new Date(consumedAt) : new Date();
+    
+    // Проверяем валидность даты
+    if (isNaN(consumedAtDate.getTime())) {
+      throw new BadRequestException('Invalid consumedAt date');
+    }
+    
+    // Нормализуем type: 'meal' -> 'MEAL', или оставляем как есть
+    const normalizedType = mealData.type?.toUpperCase() || 'MEAL';
+    
+    // Валидация и нормализация items
+    const validItems = items
+      .filter(item => item && (item.name || item.calories || item.protein || item.fat || item.carbs))
+      .map(item => ({
+        name: (item.name || 'Unknown').trim() || 'Unknown',
+        calories: Number(item.calories) || 0,
+        protein: Number(item.protein) || 0,
+        fat: Number(item.fat) || 0,
+        carbs: Number(item.carbs) || 0,
+        weight: Number(item.weight) || 0,
+      }));
+    
+    if (validItems.length === 0) {
+      throw new BadRequestException('Meal must have at least one valid item');
+    }
     
     const meal = await this.prisma.meal.create({
       data: {
         userId,
-        ...mealData,
+        name: mealData.name.trim(),
+        type: normalizedType,
+        consumedAt: consumedAtDate,
+        healthScore: healthScorePayload?.score ?? null,
+        healthGrade: healthScorePayload?.grade ?? null,
+        healthInsights: healthScorePayload ? (healthScorePayload as any) : null,
         items: {
-          create: items.map(item => ({
-            name: item.name || 'Unknown',
-            calories: item.calories || 0,
-            protein: item.protein || 0,
-            fat: item.fat || 0,
-            carbs: item.carbs || 0,
-            weight: item.weight || 0,
-          })),
+          create: validItems,
         },
       },
       include: {
         items: true,
       },
     });
+
+    try {
+      const mealLogType = this.mapMealTypeForLogging(normalizedType);
+      const logEntries = meal.items.map((item) => {
+        const calories = Number(item.calories) || 0;
+        const protein = Number(item.protein) || 0;
+        const fat = Number(item.fat) || 0;
+        const carbs = Number(item.carbs) || 0;
+        const weight = Number(item.weight) || null;
+        const fdcId = (item as any)?.fdcId ?? null;
+
+        return {
+          userId,
+          mealType: mealLogType,
+          fdcId,
+          label: item.name || meal.name,
+          quantity: weight,
+          unit: weight ? 'g' : null,
+          calories,
+          protein,
+          fat,
+          carbs,
+          createdAt: consumedAtDate,
+        };
+      });
+
+      if (logEntries.length) {
+        await this.prisma.mealLog.createMany({
+          data: logEntries,
+        });
+      }
+    } catch (error: any) {
+      this.logger.warn(`mealLog=failed userId=${userId} mealId=${meal.id} reason=${error.message}`);
+    }
 
     return meal;
   }
@@ -54,9 +126,15 @@ export class MealsService {
       throw new NotFoundException('Meal not found');
     }
 
-    const { items, ...mealData } = updateMealDto;
+    const { items, healthScore: healthScorePayload, ...mealData } = updateMealDto;
 
     const updateData: any = { ...mealData };
+
+    if (healthScorePayload) {
+      updateData.healthScore = healthScorePayload.score ?? null;
+      updateData.healthGrade = healthScorePayload.grade ?? null;
+      updateData.healthInsights = healthScorePayload as any;
+    }
 
     if (items) {
       // Delete existing items and create new ones
@@ -122,5 +200,18 @@ export class MealsService {
       where: { id: itemId },
       data: updateItemDto,
     });
+  }
+
+  private mapMealTypeForLogging(mealType: string): MealLogMealType {
+    switch (mealType) {
+      case 'BREAKFAST':
+        return MealLogMealType.BREAKFAST;
+      case 'DINNER':
+        return MealLogMealType.DINNER;
+      case 'LUNCH':
+      case 'MEAL':
+      default:
+        return MealLogMealType.LUNCH;
+    }
   }
 }

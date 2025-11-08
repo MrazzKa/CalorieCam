@@ -11,7 +11,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
-import { RedisCacheService } from './redis-cache.service';
+import { CacheService } from './cache.service';
 
 interface CacheSetRequest {
   value: any;
@@ -21,7 +21,7 @@ interface CacheSetRequest {
 @ApiTags('cache')
 @Controller('cache')
 export class CacheController {
-  constructor(private readonly cacheService: RedisCacheService) {}
+  constructor(private readonly cacheService: CacheService) {}
 
   @Get(':key')
   @ApiOperation({ summary: 'Get cached value by key' })
@@ -52,9 +52,10 @@ export class CacheController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async set(@Param('key') key: string, @Body() body: CacheSetRequest) {
     await this.cacheService.set(
-      decodeURIComponent(key), 
-      body.value, 
-      body.ttl
+      decodeURIComponent(key),
+      body.value,
+      'general',
+      body.ttl,
     );
   }
 
@@ -72,7 +73,7 @@ export class CacheController {
   @ApiResponse({ status: 200, description: 'Cache key exists' })
   @ApiResponse({ status: 404, description: 'Cache key not found' })
   async has(@Param('key') key: string) {
-    const exists = await this.cacheService.has(decodeURIComponent(key));
+    const exists = await this.cacheService.exists(decodeURIComponent(key));
     
     if (!exists) {
       throw new NotFoundException('Cache key not found');

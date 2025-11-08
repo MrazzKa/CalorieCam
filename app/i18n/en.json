@@ -1,0 +1,305 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "done": "Done",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "retry": "Retry",
+    "search": "Search",
+    "viewAll": "View All",
+    "select": "Select",
+    "confirm": "Confirm"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "calories": "calories",
+    "ofGoal": "of {{goal}} goal",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "quickStats": "Quick Stats",
+    "articles": "Articles",
+    "aiAssistant": "AI Assistant",
+    "aiAssistantSubtitle": "Get personalized nutrition advice",
+    "recent": "Recent",
+    "addMealTitle": "Add Food",
+    "addMealSubtitle": "Choose how you want to add your meal",
+    "addMealCameraTitle": "Take Photo",
+    "addMealCameraSubtitle": "Capture your meal with the camera",
+    "addMealGalleryTitle": "Choose from Gallery",
+    "addMealGallerySubtitle": "Select a photo from your gallery",
+    "noRecentTitle": "No recent items",
+    "noRecentSubtitle": "Start by taking a photo of your meal"
+  },
+  "articles": {
+    "title": "Articles",
+    "searchPlaceholder": "Search articles...",
+    "featured": "Featured",
+    "allArticles": "All Articles",
+    "searching": "Searching...",
+    "found": "Found: {{count}}",
+    "noArticles": "No articles found",
+    "comingSoon": "Articles coming soon",
+    "tag": "#{{tag}}"
+  },
+  "analysis": {
+    "title": "Analysis Complete",
+    "analyzing": "Analyzing your dish...",
+    "subtitle": "AI is identifying ingredients and calories",
+    "uploaded": "Uploaded",
+    "analyzingStep": "Analyzing",
+    "calculating": "Calculating",
+    "totalNutrition": "Total Nutrition",
+    "calories": "Calories",
+    "ingredients": "Ingredients",
+    "share": "Share",
+    "saveToJournal": "Save to Journal",
+    "emptyStateTitle": "Nothing to analyze yet",
+    "emptyStateSubtitle": "Capture a meal to see detailed nutrition",
+    "ctaAnalyze": "Analyze Food"
+  },
+  "healthScore": {
+    "title": "Health Score",
+    "qualityFactors": "Quality Factors",
+    "macroBalance": "Macro Balance",
+    "proteinQuality": "Protein Quality",
+    "feedback": "Feedback"
+  },
+  "recently": {
+    "title": "Recently",
+    "filters": "Filters",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago",
+    "emptyTitle": "No Recent Items",
+    "emptySubtitle": "Start by analyzing your first meal",
+    "emptyCta": "Analyze Food",
+    "calories": "cal",
+    "protein": "protein",
+    "carbs": "carbs",
+    "fat": "fat"
+  },
+  "profile": {
+    "title": "Profile",
+    "settings": "Settings",
+    "account": "Account",
+    "notifications": "Notifications",
+    "notificationsSubtitle": "Receive meal reminders",
+    "darkMode": "Dark Mode",
+    "darkModeSubtitle": "Dark theme",
+    "lightMode": "Light theme",
+    "systemTheme": "Follow system theme",
+    "autoSync": "Auto Sync",
+    "autoSyncSubtitle": "Sync data automatically",
+    "dataSharing": "Data Sharing",
+    "dataSharingSubtitle": "Help improve the app",
+    "language": "Language",
+    "helpSupport": "Help & Support",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "logout": "Logout",
+    "deleteAccount": "Delete Account",
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "height": "Height (cm)",
+      "weight": "Weight (kg)",
+      "age": "Age",
+      "gender": "Gender",
+      "activityLevel": "Activity Level",
+      "goal": "Goal",
+      "targetWeight": "Target Weight (kg)",
+      "dailyCalories": "Daily Calories"
+    },
+    "selectors": {
+      "gender": "Select Gender",
+      "activityLevel": "Select Activity Level",
+      "goal": "Select Goal"
+    },
+    "genderOptions": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other"
+    },
+    "activityOptions": {
+      "sedentary": "Sedentary",
+      "lightly_active": "Lightly Active",
+      "moderately_active": "Moderately Active",
+      "very_active": "Very Active",
+      "extremely_active": "Extremely Active"
+    },
+    "goalOptions": {
+      "lose_weight": "Lose Weight",
+      "maintain_weight": "Maintain Weight",
+      "gain_weight": "Gain Weight"
+    },
+    "logoutConfirm": {
+      "title": "Logout",
+      "message": "Are you sure you want to logout?",
+      "cancel": "Cancel",
+      "confirm": "Logout"
+    },
+    "deleteConfirm": {
+      "title": "Delete Account",
+      "message": "This action cannot be undone. Are you sure you want to delete your account?",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "languageSelector": {
+      "title": "Select Language"
+    },
+    "editProfile": "Edit Profile",
+    "saveProfile": "Save Profile"
+  },
+  "gallery": {
+    "title": "Select Photo",
+    "loadingGallery": "Loading gallery...",
+    "permissionRequired": "Gallery Access Required",
+    "permissionText": "Please enable photo library access in your device settings to select photos of your meals.",
+    "goBack": "Go Back",
+    "requestingPermission": "Requesting gallery permission...",
+    "accessDenied": "Gallery Access",
+    "accessDeniedText": "To select photos, you need to grant gallery access. Open settings and allow photo access.",
+    "settings": "Settings",
+    "error": "Failed to load image. Please try again."
+  },
+  "editFood": {
+    "title": "Edit Ingredient",
+    "subtitle": "Make changes and save",
+    "name": "Name",
+    "namePlaceholder": "Product name",
+    "weight": "Weight (g)",
+    "weightHint": "Portion mass",
+    "macronutrients": "Macronutrients",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "calories": "Calories (kcal)",
+    "calculate": "Calculate: {{value}}",
+    "calculatedAuto": "Calculated automatically from macronutrients"
+  },
+  "auth": {
+    "email": "Email",
+    "emailPlaceholder": "Enter your email",
+    "otpCode": "OTP Code",
+    "otpPlaceholder": "Enter 6-digit code",
+    "requestOtp": "Request OTP",
+    "verify": "Verify",
+    "magicLink": "Send Magic Link",
+    "signIn": "Sign In",
+    "signUp": "Sign Up"
+  },
+  "onboarding": {
+    "welcome": "Welcome to CalorieCam",
+    "getStarted": "Get Started",
+    "personalInfo": "Personal Information",
+    "physicalInfo": "Physical Information",
+    "activityLevel": "Activity Level",
+    "goals": "Goals",
+    "plan": "Choose your plan"
+  },
+  "tabs": {
+    "dashboard": "Home",
+    "articles": "Articles",
+    "recently": "Recent",
+    "profile": "Profile"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated",
+    "intro": "Please read these Terms of Service carefully before using CalorieCam.",
+    "sections": {
+      "acceptance": {
+        "title": "1. Acceptance of Terms",
+        "content": "By using CalorieCam, you agree to these Terms of Service. If you do not agree with these terms, please do not use the application."
+      },
+      "description": {
+        "title": "2. Service Description",
+        "content": "CalorieCam provides tools for nutrition tracking, food analysis, and personalized nutrition recommendations using artificial intelligence."
+      },
+      "registration": {
+        "title": "3. Registration and Account",
+        "content": "You are responsible for maintaining the confidentiality of your account credentials. You agree to immediately notify us of any unauthorized use of your account."
+      },
+      "userContent": {
+        "title": "4. User Content",
+        "content": "You retain ownership of content you upload. By uploading content, you grant us a license to use it for providing services and improving the application."
+      },
+      "prohibited": {
+        "title": "5. Prohibited Uses",
+        "content": "You may not use the service for illegal purposes, to harm others, or to violate any laws or regulations."
+      },
+      "intellectual": {
+        "title": "6. Intellectual Property",
+        "content": "All content, features, and functionality of CalorieCam are owned by us and protected by copyright and other intellectual property laws."
+      },
+      "limitation": {
+        "title": "7. Limitation of Liability",
+        "content": "CalorieCam is provided 'as is' without warranties. We are not liable for any damages arising from use of the application."
+      },
+      "changes": {
+        "title": "8. Changes to Terms",
+        "content": "We reserve the right to modify these terms at any time. Continued use of the application after changes constitutes acceptance of the new terms."
+      },
+      "contact": {
+        "title": "9. Contact",
+        "content": "For questions about these Terms of Service, please contact: legal@caloriecam.com"
+      }
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated",
+    "intro": "CalorieCam values your privacy. This policy describes how we collect, use, and protect your information.",
+    "sections": {
+      "collection": {
+        "title": "1. Information Collection",
+        "content": "We collect information you provide during registration and app use, including personal data, nutrition information, and food photos."
+      },
+      "usage": {
+        "title": "2. Information Usage",
+        "content": "Your information is used to provide personalized nutrition recommendations, food analysis, and to improve the application."
+      },
+      "protection": {
+        "title": "3. Data Protection",
+        "content": "We use modern encryption and secure data storage methods to protect your personal information."
+      },
+      "sharing": {
+        "title": "4. Data Sharing",
+        "content": "We do not sell your personal information. We may share anonymized data with partners to improve services."
+      },
+      "cookies": {
+        "title": "5. Cookies and Tracking",
+        "content": "We use cookies and similar technologies to enhance your experience and analyze app usage."
+      },
+      "rights": {
+        "title": "6. Your Rights",
+        "content": "You have the right to access, correct, or delete your personal data at any time through the app settings."
+      },
+      "children": {
+        "title": "7. Children's Privacy",
+        "content": "CalorieCam is not intended for children under 13. We do not knowingly collect information from children."
+      },
+      "changes": {
+        "title": "8. Policy Changes",
+        "content": "We may update this policy. Continued use after changes means you accept the updated policy."
+      },
+      "contact": {
+        "title": "9. Contact Us",
+        "content": "For privacy questions, contact: privacy@caloriecam.com"
+      }
+    }
+  }
+}
+
+

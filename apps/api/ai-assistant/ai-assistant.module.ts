@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { AiAssistantService } from './ai-assistant.service';
 import { AiAssistantController } from './ai-assistant.controller';
+import { AiAssistantService } from './ai-assistant.service';
 import { PrismaModule } from '../prisma.module';
-import { RedisModule } from '../redis/redis.module';
-import { LimitsModule } from '../limits/limits.module';
+import { CacheModule } from '../src/cache/cache.module';
+import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 
 @Module({
-  imports: [PrismaModule, RedisModule, LimitsModule],
+  imports: [PrismaModule, CacheModule],
   controllers: [AiAssistantController],
-  providers: [AiAssistantService],
-  exports: [AiAssistantService],
+  providers: [AiAssistantService, AssistantOrchestratorService],
+  exports: [AiAssistantService, AssistantOrchestratorService],
 })
 export class AiAssistantModule {}

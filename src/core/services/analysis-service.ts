@@ -1,6 +1,4 @@
 import { Analysis, AnalysisResult, AnalysisItem } from '../domain';
-import { analysisCache } from '../analysis-cache';
-import { analysisLockManager } from '../analysis-lock';
 
 export interface AnalysisRequest {
   imageUri: string;
@@ -14,56 +12,20 @@ export interface AnalysisRequest {
 
 export class AnalysisService {
   async analyzeImage(request: AnalysisRequest): Promise<Analysis> {
-    const imageHash = analysisCache.generateImageHash(request.imageUri);
-    
-    // Check if analysis is already cached
-    const cachedResult = analysisCache.get(imageHash);
-    if (cachedResult) {
-      return {
-        id: Math.random().toString(36).substr(2, 9),
-        userId: request.userId,
-        imageUri: request.imageUri,
-        imageHash,
-        result: cachedResult.result,
-        status: 'completed',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        processingTime: cachedResult.result.processingTime,
-      };
-    }
-    
-    // Check if analysis is already in progress
-    if (analysisLockManager.isLocked(request.userId, imageHash)) {
-      throw new Error('Analysis already in progress');
-    }
-    
-    // Acquire lock
-    if (!analysisLockManager.acquireLock(request.userId, imageHash)) {
-      throw new Error('Failed to acquire analysis lock');
-    }
-    
-    try {
-      // Simulate analysis processing
-      const result = await this.processAnalysis(request.imageUri);
-      
-      // Cache the result
-      analysisCache.set(imageHash, result);
-      
-      return {
-        id: Math.random().toString(36).substr(2, 9),
-        userId: request.userId,
-        imageUri: request.imageUri,
-        imageHash,
-        result,
-        status: 'completed',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        processingTime: result.processingTime,
-      };
-    } finally {
-      // Release lock
-      analysisLockManager.releaseLock(request.userId, imageHash);
-    }
+    // Simulate analysis processing
+    const result = await this.processAnalysis(request.imageUri);
+
+    return {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: request.userId,
+      imageUri: request.imageUri,
+      imageHash: Math.random().toString(36).substr(2, 9),
+      result,
+      status: 'completed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      processingTime: result.processingTime,
+    };
   }
 
   private async processAnalysis(imageUri: string): Promise<AnalysisResult> {

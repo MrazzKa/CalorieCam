@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Animated,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,15 +17,15 @@ import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
-import { useI18n } from '../i18n/hooks';
-import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
+import { HealthScoreCard } from '../components/HealthScoreCard';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
-  const { t } = useI18n();
+  const { colors, tokens } = useTheme();
+  const { t, language } = useI18n();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
@@ -35,6 +36,8 @@ export default function DashboardScreen() {
     totalFat: 0,
     goal: 2000,
   });
+  const [monthlyStats, setMonthlyStats] = useState(null);
+  const [monthlyLoading, setMonthlyLoading] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -47,6 +50,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     React.useCallback(() => {
       loadStats();
+      loadMonthlyStats();
       loadArticles();
       loadRecent();
     }, [selectedDate])
@@ -86,6 +90,19 @@ export default function DashboardScreen() {
     }
   };
 
+  const loadMonthlyStats = async () => {
+    try {
+      setMonthlyLoading(true);
+      const response = await ApiService.getMonthlyStats();
+      setMonthlyStats(response);
+    } catch (error) {
+      console.error('Error loading monthly stats:', error);
+      setMonthlyStats(null);
+    } finally {
+      setMonthlyLoading(false);
+    }
+  };
+
   const loadArticles = async () => {
     try {
       const [featured, feed] = await Promise.all([
@@ -103,14 +120,26 @@ export default function DashboardScreen() {
   const loadRecent = async () => {
     try {
       const meals = await ApiService.getMeals();
-      setRecentItems(Array.isArray(meals) ? meals.slice(0, 5) : []);
+      const items = Array.isArray(meals) ? meals.slice(0, 5) : [];
+      setRecentItems(items);
+      const withInsights = items.find(item => item.healthInsights);
+      if (withInsights?.healthInsights?.score) {
+        setHighlightMeal({
+          id: withInsights.id,
+          name: withInsights.name || withInsights.dishName || t('analysis.title'),
+          healthScore: withInsights.healthInsights,
+        });
+      } else {
+        setHighlightMeal(null);
+      }
     } catch (e) {
       setRecentItems([]);
+      setHighlightMeal(null);
     }
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString(language || 'en', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
@@ -118,11 +147,42 @@ export default function DashboardScreen() {
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(language || 'en', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const formatRangeLabel = (range) => {
+    if (!range?.from || !range?.to) {
+      return null;
+    }
+    try {
+      const fromDate = new Date(range.from);
+      const toDate = new Date(range.to);
+      return `${fromDate.toLocaleDateString(language || 'en', {
+        month: 'short',
+        day: 'numeric',
+      })} – ${toDate.toLocaleDateString(language || 'en', {
+        month: 'short',
+        day: 'numeric',
+      })}`;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const getMealTypeLabel = (mealType) => {
+    switch (mealType) {
+      case 'BREAKFAST':
+        return t('dashboard.mealTypes.breakfast');
+      case 'DINNER':
+        return t('dashboard.mealTypes.dinner');
+      case 'LUNCH':
+      default:
+        return t('dashboard.mealTypes.lunch');
+    }
   };
 
   const handlePlusPress = () => {
@@ -148,6 +208,8 @@ export default function DashboardScreen() {
   const [featuredArticles, setFeaturedArticles] = useState([]);
   const [feedArticles, setFeedArticles] = useState([]);
   const [recentItems, setRecentItems] = useState([]);
+  const [highlightMeal, setHighlightMeal] = useState(null);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleCameraPress = () => {
     console.log('Camera button pressed - navigating to Camera');
@@ -173,13 +235,13 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header with time */}
         <View style={styles.header}>
           <View style={styles.timeContainer}>
-            <Text style={[styles.timeText, { color: colors.text }]}>{formatTime(currentTime)}</Text>
-            <Text style={[styles.dateText, { color: colors.textSecondary }]}>{formatDate(currentTime)}</Text>
+            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+            <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
           </View>
         </View>
 
@@ -193,13 +255,13 @@ export default function DashboardScreen() {
           </TouchableOpacity>
           
           <View style={styles.calendarDate}>
-            <Text style={[styles.calendarDateText, { color: colors.text }]}>
-              {selectedDate.toLocaleDateString('en-US', {
+            <Text style={styles.calendarDateText}>
+              {selectedDate.toLocaleDateString(language || 'en', {
                 month: 'short',
                 day: 'numeric',
               })}
             </Text>
-            <Text style={[styles.calendarYearText, { color: colors.textSecondary }]}>
+            <Text style={styles.calendarYearText}>
               {selectedDate.getFullYear()}
             </Text>
           </View>
@@ -264,35 +326,110 @@ export default function DashboardScreen() {
           </MotiView>
         </MotiView>
 
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 150 }}
+          style={styles.monthlySection}
+        >
+          <View style={styles.monthlyHeader}>
+            <Text style={styles.sectionTitle}>{t('dashboard.monthlyStats.title')}</Text>
+            {formatRangeLabel(monthlyStats?.range) ? (
+              <Text style={styles.sectionSubtle}>{formatRangeLabel(monthlyStats?.range)}</Text>
+            ) : null}
+          </View>
+
+          {monthlyLoading ? (
+            <View style={styles.monthlyEmpty}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={styles.sectionSubtle}>{t('dashboard.monthlyStats.loading')}</Text>
+            </View>
+          ) : !monthlyStats || (monthlyStats?.topFoods?.length ?? 0) === 0 ? (
+            <View style={styles.monthlyEmpty}>
+              <Text style={styles.sectionSubtle}>{t('dashboard.monthlyStats.empty')}</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.topFoodsContainer}>
+                <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.topFoods')}</Text>
+                {monthlyStats.topFoods.slice(0, 5).map((food, index) => (
+                  <View key={`${food.label}-${index}`} style={styles.topFoodRow}>
+                    <Text style={styles.topFoodRank}>{index + 1}</Text>
+                    <View style={styles.topFoodContent}>
+                      <Text numberOfLines={1} style={styles.topFoodLabel}>{food.label}</Text>
+                      <Text style={styles.topFoodMeta}>
+                        {t('dashboard.monthlyStats.foodMeta', {
+                          count: food.count,
+                          calories: Math.round(food.totalCalories || 0),
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.mealDistributionContainer}>
+                <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.mealDistribution')}</Text>
+                {monthlyStats.mealTypeDistribution.map((entry) => (
+                  <View key={entry.mealType} style={styles.mealDistributionRow}>
+                    <View style={styles.mealDistributionHeader}>
+                      <Text style={styles.mealDistributionLabel}>{getMealTypeLabel(entry.mealType)}</Text>
+                      <Text style={styles.mealDistributionMeta}>
+                        {Math.round(entry.percentage || 0)}%
+                      </Text>
+                    </View>
+                    <View style={styles.mealDistributionBarTrack}>
+                      <View
+                        style={[
+                          styles.mealDistributionBarFill,
+                          {
+                            width: `${Math.min(100, Math.round(entry.percentage || 0))}%`,
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.mealDistributionMetaSmall}>
+                      {t('dashboard.monthlyStats.mealMeta', {
+                        count: entry.count,
+                        calories: Math.round(entry.totalCalories || 0),
+                      })}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+        </MotiView>
 
         {/* Articles Preview */}
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 15, delay: 150 }}
-          style={{ paddingHorizontal: PADDING.screen, marginBottom: SPACING.xl }}
+          style={styles.articlesSection}
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
-            <Text style={[{ fontSize: 20, fontWeight: '600' }, { color: colors.text }]}>{t('dashboard.articles')}</Text>
+          <View style={styles.articlesHeader}>
+            <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Articles')}>
-              <Text style={{ color: colors.primary, fontWeight: '600' }}>{t('common.viewAll')}</Text>
+              <Text style={styles.articlesViewAll}>{t('common.viewAll')}</Text>
             </TouchableOpacity>
           </View>
 
           {featuredArticles.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.md }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredList}>
               {featuredArticles.map((a) => (
                 <TouchableOpacity
                   key={a.id}
-                  style={[styles.articleCardSmall, { backgroundColor: colors.card }]}
+                  style={styles.articleCardSmall}
                   onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
                 >
-                  <View style={[styles.featuredBadgeSmall, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="star" size={12} color="#FFFFFF" />
+                  <View style={styles.featuredBadgeSmall}>
+                    <Ionicons name="star" size={12} color={colors.inverseText} />
                   </View>
-                  <Text numberOfLines={2} style={[styles.articleTitleSmall, { color: colors.text }]}>{a.title}</Text>
+                  <Text numberOfLines={2} style={styles.articleTitleSmall}>{a.title}</Text>
                   {a.excerpt ? (
-                    <Text numberOfLines={2} style={[styles.articleExcerptSmall, { color: colors.textSecondary }]}>{a.excerpt}</Text>
+                    <Text numberOfLines={2} style={styles.articleExcerptSmall}>{a.excerpt}</Text>
                   ) : null}
                 </TouchableOpacity>
               ))}
@@ -302,13 +439,13 @@ export default function DashboardScreen() {
           {feedArticles.map((a) => (
             <TouchableOpacity
               key={a.id}
-              style={[styles.articleRow, { backgroundColor: colors.card }]}
+              style={styles.articleRow}
               onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
             >
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={2} style={[styles.articleRowTitle, { color: colors.text }]}>{a.title}</Text>
+              <View style={styles.articleRowContent}>
+                <Text numberOfLines={2} style={styles.articleRowTitle}>{a.title}</Text>
                 {a.excerpt ? (
-                  <Text numberOfLines={2} style={[styles.articleRowExcerpt, { color: colors.textSecondary }]}>{a.excerpt}</Text>
+                  <Text numberOfLines={2} style={styles.articleRowExcerpt}>{a.excerpt}</Text>
                 ) : null}
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
@@ -317,17 +454,26 @@ export default function DashboardScreen() {
         </MotiView>
 
         {/* AI Assistant Button */}
+        {highlightMeal?.healthScore && (
+          <View style={styles.highlightSection}>
+            <Text style={styles.highlightTitle}>
+              {t('dashboard.healthScoreTitle', { meal: highlightMeal.name })}
+            </Text>
+            <HealthScoreCard healthScore={highlightMeal.healthScore} />
+            <Text style={styles.highlightSubtitle}>
+              {t('dashboard.healthScoreSubtitle')}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.aiAssistantContainer}>
-          <TouchableOpacity
-            style={[styles.aiAssistantButton, { backgroundColor: colors.card }]}
-            onPress={handleAiAssistantPress}
-          >
-            <View style={[styles.aiAssistantIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
+          <TouchableOpacity style={styles.aiAssistantButton} onPress={handleAiAssistantPress}>
+            <View style={styles.aiAssistantIcon}>
+              <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
             </View>
             <View style={styles.aiAssistantContent}>
-              <Text style={[styles.aiAssistantTitle, { color: colors.text }]}>{t('dashboard.aiAssistant')}</Text>
-              <Text style={[styles.aiAssistantSubtitle, { color: colors.textSecondary }]}>
+              <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
+              <Text style={styles.aiAssistantSubtitle}>
                 {t('dashboard.aiAssistantSubtitle')}
               </Text>
             </View>
@@ -337,28 +483,33 @@ export default function DashboardScreen() {
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
-          <Text style={[styles.recentTitle, { color: colors.text }]}>{t('dashboard.recent')}</Text>
+          <Text style={styles.recentTitle}>{t('dashboard.recent')}</Text>
           {recentItems && recentItems.length > 0 ? (
             recentItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.articleRow, { backgroundColor: colors.card }]}
+                style={styles.articleRow}
                 onPress={() => navigation.navigate('AnalysisResults', { analysisResult: item, readOnly: true })}
               >
                 <View style={{ flex: 1 }}>
-                  <Text numberOfLines={1} style={[styles.articleRowTitle, { color: colors.text }]}>{item.name || item.dishName || 'Meal'}</Text>
-                  <Text numberOfLines={1} style={[styles.articleRowExcerpt, { color: colors.textSecondary }]}>
-                    {`${item.totalCalories ?? item.calories ?? 0} kcal • P ${item.totalProtein ?? item.protein ?? 0} • C ${item.totalCarbs ?? item.carbs ?? 0} • F ${item.totalFat ?? item.fat ?? 0}`}
+                  <Text numberOfLines={1} style={styles.articleRowTitle}>{item.name || item.dishName || t('dashboard.mealFallback')}</Text>
+                  <Text numberOfLines={1} style={styles.articleRowExcerpt}>
+                    {t('dashboard.recentMacroSummary', {
+                      calories: item.totalCalories ?? item.calories ?? 0,
+                      protein: item.totalProtein ?? item.protein ?? 0,
+                      carbs: item.totalCarbs ?? item.carbs ?? 0,
+                      fat: item.totalFat ?? item.fat ?? 0,
+                    })}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             ))
           ) : (
-            <View style={[styles.recentEmpty, { backgroundColor: colors.card }]}>
+            <View style={styles.recentEmpty}>
               <Ionicons name="restaurant" size={48} color={colors.textTertiary} />
-              <Text style={[styles.recentEmptyText, { color: colors.textSecondary }]}>No recent items</Text>
-              <Text style={[styles.recentEmptySubtext, { color: colors.textTertiary }]}>Start by taking a photo of your meal</Text>
+              <Text style={styles.recentEmptyText}>{t('dashboard.recentEmptyTitle')}</Text>
+              <Text style={styles.recentEmptySubtext}>{t('dashboard.recentEmptySubtitle')}</Text>
             </View>
           )}
         </View>
@@ -376,7 +527,7 @@ export default function DashboardScreen() {
           onPress={handlePlusPress}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={32} color="#FFFFFF" />
+          <Ionicons name="add" size={32} color={colors.onPrimary || colors.inverseText} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -395,14 +546,14 @@ export default function DashboardScreen() {
           >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Food</Text>
+                <Text style={styles.modalTitle}>{t('dashboard.addFood.title')}</Text>
                 <TouchableOpacity onPress={() => setShowModal(false)}>
-                  <Ionicons name="close" size={24} color="#8E8E93" />
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               
               <Text style={styles.modalSubtitle}>
-                Choose how you want to add your meal
+                {t('dashboard.addFood.subtitle')}
               </Text>
               
               <View style={styles.modalButtons}>
@@ -411,11 +562,11 @@ export default function DashboardScreen() {
                   onPress={handleCameraPress}
                 >
                   <View style={styles.modalButtonIcon}>
-                    <Ionicons name="camera" size={32} color="#007AFF" />
+                    <Ionicons name="camera" size={32} color={colors.primary} />
                   </View>
-                  <Text style={styles.modalButtonTitle}>Take Photo</Text>
+                  <Text style={styles.modalButtonTitle}>{t('dashboard.addFood.camera.title')}</Text>
                   <Text style={styles.modalButtonSubtitle}>
-                    Capture your meal with the camera
+                    {t('dashboard.addFood.camera.description')}
                   </Text>
                 </TouchableOpacity>
                 
@@ -424,11 +575,11 @@ export default function DashboardScreen() {
                   onPress={handleGalleryPress}
                 >
                   <View style={styles.modalButtonIcon}>
-                    <Ionicons name="images" size={32} color="#007AFF" />
+                    <Ionicons name="images" size={32} color={colors.primary} />
                   </View>
-                  <Text style={styles.modalButtonTitle}>Choose from Gallery</Text>
+                  <Text style={styles.modalButtonTitle}>{t('dashboard.addFood.gallery.title')}</Text>
                   <Text style={styles.modalButtonSubtitle}>
-                    Select a photo from your gallery
+                    {t('dashboard.addFood.gallery.description')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -446,318 +597,464 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: PADDING.screen,
-    paddingTop: PADDING.xl,
-    paddingBottom: PADDING.md,
-  },
-  timeContainer: {
-    alignItems: 'flex-start',
-  },
-  timeText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 4,
-  },
-  calendarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: PADDING.xl,
-    paddingHorizontal: PADDING.screen,
-  },
-  calendarButton: {
-    padding: 10,
-  },
-  calendarDate: {
-    alignItems: 'center',
-    marginHorizontal: 20,
-  },
-  calendarDateText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  calendarYearText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  caloriesContainer: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxxl,
-  },
-  caloriesCircle: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
+const createStyles = (tokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: tokens.colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    header: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingTop: tokens.spacing.xxxl,
+      paddingBottom: tokens.spacing.md,
+    },
+    timeContainer: {
+      alignItems: 'flex-start',
+      gap: tokens.spacing.xs,
+    },
+    timeText: {
+      fontSize: 32,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    dateText: {
+      fontSize: 16,
+      color: tokens.colors.textSecondary,
+    },
+    calendarContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: tokens.spacing.xl,
+      paddingHorizontal: tokens.spacing.xl,
+      gap: tokens.spacing.xl,
+    },
+    calendarButton: {
+      padding: tokens.spacing.sm,
+    },
+    calendarDate: {
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    calendarDateText: {
+      fontSize: 24,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    calendarYearText: {
+      fontSize: 16,
+      color: tokens.colors.textSecondary,
+    },
+    caloriesContainer: {
+      alignItems: 'center',
+      paddingVertical: tokens.spacing.xxxl,
+    },
+    caloriesCircle: {
+      width: 220,
+      height: 220,
+      borderRadius: 110,
+      backgroundColor: tokens.colors.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: tokens.colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 12,
+      borderWidth: 3,
+      borderColor: tokens.colors.primaryTint,
+    },
+    caloriesInner: {
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    caloriesNumber: {
+      fontSize: 42,
+      fontWeight: '800',
+      color: tokens.colors.primary,
+    },
+    caloriesLabel: {
+      fontSize: 16,
+      color: tokens.colors.textSecondary,
+    },
+    caloriesGoal: {
+      fontSize: 14,
+      color: tokens.colors.textTertiary,
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.xl,
+      gap: tokens.spacing.md,
+    },
+    statItem: {
+      alignItems: 'center',
+      backgroundColor: tokens.colors.card,
+      paddingVertical: tokens.spacing.xl,
+      paddingHorizontal: tokens.spacing.xl,
+      borderRadius: tokens.radii.lg,
+      minWidth: 80,
+      flex: 1,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    statNumber: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    statLabel: {
+      fontSize: 14,
+      color: tokens.colors.textSecondary,
+    },
+    articlesSection: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xl,
+      gap: tokens.spacing.md,
+    },
+    articlesHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    articlesTitle: {
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+      color: tokens.colors.textPrimary,
+    },
+    articlesViewAll: {
+      color: tokens.colors.primary,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    featuredList: {
+      marginBottom: tokens.spacing.md,
+    },
+    articleCardSmall: {
+      width: 200,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.md,
+      marginRight: tokens.spacing.md,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    featuredBadgeSmall: {
+      position: 'absolute',
+      top: tokens.spacing.xs,
+      right: tokens.spacing.xs,
+      paddingHorizontal: tokens.spacing.xs,
+      paddingVertical: tokens.spacing.xxs,
+      borderRadius: tokens.radii.sm,
+      backgroundColor: tokens.colors.primary,
+    },
+    articleTitleSmall: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: tokens.spacing.xs,
+      color: tokens.colors.textPrimary,
+    },
+    articleExcerptSmall: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    articleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.md,
+      marginBottom: tokens.spacing.sm,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    articleRowContent: {
+      flex: 1,
+      gap: tokens.spacing.xs,
+      paddingRight: tokens.spacing.sm,
+    },
+    articleRowTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    articleRowExcerpt: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    highlightSection: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xl,
+      gap: tokens.spacing.md,
+    },
+    highlightTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    highlightSubtitle: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    aiAssistantContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingBottom: tokens.spacing.xl,
+    },
+    aiAssistantButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: tokens.spacing.lg,
+      borderRadius: tokens.radii.lg,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    aiAssistantIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: tokens.spacing.md,
+      backgroundColor: tokens.colors.primary,
+    },
+    aiAssistantContent: {
+      flex: 1,
+      gap: tokens.spacing.xs,
+    },
+    aiAssistantTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    aiAssistantSubtitle: {
+      fontSize: 14,
+      color: tokens.colors.textSecondary,
+    },
+    recentContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingBottom: tokens.spacing.gutter,
+      gap: tokens.spacing.md,
+    },
+    recentTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    recentEmpty: {
+      alignItems: 'center',
+      paddingVertical: tokens.spacing.gutter,
+      borderRadius: tokens.radii.lg,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+      gap: tokens.spacing.md,
+    },
+    recentEmptyText: {
+      fontSize: 18,
+      fontWeight: '500',
+      color: tokens.colors.textSecondary,
+    },
+    recentEmptySubtext: {
+      fontSize: 14,
+      textAlign: 'center',
+      color: tokens.colors.textTertiary,
+    },
+    plusButtonContainer: {
+      position: 'absolute',
+      bottom: tokens.spacing.xxl,
+      alignSelf: 'center',
+    },
+    plusButton: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: tokens.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: tokens.colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 12,
+      borderWidth: 2,
+      borderColor: tokens.colors.surface,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: tokens.states.scrim,
+      justifyContent: 'flex-end',
+    },
+    modalBackground: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: tokens.colors.card,
+      borderTopLeftRadius: tokens.radii.xl,
+      borderTopRightRadius: tokens.radii.xl,
+      paddingTop: tokens.spacing.xl,
+      paddingBottom: tokens.spacing.gutter,
+      paddingHorizontal: tokens.spacing.xl,
+      shadowColor: tokens.states.cardShadow?.shadowColor || 'rgba(0,0,0,0.2)',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: tokens.spacing.sm,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    modalSubtitle: {
+      fontSize: 16,
+      color: tokens.colors.textSecondary,
+      marginBottom: tokens.spacing.gutter,
+    },
+    modalButtons: {
+      gap: tokens.spacing.lg,
+    },
+    modalButton: {
+      backgroundColor: tokens.colors.surfaceMuted,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.xl,
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+    },
+    modalButtonIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: tokens.colors.primaryTint,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalButtonTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    modalButtonSubtitle: {
+      fontSize: 14,
+      color: tokens.colors.textSecondary,
+      textAlign: 'center',
+    },
+    monthlySection: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xl,
+      gap: tokens.spacing.md,
+    },
+    monthlyHeader: {
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    sectionTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: tokens.colors.textPrimary,
+    },
+    sectionSubtle: {
+      fontSize: 14,
+      color: tokens.colors.textSecondary,
+    },
+    monthlyEmpty: {
+      alignItems: 'center',
+      paddingVertical: tokens.spacing.gutter,
+      borderRadius: tokens.radii.lg,
+      backgroundColor: tokens.colors.card,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+      gap: tokens.spacing.md,
+    },
+    topFoodsContainer: {
+      backgroundColor: tokens.colors.surfaceMuted,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.md,
+      marginBottom: tokens.spacing.md,
+    },
+    sectionSubtitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+      marginBottom: tokens.spacing.sm,
+    },
+    topFoodRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: tokens.spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: tokens.colors.borderMuted,
+    },
+    topFoodRank: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+      marginRight: tokens.spacing.sm,
+    },
+    topFoodContent: {
+      flex: 1,
+    },
+    topFoodLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    topFoodMeta: {
+      fontSize: 12,
+      color: tokens.colors.textSecondary,
+    },
+    mealDistributionContainer: {
+      backgroundColor: tokens.colors.surfaceMuted,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.md,
+    },
+    mealDistributionRow: {
+      marginBottom: tokens.spacing.sm,
+    },
+    mealDistributionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: tokens.spacing.xs,
+    },
+    mealDistributionLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    mealDistributionMeta: {
+      fontSize: 12,
+      color: tokens.colors.textSecondary,
+    },
+    mealDistributionBarTrack: {
       height: 8,
+      backgroundColor: tokens.colors.borderMuted,
+      borderRadius: 4,
+      marginBottom: tokens.spacing.xs,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
-    borderWidth: 3,
-    borderColor: '#E3F2FD',
-  },
-  caloriesInner: {
-    alignItems: 'center',
-  },
-  caloriesNumber: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#007AFF',
-  },
-  caloriesLabel: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 4,
-  },
-  caloriesGoal: {
-    fontSize: 14,
-    color: '#C7C7CC',
-    marginTop: 2,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: PADDING.screen,
-    paddingVertical: PADDING.xl,
-    gap: SPACING.md,
-  },
-  statItem: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: PADDING.xl,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: BORDER_RADIUS.lg,
-    minWidth: 80,
-    flex: 1,
-    ...SHADOW.sm,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
-  },
-  recentContainer: {
-    paddingHorizontal: PADDING.screen,
-    paddingBottom: 100,
-  },
-  recentTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  recentEmpty: {
-    alignItems: 'center',
-    paddingVertical: PADDING.huge,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOW.sm,
-  },
-  recentEmptyText: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginTop: 16,
-  },
-  recentEmptySubtext: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  plusButtonContainer: {
-    position: 'absolute',
-    bottom: 30,
-    alignSelf: 'center',
-  },
-  plusButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 6,
+    mealDistributionBarFill: {
+      height: '100%',
+      borderRadius: 4,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 12,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalBackground: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4,
+    mealDistributionMetaSmall: {
+      fontSize: 12,
+      color: tokens.colors.textSecondary,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginBottom: 32,
-  },
-  modalButtons: {
-    gap: 16,
-  },
-  modalButton: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-  },
-  modalButtonIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modalButtonTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 4,
-  },
-  modalButtonSubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  aiAssistantContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  aiAssistantButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  aiAssistantIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  aiAssistantContent: {
-    flex: 1,
-  },
-  aiAssistantTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 2,
-  },
-  aiAssistantSubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  articleCardSmall: {
-    width: 200,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    marginRight: SPACING.md,
-    ...SHADOW.sm,
-  },
-  featuredBadgeSmall: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  articleTitleSmall: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  articleExcerptSmall: {
-    fontSize: 13,
-  },
-  articleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    ...SHADOW.sm,
-  },
-  articleRowTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  articleRowExcerpt: {
-    fontSize: 13,
-  },
-});
+  });

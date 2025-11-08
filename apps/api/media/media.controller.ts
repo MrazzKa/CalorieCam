@@ -2,7 +2,7 @@ import { Controller, Post, UploadedFile, UseInterceptors, UseGuards, Request } f
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { MediaService } from './media.service';
+import { MediaService, UploadResult } from './media.service';
 
 @ApiTags('Media')
 @Controller('media')
@@ -19,7 +19,7 @@ export class MediaController {
   async uploadFile(
     @UploadedFile() file: any,
     @Request() req: any,
-  ) {
+  ): Promise<UploadResult> {
     return this.mediaService.uploadFile(file, req.user.id);
   }
 }

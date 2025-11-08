@@ -1,30 +1,31 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useRef, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { PADDING, SPACING, BORDER_RADIUS } from '../utils/designConstants';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView, useReducedMotion } from 'moti';
+import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../../app/i18n/hooks';
 
 export default function CameraScreen() {
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(false);
   const cameraRef = useRef(null);
-  const [zoom, setZoom] = useState(0); // Start at minimum zoom level
+  const [zoom, setZoom] = useState(0);
   const [facing, setFacing] = useState('back');
   const [flashMode, setFlashMode] = useState('off');
-
-  console.log('CameraScreen loaded');
+  const { tokens } = useTheme();
+  const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const captureScale = useSharedValue(1);
 
   const takePicture = async () => {
     if (cameraRef.current && !isLoading) {
@@ -39,22 +40,43 @@ export default function CameraScreen() {
         const compressedImage = await ImageManipulator.manipulateAsync(
           photo.uri,
           [{ resize: { width: 1024 } }],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
         );
 
-        // Navigate to analysis results with the image
         navigation.navigate('AnalysisResults', {
           imageUri: compressedImage.uri,
           source: 'camera',
         });
       } catch (error) {
         console.error('Error taking picture:', error);
-        Alert.alert('Error', 'Failed to take picture. Please try again.');
+        Alert.alert(t('common.error'), t('camera.captureError'));
       } finally {
         setIsLoading(false);
       }
     }
   };
+
+  const handleFlashToggle = () => {
+    const modes = ['off', 'on', 'auto'];
+    const currentIndex = modes.indexOf(flashMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setFlashMode(modes[nextIndex]);
+  };
+
+  const flashLabel = useMemo(() => {
+    switch (flashMode) {
+      case 'on':
+        return t('camera.flashModeOn');
+      case 'auto':
+        return t('camera.flashModeAuto');
+      default:
+        return t('camera.flashModeOff');
+    }
+  }, [flashMode, t]);
+
+  const captureAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: captureScale.value }],
+  }));
 
   const handleClose = () => {
     navigation.goBack();
@@ -62,10 +84,12 @@ export default function CameraScreen() {
 
   if (!permission) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.background }]}>
         <View style={styles.permissionContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.permissionText}>Requesting camera permission...</Text>
+          <ActivityIndicator size="large" color={tokens.colors.primary} />
+          <Text style={[styles.permissionText, { color: tokens.colors.textSecondary }]}>
+            {t('camera.requestingPermission')}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -73,211 +97,255 @@ export default function CameraScreen() {
 
   if (!permission.granted) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.background }]}>
         <View style={styles.permissionContainer}>
-          <Ionicons name="camera-off" size={64} color="#8E8E93" />
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
-          <Text style={styles.permissionText}>
-            Please enable camera access in your device settings to take photos of your meals.
+          <Ionicons name="camera-off" size={64} color={tokens.colors.iconMuted} />
+          <Text style={[styles.permissionTitle, { color: tokens.colors.textPrimary }]}>
+            {t('camera.accessTitle')}
           </Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-            <Text style={styles.permissionButtonText}>Request Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.permissionButton, { backgroundColor: '#8E8E93', marginTop: 10 }]} onPress={handleClose}>
-            <Text style={styles.permissionButtonText}>Go Back</Text>
-          </TouchableOpacity>
+          <Text style={[styles.permissionText, { color: tokens.colors.textSecondary }]}>
+            {t('camera.accessBody')}
+          </Text>
+          <Pressable style={[styles.permissionButton, { backgroundColor: tokens.colors.primary }]} onPress={requestPermission}>
+            <Text style={[styles.permissionButtonText, { color: tokens.colors.onPrimary }]}>
+              {t('camera.requestPermission')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.permissionButton,
+              {
+                backgroundColor: tokens.colors.surfaceMuted,
+                marginTop: tokens.spacing.sm,
+              },
+            ]}
+            onPress={handleClose}
+          >
+            <Text style={[styles.permissionButtonText, { color: tokens.colors.textPrimary }]}>
+              {t('common.back')}
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <CameraView
-        style={styles.camera}
-        facing={facing}
-        ref={cameraRef}
-        zoom={zoom}
-        enableZoomGesture
-      >
-        <View style={styles.cameraOverlay}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Take Photo</Text>
-            <View style={styles.headerButton} />
-          </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.background }]}>
+      <CameraView style={styles.camera} facing={facing} ref={cameraRef} zoom={zoom} enableZoomGesture flash={flashMode}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.65)', 'transparent', 'rgba(0,0,0,0.75)']}
+          style={StyleSheet.absoluteFill}
+        />
 
-          {/* Camera Controls */}
-          <View style={styles.controls}>
+        <View style={styles.cameraOverlay}>
+          <MotiView
+            from={reduceMotion ? undefined : { opacity: 0, translateY: -12 }}
+            animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: tokens.motion.durations.slow }}
+            style={[styles.header, { paddingTop: insets.top + tokens.spacing.lg }]}
+          >
+            <Pressable style={styles.headerButton} onPress={handleClose}>
+              <Ionicons name="close" size={24} color={tokens.colors.onPrimary} />
+            </Pressable>
+            <Text style={[styles.headerTitle, { color: tokens.colors.onPrimary }]}>{t('camera.takePhoto')}</Text>
+            <View style={styles.headerButtonPlaceholder} />
+          </MotiView>
+
+          <MotiView
+            from={reduceMotion ? undefined : { opacity: 0, translateY: 24 }}
+            animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: tokens.motion.durations.base }}
+            style={[styles.controls, { paddingBottom: insets.bottom + tokens.spacing.xl }]}
+          >
             <View style={styles.controlRow}>
-              <TouchableOpacity 
-                style={styles.controlButton}
-                onPress={() => {
-                  const modes = ['off', 'on', 'auto'];
-                  const currentIndex = modes.indexOf(flashMode);
-                  const nextIndex = (currentIndex + 1) % modes.length;
-                  setFlashMode(modes[nextIndex]);
-                }}
-              >
-                <Ionicons 
+              <Pressable style={styles.controlButton} onPress={handleFlashToggle}>
+                <Ionicons
                   name={
-                    flashMode === 'off' ? 'flash-off' :
-                    flashMode === 'on' ? 'flash' : 'flash-outline'
-                  } 
-                  size={24} 
-                  color="#FFFFFF" 
+                    flashMode === 'off' ? 'flash-off' : flashMode === 'on' ? 'flash' : 'flash-outline'
+                  }
+                  size={24}
+                  color={tokens.colors.onPrimary}
                 />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.captureButton, isLoading && styles.captureButtonDisabled]}
-                onPress={takePicture}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <View style={styles.captureButtonInner} />
-                )}
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
+                <Text style={[styles.controlLabel, { color: tokens.colors.onPrimary }]}>{flashLabel}</Text>
+              </Pressable>
+
+              <Animated.View style={[styles.captureWrapper, captureAnimatedStyle]}>
+                <Pressable
+                  style={[styles.captureButton, isLoading && styles.captureButtonDisabled]}
+                  onPress={takePicture}
+                  onPressIn={() => {
+                    if (reduceMotion) return;
+                    captureScale.value = withSpring(0.92, { damping: 12, stiffness: 180 });
+                  }}
+                  onPressOut={() => {
+                    if (reduceMotion) return;
+                    captureScale.value = withSpring(1, { damping: 12, stiffness: 180 });
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={tokens.colors.onPrimary} />
+                  ) : (
+                    <View style={[styles.captureButtonInner, { backgroundColor: tokens.colors.primary }]} />
+                  )}
+                </Pressable>
+              </Animated.View>
+
+              <Pressable
                 style={styles.controlButton}
-                onPress={() => {
-                  setFacing(facing === 'back' ? 'front' : 'back');
-                }}
+                onPress={() => setFacing((prev) => (prev === 'back' ? 'front' : 'back'))}
               >
-                <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
+                <Ionicons name="camera-reverse" size={24} color={tokens.colors.onPrimary} />
+                <Text style={[styles.controlLabel, { color: tokens.colors.onPrimary }]}>
+                  {t('camera.switchCamera')}
+                </Text>
+              </Pressable>
             </View>
 
             <View style={styles.zoomContainer}>
+              <Text style={[styles.zoomLabel, { color: tokens.colors.onPrimary }]}>
+                {t('camera.zoomLabel', { value: (1 + zoom).toFixed(1) })}
+              </Text>
               <Slider
-                style={{ width: '100%' }}
+                style={styles.zoomSlider}
                 minimumValue={0}
                 maximumValue={1}
                 step={0.01}
                 value={zoom}
-                minimumTrackTintColor="#FFFFFF"
+                minimumTrackTintColor={tokens.colors.onPrimary}
                 maximumTrackTintColor="rgba(255,255,255,0.3)"
+                thumbTintColor={tokens.colors.primary}
                 onValueChange={setZoom}
               />
             </View>
-          </View>
+          </MotiView>
         </View>
       </CameraView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'space-between',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: PADDING.xl,
-    paddingHorizontal: PADDING.screen,
-    paddingBottom: PADDING.xl,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  controls: {
-    paddingBottom: PADDING.huge,
-    paddingHorizontal: PADDING.screen,
-  },
-  zoomContainer: {
-    marginTop: 16,
-    paddingHorizontal: 10,
-  },
-  controlRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  captureButtonDisabled: {
-    opacity: 0.6,
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#007AFF',
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    backgroundColor: '#F2F2F7',
-  },
-  permissionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginTop: 20,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  permissionText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 30,
-  },
-  permissionButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  permissionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const createStyles = (tokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#000000',
+    },
+    camera: {
+      flex: 1,
+    },
+    cameraOverlay: {
+      flex: 1,
+      justifyContent: 'space-between',
+      paddingHorizontal: tokens.spacing.xl,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingBottom: tokens.spacing.lg,
+    },
+    headerButton: {
+      width: 44,
+      height: 44,
+      borderRadius: tokens.radii.full,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerButtonPlaceholder: {
+      width: 44,
+      height: 44,
+    },
+    headerTitle: {
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+      letterSpacing: 0.4,
+    },
+    controls: {
+      gap: tokens.spacing.lg,
+    },
+    controlRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: tokens.spacing.lg,
+    },
+    controlButton: {
+      width: 72,
+      borderRadius: tokens.radii.lg,
+      paddingVertical: tokens.spacing.xs,
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+      backgroundColor: 'rgba(15,23,42,0.32)',
+    },
+    controlLabel: {
+      fontSize: tokens.typography.micro.fontSize,
+    },
+    captureWrapper: {
+      borderRadius: tokens.radii.full,
+    },
+    captureButton: {
+      width: 86,
+      height: 86,
+      borderRadius: tokens.radii.full,
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.45)',
+    },
+    captureButtonInner: {
+      width: 64,
+      height: 64,
+      borderRadius: tokens.radii.full,
+    },
+    captureButtonDisabled: {
+      opacity: 0.6,
+    },
+    zoomContainer: {
+      gap: tokens.spacing.sm,
+      backgroundColor: 'rgba(15,23,42,0.32)',
+      borderRadius: tokens.radii.lg,
+      paddingHorizontal: tokens.spacing.md,
+      paddingVertical: tokens.spacing.md,
+    },
+    zoomLabel: {
+      fontSize: tokens.typography.caption.fontSize,
+      fontWeight: tokens.typography.caption.fontWeight,
+      textAlign: 'center',
+    },
+    zoomSlider: {
+      width: '100%',
+    },
+    permissionContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xxxl,
+      gap: tokens.spacing.lg,
+    },
+    permissionTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      textAlign: 'center',
+    },
+    permissionText: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+      textAlign: 'center',
+    },
+    permissionButton: {
+      minWidth: 160,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    permissionButtonText: {
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+  });

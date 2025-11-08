@@ -1,0 +1,531 @@
+import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
+const Chain = require('stream-chain');
+const StreamValues = require('stream-json/streamers/StreamValues');
+import * as z from 'zod';
+import { randomUUID } from 'crypto';
+
+const prisma = new PrismaClient();
+
+enum FoodSource {
+  USDA_LOCAL = 'USDA_LOCAL',
+  USDA_API = 'USDA_API',
+}
+
+// Zod schemas for validation
+const FoodSchema = z.object({
+  fdcId: z.number(),
+  dataType: z.string(),
+  description: z.string(),
+  brandOwner: z.string().optional(),
+  gtinUpc: z.string().optional(),
+  scientificName: z.string().optional(),
+  publishedDate: z.string().optional(),
+  foodUpdateDate: z.string().optional(),
+  foodPortions: z.array(z.any()).optional(),
+  foodNutrients: z.array(z.any()).optional(),
+  labelNutrients: z.any().optional(),
+});
+
+const NutrientSchema = z.object({
+  id: z.number(),
+  number: z.string().optional(),
+  name: z.string(),
+  unitName: z.string(),
+  rank: z.number().optional(),
+});
+
+async function parseArgs() {
+  const args = process.argv.slice(2);
+  const fileArg = args.find(arg => arg.startsWith('--file='));
+  const typeArg = args.find(arg => arg.startsWith('--type='));
+
+  if (!fileArg || !typeArg) {
+    throw new Error('Usage: --file=<path> --type=<Branded|Foundation|FNDDS|SRLegacy>');
+  }
+
+  return {
+    file: fileArg.split('=')[1],
+    type: typeArg.split('=')[1],
+  };
+}
+
+async function seedNutrients() {
+  const nutrients = [
+    { id: 1003, number: '203', name: 'Protein', unitName: 'G', rank: 600 },
+    { id: 1004, number: '204', name: 'Total lipid (fat)', unitName: 'G', rank: 800 },
+    { id: 1005, number: '205', name: 'Carbohydrate, by difference', unitName: 'G', rank: 1110 },
+    { id: 1008, number: '208', name: 'Energy', unitName: 'KCAL', rank: 300 },
+    { id: 1079, number: '269', name: 'Sugars, total including NLEA', unitName: 'G', rank: 1510 },
+    { id: 2000, number: '307', name: 'Sodium, Na', unitName: 'MG', rank: 1500 },
+    { id: 2047, number: '957', name: 'Energy (Atwater General Factors)', unitName: 'KCAL', rank: null },
+    { id: 2048, number: '958', name: 'Energy (Atwater Specific Factors)', unitName: 'KCAL', rank: null },
+  ];
+
+  for (const nutrient of nutrients) {
+    await prisma.nutrient.upsert({
+      where: { id: nutrient.id },
+      update: {
+        number: nutrient.number || null,
+        name: nutrient.name,
+        unitName: nutrient.unitName,
+        rank: nutrient.rank || null,
+      },
+      create: {
+        id: nutrient.id,
+        number: nutrient.number || null,
+        name: nutrient.name,
+        unitName: nutrient.unitName,
+        rank: nutrient.rank || null,
+      },
+    });
+  }
+
+  console.log(`✓ Seeded ${nutrients.length} nutrients`);
+}
+
+async function importFood(foodData: any, dataType: string) {
+  let validated: any;
+  try {
+    validated = FoodSchema.parse(foodData);
+  } catch (e: any) {
+    console.error('[importFood] validation error', (foodData?.fdcId || foodData?.fdc_id), e?.issues || e?.message || String(e));
+    throw e;
+  }
+
+  // Get or create food ID - use Prisma client for proper column mapping
+  let existingFood: any = null;
+  try {
+    existingFood = await prisma.food.findUnique({
+    where: { fdcId: validated.fdcId },
+    select: { id: true },
+    });
+  } catch (e: any) {
+    console.error('[importFood] findUnique error', validated.fdcId, e?.message || e);
+    throw e;
+  }
+
+  let foodId: string;
+  const now = new Date().toISOString();
+  const publishedAt = validated.publishedDate ? new Date(validated.publishedDate).toISOString() : null;
+  const updatedAt = validated.foodUpdateDate ? new Date(validated.foodUpdateDate).toISOString() : null;
+
+  if (existingFood) {
+    foodId = existingFood.id;
+    // Update using Prisma client
+    try {
+    await prisma.food.update({
+      where: { id: foodId },
+      data: {
+        dataType: validated.dataType,
+        description: validated.description,
+        brandOwner: validated.brandOwner || null,
+        gtinUpc: validated.gtinUpc || null,
+        scientificName: validated.scientificName || null,
+        publishedAt: publishedAt ? new Date(publishedAt) : null,
+        updatedAt: updatedAt ? new Date(updatedAt) : null,
+        source: FoodSource.USDA_LOCAL,
+      },
+    });
+    } catch (e: any) {
+      console.error('[importFood] update error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+  } else {
+    // Create using Prisma client
+    let created: any;
+    try {
+      created = await prisma.food.create({
+      data: {
+        fdcId: validated.fdcId,
+        dataType: validated.dataType,
+        description: validated.description,
+        brandOwner: validated.brandOwner || null,
+        gtinUpc: validated.gtinUpc || null,
+        scientificName: validated.scientificName || null,
+        publishedAt: publishedAt ? new Date(publishedAt) : null,
+        updatedAt: updatedAt ? new Date(updatedAt) : null,
+        source: FoodSource.USDA_LOCAL,
+      },
+    });
+    } catch (e: any) {
+      console.error('[importFood] create error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+    foodId = created.id;
+  }
+
+  // Delete and recreate portions using Prisma client
+  if (validated.foodPortions && validated.foodPortions.length > 0) {
+    try {
+    await prisma.foodPortion.deleteMany({ where: { foodId } });
+    } catch (e: any) {
+      console.error('[importFood] deleteMany portions error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+    
+    try {
+    await prisma.foodPortion.createMany({
+      data: validated.foodPortions.map((p: any) => {
+        // Extract measureUnit string from object if needed
+        let measureUnitStr = '';
+        if (typeof p.measureUnit === 'string') {
+          measureUnitStr = p.measureUnit;
+        } else if (p.measureUnit && typeof p.measureUnit === 'object') {
+          // Use abbreviation if available, otherwise name
+          measureUnitStr = p.measureUnit.abbreviation || p.measureUnit.name || '';
+        }
+        
+        return {
+          foodId,
+          gramWeight: p.gramWeight || 0,
+          measureUnit: measureUnitStr,
+          modifier: p.modifier || null,
+          amount: p.amount !== null && p.amount !== undefined ? p.amount : null,
+        };
+      }),
+    });
+    } catch (e: any) {
+      console.error('[importFood] createMany portions error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+  }
+
+  // Upsert nutrients using Prisma client
+  if (validated.foodNutrients && validated.foodNutrients.length > 0) {
+    // Ensure all nutrients exist
+    for (const fn of validated.foodNutrients) {
+      if (fn.nutrient) {
+        const nutrientData = NutrientSchema.parse(fn.nutrient);
+        try {
+        await prisma.nutrient.upsert({
+          where: { id: nutrientData.id },
+          update: {
+            number: nutrientData.number || null,
+            name: nutrientData.name,
+            unitName: nutrientData.unitName,
+            rank: nutrientData.rank || null,
+          },
+          create: {
+            id: nutrientData.id,
+            number: nutrientData.number || null,
+            name: nutrientData.name,
+            unitName: nutrientData.unitName,
+            rank: nutrientData.rank || null,
+          },
+        });
+        } catch (e: any) {
+          console.error('[importFood] upsert nutrient error', validated.fdcId, nutrientData?.id, e?.message || e);
+          throw e;
+        }
+      }
+    }
+
+    // Delete existing and create new
+    try {
+    await prisma.foodNutrient.deleteMany({ where: { foodId } });
+    } catch (e: any) {
+      console.error('[importFood] deleteMany nutrients error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+    
+    try {
+    await prisma.foodNutrient.createMany({
+      data: validated.foodNutrients
+        .filter((fn: any) => fn.nutrient && fn.amount !== null && fn.amount !== undefined)
+        .map((fn: any) => ({
+          foodId,
+          nutrientId: fn.nutrient.id,
+          amount: fn.amount || 0,
+        })),
+    });
+    } catch (e: any) {
+      console.error('[importFood] createMany nutrients error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+  }
+
+  // Upsert label nutrients (only for Branded) using Prisma client
+  if (dataType === 'Branded' && validated.labelNutrients) {
+    const label = validated.labelNutrients;
+    try {
+    await prisma.labelNutrients.upsert({
+      where: { foodId },
+      update: {
+        calories: label.calories !== null && label.calories !== undefined ? label.calories : null,
+        protein: label.protein !== null && label.protein !== undefined ? label.protein : null,
+        fat: label.fat !== null && label.fat !== undefined ? label.fat : null,
+        carbohydrates: label.carbohydrates !== null && label.carbohydrates !== undefined ? label.carbohydrates : null,
+        fiber: label.fiber !== null && label.fiber !== undefined ? label.fiber : null,
+        sugars: label.sugars !== null && label.sugars !== undefined ? label.sugars : null,
+        sodium: label.sodium !== null && label.sodium !== undefined ? label.sodium : null,
+        cholesterol: label.cholesterol !== null && label.cholesterol !== undefined ? label.cholesterol : null,
+        potassium: label.potassium !== null && label.potassium !== undefined ? label.potassium : null,
+        calcium: label.calcium !== null && label.calcium !== undefined ? label.calcium : null,
+        iron: label.iron !== null && label.iron !== undefined ? label.iron : null,
+      },
+      create: {
+        foodId,
+        calories: label.calories !== null && label.calories !== undefined ? label.calories : null,
+        protein: label.protein !== null && label.protein !== undefined ? label.protein : null,
+        fat: label.fat !== null && label.fat !== undefined ? label.fat : null,
+        carbohydrates: label.carbohydrates !== null && label.carbohydrates !== undefined ? label.carbohydrates : null,
+        fiber: label.fiber !== null && label.fiber !== undefined ? label.fiber : null,
+        sugars: label.sugars !== null && label.sugars !== undefined ? label.sugars : null,
+        sodium: label.sodium !== null && label.sodium !== undefined ? label.sodium : null,
+        cholesterol: label.cholesterol !== null && label.cholesterol !== undefined ? label.cholesterol : null,
+        potassium: label.potassium !== null && label.potassium !== undefined ? label.potassium : null,
+        calcium: label.calcium !== null && label.calcium !== undefined ? label.calcium : null,
+        iron: label.iron !== null && label.iron !== undefined ? label.iron : null,
+      },
+    });
+    } catch (e: any) {
+      console.error('[importFood] upsert label error', validated.fdcId, e?.message || e);
+      throw e;
+    }
+  }
+
+  return { id: foodId, fdcId: validated.fdcId };
+}
+
+async function main() {
+  try {
+    const { file, type } = await parseArgs();
+    
+    if (!fs.existsSync(file)) {
+      throw new Error(`File not found: ${file}`);
+    }
+
+    console.log(`Starting import: ${file} (type: ${type})`);
+
+    // Seed nutrients first
+    await seedNutrients();
+
+    // Check if already ingested
+    const ingestedDir = path.resolve(process.env.USDA_DATA_DIR || './data/usda/raw', '../ingested');
+    const basename = path.basename(file);
+    const markerFile = path.join(ingestedDir, `${basename}.done`);
+    
+    if (fs.existsSync(markerFile)) {
+      console.log(`⚠ File already ingested: ${basename}`);
+      return;
+    }
+
+    // Ensure ingested directory exists
+    if (!fs.existsSync(ingestedDir)) {
+      fs.mkdirSync(ingestedDir, { recursive: true });
+    }
+
+    let count = 0;
+    let batch: any[] = [];
+    const processingPromises: Promise<void>[] = [];
+    const BATCH_SIZE = 100;
+
+    // Progress monitoring
+    const startTime = Date.now();
+    const PROGRESS_INTERVAL = 10000; // Log every 10 seconds
+    const progressInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const rate = count > 0 ? (count / elapsed).toFixed(2) : 0;
+      console.log(`[${new Date().toISOString()}] Progress: ${count} foods imported, elapsed: ${elapsed}s, rate: ${rate} foods/sec`);
+    }, PROGRESS_INTERVAL);
+
+    // Use StreamValues for all types - it handles object structures
+    // For Branded, it will return the BrandedFoods array as part of the value
+    const pipeline = new Chain([
+      fs.createReadStream(file),
+      StreamValues.withParser(),
+    ]);
+
+    pipeline.on('data', async (data: any) => {
+      // StreamValues returns objects with 'value' property
+      const value = data?.value;
+      
+      if (!value || typeof value !== 'object') {
+        return;
+      }
+      
+      // Diagnostic: log first few objects to understand structure
+      if (count === 0 && Object.keys(value).length > 0) {
+        const keys = Object.keys(value).slice(0, 10);
+        console.log(`[${new Date().toISOString()}] First object keys: ${keys.join(', ')}`);
+        if (keys.length > 0) {
+          const firstKey = keys[0];
+          const firstValue = value[firstKey];
+          if (Array.isArray(firstValue)) {
+            console.log(`[${new Date().toISOString()}] Found array "${firstKey}" with ${firstValue.length} items`);
+          } else if (typeof firstValue === 'object') {
+            console.log(`[${new Date().toISOString()}] Found object "${firstKey}" with keys: ${Object.keys(firstValue).slice(0, 5).join(', ')}`);
+          }
+        }
+      }
+      
+      // USDA JSON files have structure: { FoundationFoods: [...], FNDDS: [...], etc }
+      // Extract array based on data type
+      let foodsArray: any[] = [];
+      
+      if (type === 'Foundation' && value.FoundationFoods && Array.isArray(value.FoundationFoods)) {
+        if (count < 1) console.log('Detected FoundationFoods array');
+        foodsArray = value.FoundationFoods;
+      } else if (type === 'FNDDS' && value.FNDDS && Array.isArray(value.FNDDS)) {
+        if (count < 1) console.log('Detected FNDDS array');
+        foodsArray = value.FNDDS;
+      } else if (type === 'FNDDS' && value.SurveyFoods) {
+        // Some FNDDS dumps use "SurveyFoods" as the top-level key
+        if (Array.isArray(value.SurveyFoods)) {
+          if (count < 1) console.log('Detected SurveyFoods array');
+          foodsArray = value.SurveyFoods;
+        } else if (typeof value.SurveyFoods === 'object') {
+          // Try to find an array of food-like objects inside the container
+          for (const k of Object.keys(value.SurveyFoods)) {
+            const candidate: any = (value.SurveyFoods as any)[k];
+            if (Array.isArray(candidate) && candidate.length > 0 && typeof candidate[0] === 'object') {
+              const sample = candidate[0];
+              if (sample.fdcId || sample.fdc_id || sample.description) {
+                if (count < 1) console.log('Detected SurveyFoods nested array at key', k);
+                foodsArray = candidate;
+                break;
+              }
+            }
+          }
+        }
+      } else if (type === 'SRLegacy' && value.SRLegacy && Array.isArray(value.SRLegacy)) {
+        if (count < 1) console.log('Detected SRLegacy array');
+        foodsArray = value.SRLegacy;
+      } else if (type === 'SRLegacy' && value.SRLegacyFoods) {
+        // Some SR Legacy dumps use "SRLegacyFoods" as the top-level key
+        if (Array.isArray(value.SRLegacyFoods)) {
+          if (count < 1) console.log('Detected SRLegacyFoods array');
+          foodsArray = value.SRLegacyFoods;
+        } else if (typeof value.SRLegacyFoods === 'object') {
+          for (const k of Object.keys(value.SRLegacyFoods)) {
+            const candidate: any = (value.SRLegacyFoods as any)[k];
+            if (Array.isArray(candidate) && candidate.length > 0 && typeof candidate[0] === 'object') {
+              const sample = candidate[0];
+              if (sample.fdcId || sample.fdc_id || sample.description) {
+                if (count < 1) console.log('Detected SRLegacyFoods nested array at key', k);
+                foodsArray = candidate;
+                break;
+              }
+            }
+          }
+        }
+      } else if (type === 'Branded' && value.BrandedFoods && Array.isArray(value.BrandedFoods)) {
+        if (count < 1) {
+          console.log(`[${new Date().toISOString()}] Detected BrandedFoods array with ${value.BrandedFoods.length} items`);
+        }
+        foodsArray = value.BrandedFoods;
+      } else if (Array.isArray(value)) {
+        // Fallback: if value is already an array
+        foodsArray = value;
+      } else if (value.fdcId || value.fdc_id) {
+        // Single food object
+        foodsArray = [value];
+      } else {
+        // Debug: log structure if no match
+        if (count < 3) {
+          console.log('Unknown data structure:', Object.keys(value).slice(0, 10));
+        }
+        return;
+      }
+      
+      // Process each food in the array (for both Branded and other types)
+      for (const foodData of foodsArray) {
+        if (foodData && typeof foodData === 'object' && (foodData.fdcId || foodData.fdc_id)) {
+          // Normalize to fdcId
+          if (!foodData.fdcId && foodData.fdc_id) {
+            foodData.fdcId = foodData.fdc_id;
+          }
+          
+          batch.push(foodData);
+          if (count === 0 && batch.length <= 3) {
+            console.log('Sample food to import:', foodData.fdcId, '-', (foodData.description || '').slice(0, 60));
+          }
+          
+          if (batch.length >= BATCH_SIZE) {
+            const batchCopy = [...batch];
+            batch = [];
+            const p = (async () => {
+            for (const foodItem of batchCopy) {
+              try {
+                await importFood(foodItem, type);
+                count++;
+                if (count % 100 === 0) {
+                  console.log(`[${new Date().toISOString()}] Processed ${count} foods...`);
+                }
+              } catch (error: any) {
+                const fdcId = foodItem?.fdcId || foodItem?.fdc_id || 'unknown';
+                  console.error(`Error importing food ${fdcId}:`, error?.stack || error?.message || String(error));
+                }
+              }
+            })();
+            processingPromises.push(p);
+          }
+        }
+      }
+    });
+
+    pipeline.on('end', async () => {
+      // Process remaining batch
+      if (batch.length > 0) {
+        console.log(`Processing remaining batch of ${batch.length} foods...`);
+      }
+      if (batch.length > 0) {
+        const batchCopy = [...batch];
+        batch = [];
+        const p = (async () => {
+          for (const foodData of batchCopy) {
+        try {
+          await importFood(foodData, type);
+          count++;
+              if (count % 100 === 0) {
+                console.log(`[${new Date().toISOString()}] Processed ${count} foods...`);
+              }
+        } catch (error: any) {
+          const fdcId = foodData?.fdcId || foodData?.fdc_id || 'unknown';
+              console.error(`Error importing food ${fdcId}:`, error?.stack || error?.message || String(error));
+        }
+      }
+        })();
+        processingPromises.push(p);
+      }
+
+      // Clear progress interval
+      clearInterval(progressInterval);
+      
+      // Wait for all pending imports to complete
+      if (processingPromises.length > 0) {
+        console.log(`\nAwaiting ${processingPromises.length} processing tasks...`);
+        await Promise.allSettled(processingPromises);
+      }
+
+      // Write marker file (only if something imported)
+      if (count > 0) {
+      fs.writeFileSync(markerFile, new Date().toISOString());
+      }
+      
+      console.log(`\n✓ Import complete: ${count} foods imported`);
+      if (count > 0) {
+      console.log(`✓ Marker file created: ${markerFile}`);
+      } else {
+        console.log('⚠ No foods imported, marker file not created');
+      }
+      
+      await prisma.$disconnect();
+      process.exit(0);
+    });
+
+    pipeline.on('error', (error: Error) => {
+      console.error('Pipeline error:', error);
+      process.exit(1);
+    });
+  } catch (error: any) {
+    console.error('Import error:', error.message);
+    await prisma.$disconnect();
+    process.exit(1);
+  }
+}
+
+main();
+

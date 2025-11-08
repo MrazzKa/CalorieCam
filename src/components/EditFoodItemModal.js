@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
-import { useI18n } from '../i18n/hooks';
+import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
 export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => {

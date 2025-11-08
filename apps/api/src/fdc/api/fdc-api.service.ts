@@ -1,8 +1,8 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { RedisService } from '../../../redis/redis.service';
 import * as crypto from 'crypto';
+import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
 export class FdcApiService {
@@ -10,22 +10,17 @@ export class FdcApiService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly redisService: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
-  /**
-   * Search foods via USDA API
-   * Cached for 12 hours
-   */
   async searchFoods(body: any): Promise<any> {
-    const cacheKey = `fdc:search:${this.hashBody(body)}`;
-    
-    // Check cache
-    const cached = await this.redisService.get(cacheKey);
+    const cacheKey = `api:${this.hashBody(body)}`;
+    const cached = await this.cache.get<any>(cacheKey, 'usda:search');
     if (cached) {
-      this.logger.debug(`Cache hit for search: ${cacheKey}`);
-      return JSON.parse(cached);
+      this.logger.debug(`provider=usda cache=hit namespace=usda:search key=${cacheKey}`);
+      return cached;
     }
+    this.logger.debug(`provider=usda cache=miss namespace=usda:search key=${cacheKey}`);
 
     try {
       const response = await firstValueFrom(
@@ -38,14 +33,13 @@ export class FdcApiService {
         'X-RateLimit-Remaining': response.headers['x-ratelimit-remaining'],
         'X-RateLimit-Reset': response.headers['x-ratelimit-reset'],
       };
-      this.logger.debug('Rate limit info:', rateLimitHeaders);
+      this.logger.debug(`provider=usda event=rate-limit remaining=${rateLimitHeaders['X-RateLimit-Remaining']} limit=${rateLimitHeaders['X-RateLimit-Limit']}`);
 
-      // Cache for 12 hours (43200 seconds)
-      await this.redisService.set(cacheKey, JSON.stringify(response.data), 43200);
+      await this.cache.set(cacheKey, response.data, 'usda:search');
 
       return response.data;
     } catch (error: any) {
-      this.logger.error('USDA search error:', error.message);
+      this.logger.error(`USDA search error: ${error.message}`);
       
       if (error.response?.status === 429) {
         throw new HttpException(
@@ -73,26 +67,24 @@ export class FdcApiService {
    * Cached for 72 hours
    */
   async getFood(fdcId: number): Promise<any> {
-    const cacheKey = `fdc:food:${fdcId}`;
-    
-    // Check cache
-    const cached = await this.redisService.get(cacheKey);
+    const cacheKey = `api:${fdcId}`;
+    const cached = await this.cache.get<any>(cacheKey, 'usda:detail');
     if (cached) {
-      this.logger.debug(`Cache hit for food: ${fdcId}`);
-      return JSON.parse(cached);
+      this.logger.debug(`provider=usda cache=hit namespace=usda:detail key=${cacheKey}`);
+      return cached;
     }
+    this.logger.debug(`provider=usda cache=miss namespace=usda:detail key=${cacheKey}`);
 
     try {
       const response = await firstValueFrom(
         this.httpService.get(`/v1/food/${fdcId}`),
       );
 
-      // Cache for 72 hours (259200 seconds)
-      await this.redisService.set(cacheKey, JSON.stringify(response.data), 259200);
+      await this.cache.set(cacheKey, response.data, 'usda:detail');
 
       return response.data;
     } catch (error: any) {
-      this.logger.error(`USDA getFood error for ${fdcId}:`, error.message);
+      this.logger.error(`USDA getFood error for ${fdcId}: ${error.message}`);
       
       if (error.response?.status === 404) {
         throw new HttpException('Food not found', HttpStatus.NOT_FOUND);
@@ -152,7 +144,7 @@ export class FdcApiService {
 
   private hashBody(body: any): string {
     const str = JSON.stringify(body);
-    return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);
+    return crypto.createHash('sha1').update(str).digest('hex');
   }
 }
 

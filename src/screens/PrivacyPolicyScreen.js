@@ -11,54 +11,62 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
-import { PADDING, SPACING } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
 
 export default function PrivacyPolicyScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
+  const { t } = useI18n();
 
   const sections = [
     {
       id: 1,
-      title: '1. Сбор информации',
-      content: 'Мы собираем информацию, которую вы предоставляете при регистрации и использовании приложения, включая персональные данные, информацию о питании и фотографии еды.',
+      title: t('privacy.sections.collection.title'),
+      content: t('privacy.sections.collection.content'),
     },
     {
       id: 2,
-      title: '2. Использование информации',
-      content: 'Ваша информация используется для предоставления персонализированных рекомендаций по питанию, анализа пищи и улучшения работы приложения.',
+      title: t('privacy.sections.usage.title'),
+      content: t('privacy.sections.usage.content'),
     },
     {
       id: 3,
-      title: '3. Защита данных',
-      content: 'Мы используем современные методы шифрования и безопасного хранения данных для защиты вашей личной информации.',
+      title: t('privacy.sections.protection.title'),
+      content: t('privacy.sections.protection.content'),
     },
     {
       id: 4,
-      title: '4. Обмен данными',
-      content: 'Мы не продаем и не передаем ваши личные данные третьим лицам без вашего согласия, за исключением случаев, предусмотренных законодательством.',
+      title: t('privacy.sections.sharing.title'),
+      content: t('privacy.sections.sharing.content'),
     },
     {
       id: 5,
-      title: '5. Ваши права',
-      content: 'Вы имеете право на доступ, исправление, удаление ваших данных в любое время через настройки приложения.',
+      title: t('privacy.sections.cookies.title'),
+      content: t('privacy.sections.cookies.content'),
     },
     {
       id: 6,
-      title: '6. Cookies и аналитика',
-      content: 'Мы используем cookies и аналитические инструменты для улучшения работы приложения и понимания того, как вы его используете.',
+      title: t('privacy.sections.rights.title'),
+      content: t('privacy.sections.rights.content'),
     },
     {
       id: 7,
-      title: '7. Изменения в политике',
-      content: 'Мы можем обновлять эту политику конфиденциальности. О существенных изменениях мы уведомим вас через приложение.',
+      title: t('privacy.sections.children.title'),
+      content: t('privacy.sections.children.content'),
     },
     {
       id: 8,
-      title: '8. Контакты',
-      content: 'Если у вас есть вопросы о нашей политике конфиденциальности, свяжитесь с нами по адресу: privacy@caloriecam.com',
+      title: t('privacy.sections.changes.title'),
+      content: t('privacy.sections.changes.content'),
+    },
+    {
+      id: 9,
+      title: t('privacy.sections.contact.title'),
+      content: t('privacy.sections.contact.content'),
     },
   ];
+
+  const styles = React.useMemo(() => createStyles(tokens, colors), [tokens, colors]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -66,22 +74,18 @@ export default function PrivacyPolicyScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Policy</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('privacy.title')}</Text>
         <View style={styles.headerPlaceholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 300 }}
-        >
+        <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 300 }}>
           <View style={styles.content}>
-            <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>Последнее обновление: {new Date().toLocaleDateString('ru-RU')}</Text>
-            
-            <Text style={[styles.intro, { color: colors.text }]}>
-              CalorieCam ценит вашу конфиденциальность. Эта политика описывает, как мы собираем, используем и защищаем вашу информацию.
+            <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>
+              {t('privacy.lastUpdated')}: {new Date().toLocaleDateString()}
             </Text>
+
+            <Text style={[styles.intro, { color: colors.text }]}>{t('privacy.intro')}</Text>
 
             {sections.map((section, index) => (
               <MotiView
@@ -103,62 +107,55 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: PADDING.screen,
-    paddingVertical: PADDING.lg,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  headerPlaceholder: {
-    width: 24,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: PADDING.screen,
-    paddingTop: PADDING.xl,
-    paddingBottom: PADDING.xxxl,
-  },
-  lastUpdated: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginBottom: SPACING.md,
-    fontStyle: 'italic',
-  },
-  intro: {
-    fontSize: 16,
-    color: '#1C1C1E',
-    lineHeight: 24,
-    marginBottom: SPACING.xl,
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: SPACING.sm,
-  },
-  sectionContent: {
-    fontSize: 15,
-    color: '#3A3A3C',
-    lineHeight: 22,
-  },
-});
+const createStyles = (tokens, colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.lg,
+      borderBottomWidth: 1,
+    },
+    headerTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+    },
+    headerPlaceholder: {
+      width: 24,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingTop: tokens.spacing.xl,
+      paddingBottom: tokens.spacing.xxxl,
+      gap: tokens.spacing.lg,
+    },
+    lastUpdated: {
+      fontSize: tokens.typography.caption.fontSize,
+      fontStyle: 'italic',
+    },
+    intro: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+    },
+    section: {
+      paddingBottom: tokens.spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+      marginBottom: tokens.spacing.xs,
+    },
+    sectionContent: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+    },
+  });
 

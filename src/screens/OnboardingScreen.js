@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,367 @@ import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/apiService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
+const createStyles = (tokens, colors) => {
+  const onPrimary = colors.onPrimary ?? tokens.colors?.onPrimary ?? '#FFFFFF';
+  const surface = colors.surface ?? '#FFFFFF';
+  const surfaceMuted = colors.surfaceMuted ?? colors.background;
+  const borderMuted = colors.borderMuted ?? colors.border ?? '#C8C8C8';
+  const textSecondary = colors.textSecondary ?? '#6B7280';
+  const textTertiary = colors.textTertiary ?? textSecondary;
+  const success = colors.success ?? tokens.colors?.success ?? '#34C759';
+
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: tokens.spacing?.xl ?? 20,
+      paddingTop: tokens.spacing?.xl ?? 20,
+      paddingBottom: tokens.spacing?.md ?? 10,
+    },
+    progressContainer: {
+      alignItems: 'center',
+    },
+    progressBar: {
+      width: '100%',
+      height: 4,
+      backgroundColor: surfaceMuted,
+      borderRadius: 2,
+      marginBottom: 8,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+    },
+    progressText: {
+      fontSize: tokens.typography?.caption?.fontSize ?? 14,
+      color: textTertiary,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    stepWrapper: {
+      width,
+      flex: 1,
+    },
+    stepContainer: {
+      flex: 1,
+      paddingHorizontal: tokens.spacing?.xl ?? 20,
+      paddingVertical: tokens.spacing?.xxl ?? 40,
+    },
+    stepTitle: {
+      fontSize: tokens.typography?.headingL?.fontSize ?? 28,
+      fontWeight: tokens.typography?.headingL?.fontWeight ?? '700',
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: tokens.spacing?.xxl ?? 40,
+    },
+    welcomeContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logoContainer: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: surfaceMuted,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: tokens.spacing?.xl ?? 30,
+    },
+    welcomeTitle: {
+      fontSize: tokens.typography?.headingXL?.fontSize ?? 32,
+      fontWeight: tokens.typography?.headingXL?.fontWeight ?? '700',
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: tokens.spacing?.md ?? 16,
+    },
+    welcomeSubtitle: {
+      fontSize: tokens.typography?.bodyStrong?.fontSize ?? 18,
+      color: textSecondary,
+      textAlign: 'center',
+      lineHeight: tokens.typography?.bodyStrong?.lineHeight ?? 24,
+      marginBottom: tokens.spacing?.xxl ?? 40,
+    },
+    featuresList: {
+      width: '100%',
+      gap: tokens.spacing?.sm ?? 12,
+    },
+    featureItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: tokens.spacing?.md ?? 12,
+      paddingHorizontal: tokens.spacing?.xl ?? 20,
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      marginBottom: tokens.spacing?.sm ?? 12,
+      borderWidth: 1,
+      borderColor: borderMuted,
+    },
+    featureText: {
+      fontSize: tokens.typography?.body.fontSize ?? 16,
+      color: colors.text,
+      marginLeft: tokens.spacing?.md ?? 16,
+    },
+    inputGroup: {
+      marginBottom: tokens.spacing?.xl ?? 30,
+      gap: tokens.spacing?.sm ?? 12,
+    },
+    inputLabel: {
+      fontSize: tokens.typography?.headingS?.fontSize ?? 18,
+      fontWeight: tokens.typography?.headingS?.fontWeight ?? '600',
+      color: colors.text,
+    },
+    textInput: {
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      padding: tokens.spacing?.lg ?? 16,
+      borderWidth: 1,
+      borderColor: borderMuted,
+      fontSize: tokens.typography?.body.fontSize ?? 16,
+      color: colors.text,
+    },
+    textInputValue: {
+      fontSize: tokens.typography?.body.fontSize ?? 16,
+      color: colors.text,
+    },
+    sliderContainer: {
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      padding: tokens.spacing?.xl ?? 20,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: borderMuted,
+    },
+    sliderValue: {
+      fontSize: tokens.typography?.headingM?.fontSize ?? 24,
+      fontWeight: tokens.typography?.headingM?.fontWeight ?? '600',
+      color: colors.primary,
+      marginBottom: tokens.spacing?.md ?? 16,
+    },
+    slider: {
+      width: '100%',
+      height: 40,
+    },
+    sliderThumb: {
+      backgroundColor: colors.primary,
+      width: 20,
+      height: 20,
+    },
+    optionsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      gap: tokens.spacing?.sm ?? 12,
+    },
+    optionButton: {
+      flex: 1,
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      padding: tokens.spacing?.xl ?? 20,
+      alignItems: 'center',
+      marginHorizontal: 8,
+      borderWidth: 2,
+      borderColor: borderMuted,
+    },
+    optionButtonSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    optionText: {
+      fontSize: tokens.typography?.bodyStrong?.fontSize ?? 16,
+      fontWeight: tokens.typography?.bodyStrong?.fontWeight ?? '600',
+      color: colors.primary,
+      marginTop: tokens.spacing?.sm ?? 8,
+    },
+    optionTextSelected: {
+      color: onPrimary,
+    },
+    activityContainer: {
+      gap: tokens.spacing?.md ?? 12,
+    },
+    activityButton: {
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      padding: tokens.spacing?.xl ?? 20,
+      borderWidth: 2,
+      borderColor: borderMuted,
+    },
+    activityButtonSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    activityLabel: {
+      fontSize: tokens.typography?.headingS?.fontSize ?? 18,
+      fontWeight: tokens.typography?.headingS?.fontWeight ?? '600',
+      color: colors.text,
+      marginBottom: tokens.spacing?.xs ?? 4,
+    },
+    activityLabelSelected: {
+      color: onPrimary,
+    },
+    activityDescription: {
+      fontSize: tokens.typography?.caption?.fontSize ?? 14,
+      color: textSecondary,
+    },
+    activityDescriptionSelected: {
+      color: onPrimary,
+    },
+    goalsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      gap: tokens.spacing?.sm ?? 12,
+    },
+    goalButton: {
+      flex: 1,
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.lg ?? 12,
+      padding: tokens.spacing?.xl ?? 20,
+      alignItems: 'center',
+      marginHorizontal: 8,
+      borderWidth: 2,
+      borderColor: borderMuted,
+    },
+    goalButtonSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    goalText: {
+      fontSize: tokens.typography?.bodyStrong?.fontSize ?? 16,
+      fontWeight: tokens.typography?.bodyStrong?.fontWeight ?? '600',
+      color: colors.primary,
+      marginTop: tokens.spacing?.sm ?? 12,
+    },
+    goalTextSelected: {
+      color: onPrimary,
+    },
+    plansContainer: {
+      gap: tokens.spacing?.lg ?? 16,
+    },
+    planButton: {
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.xl ?? 16,
+      padding: tokens.spacing?.xxl ?? 24,
+      borderWidth: 2,
+      borderColor: borderMuted,
+      position: 'relative',
+    },
+    planButtonPopular: {
+      borderColor: colors.primary,
+    },
+    popularBadge: {
+      position: 'absolute',
+      top: -8,
+      right: 20,
+      backgroundColor: colors.primary,
+      paddingHorizontal: tokens.spacing?.sm ?? 12,
+      paddingVertical: tokens.spacing?.xs ?? 4,
+      borderRadius: tokens.radii?.md ?? 12,
+    },
+    popularText: {
+      fontSize: tokens.typography?.caption?.fontSize ?? 12,
+      fontWeight: tokens.typography?.caption?.fontWeight ?? '600',
+      color: onPrimary,
+    },
+    planName: {
+      fontSize: tokens.typography?.headingM?.fontSize ?? 20,
+      fontWeight: tokens.typography?.headingM?.fontWeight ?? '700',
+      color: colors.text,
+      marginBottom: tokens.spacing?.sm ?? 8,
+    },
+    planPrice: {
+      fontSize: tokens.typography?.headingL?.fontSize ?? 24,
+      fontWeight: tokens.typography?.headingL?.fontWeight ?? '700',
+      color: colors.primary,
+      marginBottom: tokens.spacing?.md ?? 16,
+    },
+    planFeatures: {
+      gap: tokens.spacing?.sm ?? 8,
+    },
+    planFeature: {
+      fontSize: tokens.typography?.body?.fontSize ?? 14,
+      color: textSecondary,
+    },
+    footer: {
+      paddingHorizontal: tokens.spacing?.xl ?? 20,
+      paddingBottom: tokens.spacing?.xl ?? 20,
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: tokens.spacing?.md ?? 12,
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: tokens.spacing?.md ?? 12,
+      paddingHorizontal: tokens.spacing?.lg ?? 16,
+    },
+    backButtonText: {
+      fontSize: tokens.typography?.bodyStrong?.fontSize ?? 16,
+      color: colors.primary,
+      marginLeft: tokens.spacing?.xs ?? 4,
+    },
+    nextButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: tokens.spacing?.lg ?? 16,
+      paddingHorizontal: tokens.spacing?.xl ?? 24,
+      borderRadius: tokens.radii?.lg ?? 12,
+    },
+    completeButton: {
+      backgroundColor: success,
+    },
+    nextButtonText: {
+      fontSize: tokens.typography?.bodyStrong?.fontSize ?? 16,
+      fontWeight: tokens.typography?.bodyStrong?.fontWeight ?? '600',
+      color: onPrimary,
+      marginRight: tokens.spacing?.xs ?? 8,
+    },
+    // Interactive Slider Styles
+    interactiveSliderContainer: {
+      backgroundColor: surface,
+      borderRadius: tokens.radii?.xl ?? 16,
+      padding: tokens.spacing?.xxl ?? 24,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: borderMuted,
+      shadowColor: colors.shadow ?? colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    gestureSliderContainer: {
+      width: '100%',
+      alignItems: 'center',
+    },
+    sliderIndicators: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: tokens.spacing?.sm ?? 8,
+    },
+    sliderIndicatorText: {
+      fontSize: tokens.typography?.caption?.fontSize ?? 12,
+      color: textTertiary,
+      fontWeight: tokens.typography?.caption?.fontWeight ?? '500',
+    },
+  });
+};
+
 const OnboardingScreen = ({ navigation }) => {
+  const { colors, tokens } = useTheme();
+  const styles = useMemo(() => createStyles(tokens, colors), [tokens, colors]);
+  const onPrimaryColor = colors.onPrimary ?? tokens.colors?.onPrimary ?? '#FFFFFF';
   const [currentStep, setCurrentStep] = useState(0);
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -204,8 +561,8 @@ const OnboardingScreen = ({ navigation }) => {
             step={step}
             onValueChange={(v) => setTempValue(v)}
             onSlidingComplete={(v) => onValueChange(v)}
-            minimumTrackTintColor="#007AFF"
-            maximumTrackTintColor="#E5E5E7"
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.borderMuted}
             thumbStyle={styles.sliderThumb}
           />
           
@@ -222,7 +579,7 @@ const OnboardingScreen = ({ navigation }) => {
     <View style={styles.stepContainer}>
       <View style={styles.welcomeContent}>
         <View style={styles.logoContainer}>
-          <Ionicons name="camera" size={80} color="#007AFF" />
+          <Ionicons name="camera" size={80} color={colors.primary} />
         </View>
         <Text style={styles.welcomeTitle}>Welcome to CalorieCam</Text>
         <Text style={styles.welcomeSubtitle}>
@@ -230,15 +587,15 @@ const OnboardingScreen = ({ navigation }) => {
         </Text>
         <View style={styles.featuresList}>
           <View style={styles.featureItem}>
-            <Ionicons name="camera" size={24} color="#007AFF" />
+            <Ionicons name="camera" size={24} color={colors.primary} />
             <Text style={styles.featureText}>AI Food Analysis</Text>
           </View>
           <View style={styles.featureItem}>
-            <Ionicons name="analytics" size={24} color="#007AFF" />
+            <Ionicons name="analytics" size={24} color={colors.primary} />
             <Text style={styles.featureText}>Smart Tracking</Text>
           </View>
           <View style={styles.featureItem}>
-            <Ionicons name="heart" size={24} color="#007AFF" />
+            <Ionicons name="heart" size={24} color={colors.primary} />
             <Text style={styles.featureText}>Health Insights</Text>
           </View>
         </View>
@@ -256,7 +613,7 @@ const OnboardingScreen = ({ navigation }) => {
           value={profileData.firstName}
           onChangeText={(text) => setProfileData({ ...profileData, firstName: text })}
           placeholder="Enter your first name"
-          placeholderTextColor="#8E8E93"
+          placeholderTextColor={colors.textTertiary}
         />
       </View>
       <View style={styles.inputGroup}>
@@ -266,7 +623,7 @@ const OnboardingScreen = ({ navigation }) => {
           value={profileData.lastName}
           onChangeText={(text) => setProfileData({ ...profileData, lastName: text })}
           placeholder="Enter your last name"
-          placeholderTextColor="#8E8E93"
+          placeholderTextColor={colors.textTertiary}
         />
       </View>
           <View style={styles.inputGroup}>
@@ -314,30 +671,33 @@ const OnboardingScreen = ({ navigation }) => {
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Gender</Text>
         <View style={styles.optionsContainer}>
-          {genders.map((gender) => (
-            <TouchableOpacity
-              key={gender.id}
-              style={[
-                styles.optionButton,
-                profileData.gender === gender.id && styles.optionButtonSelected,
-              ]}
-              onPress={() => setProfileData({ ...profileData, gender: gender.id })}
-            >
-              <Ionicons
-                name={gender.icon}
-                size={24}
-                color={profileData.gender === gender.id ? '#FFFFFF' : '#007AFF'}
-              />
-              <Text
+          {genders.map((gender) => {
+            const isSelected = profileData.gender === gender.id;
+            return (
+              <TouchableOpacity
+                key={gender.id}
                 style={[
-                  styles.optionText,
-                  profileData.gender === gender.id && styles.optionTextSelected,
+                  styles.optionButton,
+                  isSelected && styles.optionButtonSelected,
                 ]}
+                onPress={() => setProfileData({ ...profileData, gender: gender.id })}
               >
-                {gender.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons
+                  name={gender.icon}
+                  size={24}
+                  color={isSelected ? onPrimaryColor : colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.optionText,
+                    isSelected && styles.optionTextSelected,
+                  ]}
+                >
+                  {gender.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -382,30 +742,33 @@ const OnboardingScreen = ({ navigation }) => {
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What's your goal?</Text>
       <View style={styles.goalsContainer}>
-        {goals.map((goal) => (
-          <TouchableOpacity
-            key={goal.id}
-            style={[
-              styles.goalButton,
-              profileData.goal === goal.id && styles.goalButtonSelected,
-            ]}
-            onPress={() => setProfileData({ ...profileData, goal: goal.id })}
-          >
-            <Ionicons
-              name={goal.icon}
-              size={32}
-              color={profileData.goal === goal.id ? '#FFFFFF' : '#007AFF'}
-            />
-            <Text
+        {goals.map((goal) => {
+          const isSelected = profileData.goal === goal.id;
+          return (
+            <TouchableOpacity
+              key={goal.id}
               style={[
-                styles.goalText,
-                profileData.goal === goal.id && styles.goalTextSelected,
+                styles.goalButton,
+                isSelected && styles.goalButtonSelected,
               ]}
+              onPress={() => setProfileData({ ...profileData, goal: goal.id })}
             >
-              {goal.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Ionicons
+                name={goal.icon}
+                size={32}
+                color={isSelected ? onPrimaryColor : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.goalText,
+                  isSelected && styles.goalTextSelected,
+                ]}
+              >
+                {goal.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -497,7 +860,7 @@ const OnboardingScreen = ({ navigation }) => {
         <View style={styles.buttonContainer}>
           {currentStep > 0 && (
             <TouchableOpacity style={styles.backButton} onPress={prevStep}>
-              <Ionicons name="chevron-back" size={24} color="#007AFF" />
+              <Ionicons name="chevron-back" size={24} color={colors.primary} />
               <Text style={styles.backButtonText}>Back</Text>
             </TouchableOpacity>
           )}
@@ -515,7 +878,7 @@ const OnboardingScreen = ({ navigation }) => {
             <Ionicons
               name={currentStep === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
               size={24}
-              color="#FFFFFF"
+              color={onPrimaryColor}
             />
           </TouchableOpacity>
         </View>
@@ -523,341 +886,5 @@ const OnboardingScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  progressContainer: {
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 4,
-    backgroundColor: '#E5E5E7',
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  stepWrapper: {
-    width: width,
-    flex: 1,
-  },
-  stepContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-  },
-  stepTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  welcomeContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  welcomeSubtitle: {
-    fontSize: 18,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  featuresList: {
-    width: '100%',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#1C1C1E',
-    marginLeft: 16,
-  },
-  inputGroup: {
-    marginBottom: 30,
-  },
-  inputLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 12,
-  },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E7',
-    fontSize: 16,
-    color: '#1C1C1E',
-  },
-  textInputValue: {
-    fontSize: 16,
-    color: '#1C1C1E',
-  },
-  sliderContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  sliderValue: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginBottom: 16,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderThumb: {
-    backgroundColor: '#007AFF',
-    width: 20,
-    height: 20,
-  },
-  optionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  optionButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginHorizontal: 8,
-    borderWidth: 2,
-    borderColor: '#E5E5E7',
-  },
-  optionButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginTop: 8,
-  },
-  optionTextSelected: {
-    color: '#FFFFFF',
-  },
-  activityContainer: {
-    gap: 12,
-  },
-  activityButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#E5E5E7',
-  },
-  activityButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  activityLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 4,
-  },
-  activityLabelSelected: {
-    color: '#FFFFFF',
-  },
-  activityDescription: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  activityDescriptionSelected: {
-    color: '#E3F2FD',
-  },
-  goalsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  goalButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginHorizontal: 8,
-    borderWidth: 2,
-    borderColor: '#E5E5E7',
-  },
-  goalButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  goalText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginTop: 12,
-  },
-  goalTextSelected: {
-    color: '#FFFFFF',
-  },
-  plansContainer: {
-    gap: 16,
-  },
-  planButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 2,
-    borderColor: '#E5E5E7',
-    position: 'relative',
-  },
-  planButtonPopular: {
-    borderColor: '#007AFF',
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 20,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  popularText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  planName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 8,
-  },
-  planPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginBottom: 16,
-  },
-  planFeatures: {
-    gap: 8,
-  },
-  planFeature: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    marginLeft: 4,
-  },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  completeButton: {
-    backgroundColor: '#34C759',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  // Interactive Slider Styles
-  interactiveSliderContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  gestureSliderContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  sliderIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 8,
-  },
-  sliderIndicatorText: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontWeight: '500',
-  },
-});
 
 export default OnboardingScreen;

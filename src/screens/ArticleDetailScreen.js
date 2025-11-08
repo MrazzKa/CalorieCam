@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,47 +6,25 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  ImageBackground,
+  Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MotiView } from 'moti';
+import RenderHTML from 'react-native-render-html';
 import { useTheme } from '../contexts/ThemeContext';
 import ApiService from '../services/apiService';
+import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS } from '../utils/designConstants';
 
-// Simple Markdown renderer (basic)
-const renderMarkdown = (content, colors) => {
-  const lines = content.split('\n');
-  return lines.map((line, index) => {
-    if (line.startsWith('# ')) {
-      return (
-        <Text key={index} style={[styles.markdownH1, { color: colors.text }]}>
-          {line.substring(2)}
-        </Text>
-      );
-    } else if (line.startsWith('## ')) {
-      return (
-        <Text key={index} style={[styles.markdownH2, { color: colors.text }]}>
-          {line.substring(3)}
-        </Text>
-      );
-    } else if (line.startsWith('### ')) {
-      return (
-        <Text key={index} style={[styles.markdownH3, { color: colors.text }]}>
-          {line.substring(4)}
-        </Text>
-      );
-    } else if (line.trim() === '') {
-      return <View key={index} style={{ height: SPACING.md }} />;
-    } else {
-      return (
-        <Text key={index} style={[styles.markdownText, { color: colors.textSecondary }]}>
-          {line}
-        </Text>
-      );
-    }
-  });
+const fallbackMarkdown = (content, colors) => {
+  return content.split('\n').filter(Boolean).map((line, index) => (
+    <Text key={`${line}-${index}`} style={[styles.markdownFallback, { color: colors.textSecondary }]}>
+      {line}
+    </Text>
+  ));
 };
 
 export default function ArticleDetailScreen() {
@@ -54,8 +32,12 @@ export default function ArticleDetailScreen() {
   const route = useRoute();
   const { slug } = route.params;
   const { colors } = useTheme();
+  const { t, language } = useI18n();
+  const { width } = useWindowDimensions();
+
   const [article, setArticle] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadArticle();
@@ -64,82 +46,169 @@ export default function ArticleDetailScreen() {
   const loadArticle = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await ApiService.getArticleBySlug(slug);
       setArticle(data);
-    } catch (error) {
-      console.error('Error loading article:', error);
+    } catch (err) {
+      console.error('Error loading article:', err);
+      setError(t('articles.errorLoading'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading || !article) {
+  const handleOpenSource = useCallback(async () => {
+    if (article?.sourceUrl) {
+      try {
+        await Linking.openURL(article.sourceUrl);
+      } catch (err) {
+        console.error('Failed to open source url:', err);
+      }
+    }
+  }, [article]);
+
+  const readingTimeLabel = useCallback(
+    (minutes) => {
+      if (!minutes) {
+        return t('articles.quickRead');
+      }
+      return t('articles.readingTime', { minutes });
+    },
+    [t],
+  );
+
+  const formattedDate = useMemo(() => {
+    if (!article?.publishedAt) {
+      return null;
+    }
+    try {
+      return new Date(article.publishedAt).toLocaleDateString(language || 'en', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch {
+      return null;
+    }
+  }, [article?.publishedAt, language]);
+
+  const htmlSource = useMemo(() => {
+    if (article?.contentHtml) {
+      return { html: article.contentHtml };
+    }
+    return null;
+  }, [article?.contentHtml]);
+
+  if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Загрузка...</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+        <View style={styles.loadingContainer}> 
+          <ActivityIndicator size="large" color={colors.primary} /> 
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{t('articles.loading')}</Text> 
+        </View> 
       </SafeAreaView>
     );
   }
 
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+        <View style={styles.loadingContainer}> 
+          <Ionicons name="warning" size={36} color={colors.error} /> 
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> 
+          <TouchableOpacity style={styles.retryButton} onPress={loadArticle}> 
+            <Text style={[styles.retryLabel, { color: colors.primary }]}>{t('articles.retry')}</Text> 
+          </TouchableOpacity> 
+        </View> 
+      </SafeAreaView>
+    );
+  }
+
+  if (!article) {
+    return null;
+  }
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerPlaceholder} />
-        <View style={styles.headerPlaceholder} />
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}> 
+        <TouchableOpacity onPress={() => navigation.goBack()}> 
+          <Ionicons name="arrow-back" size={24} color={colors.text} /> 
+        </TouchableOpacity> 
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}> 
+          {t('articles.article')} 
+        </Text> 
+        <View style={styles.headerPlaceholder} /> 
+      </View> 
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15 }}
-        >
-          <View style={styles.content}>
-            {/* Title */}
-            <Text style={[styles.title, { color: colors.text }]}>{article.title}</Text>
-
-            {/* Meta */}
-            <View style={styles.meta}>
-              <Text style={[styles.date, { color: colors.textTertiary }]}>
-                {new Date(article.createdAt || article.publishedAt).toLocaleDateString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </Text>
-              {article.viewCount > 0 && (
-                <View style={styles.viewCount}>
-                  <Ionicons name="eye" size={14} color={colors.textTertiary} />
-                  <Text style={[styles.viewCountText, { color: colors.textTertiary }]}>
-                    {article.viewCount}
-                  </Text>
-                </View>
-              )}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}> 
+        {article.coverUrl ? (
+          <ImageBackground
+            source={{ uri: article.coverUrl }}
+            style={styles.hero}
+            imageStyle={styles.heroImage}
+          >
+            <View style={[styles.heroOverlay, { backgroundColor: 'rgba(0,0,0,0.25)' }]}> 
+              <Text style={[styles.heroTitle, { color: '#fff' }]}>{article.title}</Text> 
             </View>
-
-            {/* Tags */}
-            {article.tags && article.tags.length > 0 && (
-              <View style={styles.tagsContainer}>
-                {article.tags.map((tag, index) => (
-                  <View key={index} style={[styles.tag, { backgroundColor: colors.inputBackground }]}>
-                    <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Content */}
-            <View style={styles.contentSection}>
-              {renderMarkdown(article.contentMd || article.excerpt || '', colors)}
-            </View>
+          </ImageBackground>
+        ) : (
+          <View style={[styles.heroPlaceholder, { backgroundColor: colors.surface }]}> 
+            <Text style={[styles.heroTitle, { color: colors.text }]}>{article.title}</Text> 
           </View>
-        </MotiView>
+        )}
+
+        <View style={styles.contentContainer}> 
+          <View style={styles.metaBlock}> 
+            {article.sourceName ? (
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{article.sourceName}</Text>
+            ) : null}
+            {formattedDate ? (
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{formattedDate}</Text>
+            ) : null}
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+              {readingTimeLabel(article.readingMinutes)}
+            </Text>
+          </View>
+
+          {article.tags?.length ? (
+            <View style={styles.tagsRow}>
+              {article.tags.map((tag) => (
+                <View key={tag} style={[styles.tagPill, { backgroundColor: colors.inputBackground }]}> 
+                  <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text> 
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {article.sourceUrl ? (
+            <TouchableOpacity style={[styles.sourceButton, { borderColor: colors.primary }]} onPress={handleOpenSource}>
+              <Text style={[styles.sourceButtonLabel, { color: colors.primary }]}>
+                {t('articles.openSource')}
+              </Text>
+              <Ionicons name="open-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={styles.contentSection}>
+            {htmlSource ? (
+              <RenderHTML
+                contentWidth={width - PADDING.screen * 2}
+                source={htmlSource}
+                baseStyle={{ color: colors.text, fontSize: 16, lineHeight: 24 }}
+                systemFonts={['System']}
+                tagsStyles={{
+                  p: { color: colors.textSecondary, lineHeight: 24, marginBottom: SPACING.sm },
+                  h1: { color: colors.text, fontSize: 26, marginVertical: SPACING.md },
+                  h2: { color: colors.text, fontSize: 22, marginTop: SPACING.md },
+                  h3: { color: colors.text, fontSize: 18, marginTop: SPACING.sm },
+                  li: { color: colors.textSecondary, marginBottom: SPACING.xs },
+                }}
+              />
+            ) : (
+              fallbackMarkdown(article.contentMd, colors)
+            )}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -157,89 +226,114 @@ const styles = StyleSheet.create({
     paddingVertical: PADDING.lg,
     borderBottomWidth: 1,
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   headerPlaceholder: {
     width: 24,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: 16,
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingHorizontal: PADDING.screen,
-    paddingTop: PADDING.xl,
-    paddingBottom: PADDING.xxxl,
+  hero: {
+    height: 220,
+    justifyContent: 'flex-end',
   },
-  title: {
+  heroImage: {
+    resizeMode: 'cover',
+  },
+  heroOverlay: {
+    paddingHorizontal: PADDING.screen,
+    paddingVertical: PADDING.lg,
+  },
+  heroPlaceholder: {
+    paddingHorizontal: PADDING.screen,
+    paddingVertical: PADDING.xl,
+  },
+  heroTitle: {
     fontSize: 28,
     fontWeight: '700',
-    marginBottom: SPACING.md,
-    lineHeight: 36,
+    lineHeight: 34,
   },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-    gap: SPACING.md,
+  contentContainer: {
+    paddingHorizontal: PADDING.screen,
+    paddingTop: PADDING.lg,
+    paddingBottom: PADDING.xxxl,
   },
-  date: {
-    fontSize: 14,
-  },
-  viewCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewCountText: {
-    fontSize: 14,
-  },
-  tagsContainer: {
+  metaBlock: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.md,
   },
-  tag: {
+  metaText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  tagPill: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.lg,
   },
   tagText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  sourceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    marginBottom: PADDING.lg,
+  },
+  sourceButtonLabel: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   contentSection: {
-    marginTop: SPACING.md,
+    gap: SPACING.md,
   },
-  markdownH1: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.md,
-  },
-  markdownH2: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.sm,
-  },
-  markdownH3: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  markdownText: {
+  markdownFallback: {
     fontSize: 16,
     lineHeight: 24,
     marginBottom: SPACING.sm,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: PADDING.screen,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: PADDING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  retryLabel: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

@@ -11,59 +11,62 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
-import { PADDING, SPACING } from '../utils/designConstants';
+import { useI18n } from '../../app/i18n/hooks';
 
 export default function TermsOfServiceScreen() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
+  const { t } = useI18n();
 
   const sections = [
     {
       id: 1,
-      title: '1. Принятие условий',
-      content: 'Используя CalorieCam, вы соглашаетесь с настоящими условиями использования. Если вы не согласны с этими условиями, пожалуйста, не используйте приложение.',
+      title: t('terms.sections.acceptance.title'),
+      content: t('terms.sections.acceptance.content'),
     },
     {
       id: 2,
-      title: '2. Описание сервиса',
-      content: 'CalorieCam предоставляет инструменты для отслеживания питания, анализа еды и получения персональных рекомендаций по питанию с использованием искусственного интеллекта.',
+      title: t('terms.sections.description.title'),
+      content: t('terms.sections.description.content'),
     },
     {
       id: 3,
-      title: '3. Регистрация и аккаунт',
-      content: 'Вы несете ответственность за сохранность ваших учетных данных. Вы соглашаетесь немедленно уведомлять нас о любом несанкционированном использовании вашего аккаунта.',
+      title: t('terms.sections.registration.title'),
+      content: t('terms.sections.registration.content'),
     },
     {
       id: 4,
-      title: '4. Медицинские ограничения',
-      content: 'CalorieCam предоставляет образовательную информацию и не заменяет профессиональную медицинскую консультацию. Всегда консультируйтесь с врачом перед изменением диеты.',
+      title: t('terms.sections.userContent.title'),
+      content: t('terms.sections.userContent.content'),
     },
     {
       id: 5,
-      title: '5. Интеллектуальная собственность',
-      content: 'Все материалы, включая дизайн, текст, графику, логотипы и программное обеспечение, являются собственностью CalorieCam и защищены законами об авторском праве.',
+      title: t('terms.sections.prohibited.title'),
+      content: t('terms.sections.prohibited.content'),
     },
     {
       id: 6,
-      title: '6. Ограничение ответственности',
-      content: 'CalorieCam предоставляется "как есть" без гарантий. Мы не несем ответственности за любой ущерб, возникший в результате использования или невозможности использования приложения.',
+      title: t('terms.sections.intellectual.title'),
+      content: t('terms.sections.intellectual.content'),
     },
     {
       id: 7,
-      title: '7. Отмена и возврат',
-      content: 'Подписки могут быть отменены в любое время через настройки приложения. Возврат средств осуществляется в соответствии с политикой магазина приложений.',
+      title: t('terms.sections.limitation.title'),
+      content: t('terms.sections.limitation.content'),
     },
     {
       id: 8,
-      title: '8. Изменения условий',
-      content: 'Мы оставляем за собой право изменять эти условия в любое время. Продолжение использования приложения после изменений означает ваше согласие с новыми условиями.',
+      title: t('terms.sections.changes.title'),
+      content: t('terms.sections.changes.content'),
     },
     {
       id: 9,
-      title: '9. Контакты',
-      content: 'По вопросам об условиях использования обращайтесь: legal@caloriecam.com',
+      title: t('terms.sections.contact.title'),
+      content: t('terms.sections.contact.content'),
     },
   ];
+
+  const styles = React.useMemo(() => createStyles(tokens, colors), [tokens, colors]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -71,22 +74,18 @@ export default function TermsOfServiceScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Terms of Service</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('terms.title')}</Text>
         <View style={styles.headerPlaceholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 300 }}
-        >
+        <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 300 }}>
           <View style={styles.content}>
-            <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>Последнее обновление: {new Date().toLocaleDateString('ru-RU')}</Text>
-            
-            <Text style={[styles.intro, { color: colors.text }]}>
-              Пожалуйста, внимательно прочитайте эти условия использования перед использованием CalorieCam.
+            <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>
+              {t('terms.lastUpdated')}: {new Date().toLocaleDateString()}
             </Text>
+
+            <Text style={[styles.intro, { color: colors.text }]}>{t('terms.intro')}</Text>
 
             {sections.map((section, index) => (
               <MotiView
@@ -108,62 +107,55 @@ export default function TermsOfServiceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: PADDING.screen,
-    paddingVertical: PADDING.lg,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  headerPlaceholder: {
-    width: 24,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: PADDING.screen,
-    paddingTop: PADDING.xl,
-    paddingBottom: PADDING.xxxl,
-  },
-  lastUpdated: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginBottom: SPACING.md,
-    fontStyle: 'italic',
-  },
-  intro: {
-    fontSize: 16,
-    color: '#1C1C1E',
-    lineHeight: 24,
-    marginBottom: SPACING.xl,
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: SPACING.sm,
-  },
-  sectionContent: {
-    fontSize: 15,
-    color: '#3A3A3C',
-    lineHeight: 22,
-  },
-});
+const createStyles = (tokens, colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+      paddingVertical: tokens.spacing.lg,
+      borderBottomWidth: 1,
+    },
+    headerTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+    },
+    headerPlaceholder: {
+      width: 24,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: tokens.spacing.xl,
+      paddingTop: tokens.spacing.xl,
+      paddingBottom: tokens.spacing.xxxl,
+      gap: tokens.spacing.lg,
+    },
+    lastUpdated: {
+      fontSize: tokens.typography.caption.fontSize,
+      fontStyle: 'italic',
+    },
+    intro: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+    },
+    section: {
+      gap: tokens.spacing.xs,
+      paddingBottom: tokens.spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+    },
+    sectionContent: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+    },
+  });
 

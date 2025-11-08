@@ -1,660 +1,576 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  TextInput,
-  Alert,
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { MotiView } from 'moti';
+import { MotiView, useReducedMotion } from 'moti';
 import ApiService from '../services/apiService';
-import { useTheme } from '../contexts/ThemeContext';
-import { useI18n } from '../i18n/hooks';
+import { useTheme, useDesignTokens } from '../contexts/ThemeContext';
+import { useI18n } from '../../app/i18n/hooks';
 import { LanguageSelector } from '../components/LanguageSelector';
-import { saveLanguage } from '../i18n/config';
-import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import AppCard from '../components/common/AppCard';
+import PrimaryButton from '../components/common/PrimaryButton';
 
-export default function ProfileScreen() {
-  const navigation = useNavigation();
-  const { isDark, colors, themeMode, toggleTheme } = useTheme();
-  const { t, language } = useI18n();
-  const [userProfile, setUserProfile] = useState({
+const ProfileScreen = () => {
+  const { t, language, changeLanguage, availableLanguages } = useI18n();
+  const { tokens, isDark, themeMode, toggleTheme } = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReducedMotion();
+
+  const [profile, setProfile] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    height: 170, // cm
-    weight: 70, // kg
-    age: 25,
-    gender: '',
-    activityLevel: '',
-    goal: '',
-    targetWeight: 70,
-    dailyCalories: 2000,
+    height: 0,
+    weight: 0,
+    age: 0,
+    dailyCalories: 0,
   });
-
-  const [settings, setSettings] = useState({
-    notifications: true,
-    autoSync: true,
-    dataSharing: false,
+  const deviceTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    dailyPushEnabled: false,
+    dailyPushHour: 8,
+    timezone: deviceTimezone,
   });
-
-  const [isEditing, setIsEditing] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const initials = useMemo(() => {
+    const parts = [profile.firstName, profile.lastName].filter(Boolean);
+    if (parts.length === 0 && profile.email) {
+      return profile.email.charAt(0).toUpperCase();
+    }
+    if (parts.length === 0) {
+      return 'CC';
+    }
+    return parts
+      .map((value) => value.trim().charAt(0).toUpperCase())
+      .join('')
+      .slice(0, 2);
+  }, [profile.firstName, profile.lastName, profile.email]);
 
   useEffect(() => {
-    loadUserProfile();
+    loadProfile();
+    loadNotificationPreferences();
   }, []);
 
-  const loadUserProfile = async () => {
+  const loadProfile = async () => {
     try {
-      const profile = await ApiService.getUserProfile();
-      setUserProfile(profile);
+      const result = await ApiService.getUserProfile();
+      if (result) {
+        setProfile({
+          firstName: result.firstName || '',
+          lastName: result.lastName || '',
+          email: result.email || '',
+          height: result.height || 0,
+          weight: result.weight || 0,
+          age: result.age || 0,
+          dailyCalories: result.dailyCalories || 0,
+        });
+      }
     } catch (error) {
-      console.error('Error loading profile:', error);
-      // Use demo profile when API is not available
-      setUserProfile({
+      console.warn('Unable to load profile, using demo data.', error);
+      setProfile({
         firstName: 'Demo',
         lastName: 'User',
         email: 'demo@caloriecam.com',
-        weight: 70,
         height: 170,
-        age: 25,
-        gender: 'male',
-        activityLevel: 'moderately_active',
-        goal: 'maintain_weight',
-        targetWeight: 70,
+        weight: 70,
+        age: 28,
         dailyCalories: 2000,
       });
     }
   };
 
-  const handleSettingChange = (setting, value) => {
-    if (setting === 'darkMode') {
-      // Map value to theme mode: true = 'dark', false = 'light'
-      const mode = value ? 'dark' : 'light';
-      toggleTheme(mode);
-    } else {
-      setSettings(prev => ({
-        ...prev,
-        [setting]: value,
-      }));
-    }
-  };
-
-  // Sync darkMode setting with theme
-  useEffect(() => {
-    // Update local state based on theme mode
-  }, [themeMode]);
-
-  const handleProfileUpdate = async () => {
-    if (isEditing) {
-      try {
-        await ApiService.updateUserProfile(userProfile);
-        Alert.alert('Success', 'Profile updated successfully!');
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        Alert.alert('Error', 'Failed to update profile. Please try again.');
+  const loadNotificationPreferences = async () => {
+    try {
+      setNotificationLoading(true);
+      const prefs = await ApiService.getNotificationPreferences();
+      if (prefs) {
+        setNotificationPreferences({
+          dailyPushEnabled: !!prefs.dailyPushEnabled,
+          dailyPushHour: typeof prefs.dailyPushHour === 'number' ? prefs.dailyPushHour : 8,
+          timezone: prefs.timezone || deviceTimezone,
+        });
       }
+    } catch (error) {
+      console.warn('Unable to load notification preferences', error);
+      setNotificationPreferences((prev) => ({ ...prev, timezone: deviceTimezone }));
+    } finally {
+      setNotificationLoading(false);
     }
-    setIsEditing(!isEditing);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: async () => {
-          try {
-            await ApiService.logout();
-            // Clear token and navigate
-            ApiService.setToken(null);
-            navigation.navigate('Dashboard');
-          } catch (error) {
-            console.error('Logout error:', error);
-            // Still navigate even if logout fails
-            navigation.navigate('Dashboard');
-          }
-        }},
-      ]
-    );
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await ApiService.updateUserProfile(profile);
+      Alert.alert(t('profile.savedTitle'), t('profile.savedMessage'));
+      setEditing(false);
+    } catch (error) {
+      console.error('Profile update failed', error);
+      Alert.alert(t('profile.errorTitle'), t('profile.errorMessage'));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. Are you sure you want to delete your account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              await ApiService.deleteAccount();
-              await ApiService.setToken(null, null);
-              Alert.alert('Success', 'Your account has been deleted.');
-              navigation.navigate('Onboarding');
-            } catch (error) {
-              console.error('Delete account error:', error);
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
-            }
-          }
-        },
-      ]
-    );
+  const reminderOptions = [6, 8, 12, 18, 20];
+
+  const formatReminderTime = (hour) => {
+    const date = new Date();
+    date.setHours(hour, 0, 0, 0);
+    return date.toLocaleTimeString(language || 'en', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const renderProfileSection = () => (
-    <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 15 }}
-      style={styles.section}
-    >
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('profile.title')}</Text>
-        <TouchableOpacity onPress={handleProfileUpdate}>
-          <Text style={styles.editButton}>
-            {isEditing ? t('common.save') : t('common.edit')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+  const handleNotificationToggle = async (value) => {
+    try {
+      setNotificationSaving(true);
+      const updated = await ApiService.updateNotificationPreferences({
+        dailyPushEnabled: value,
+        timezone: notificationPreferences.timezone || deviceTimezone,
+        dailyPushHour: notificationPreferences.dailyPushHour,
+      });
+      setNotificationPreferences({
+        dailyPushEnabled: !!updated.dailyPushEnabled,
+        dailyPushHour: typeof updated.dailyPushHour === 'number' ? updated.dailyPushHour : notificationPreferences.dailyPushHour,
+        timezone: updated.timezone || notificationPreferences.timezone || deviceTimezone,
+      });
+    } catch (error) {
+      console.error('Failed to update push preferences', error);
+      Alert.alert(t('profile.notificationsErrorTitle'), t('profile.notificationsErrorMessage'));
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
 
-      <View style={[styles.profileCard, dynamicStyles.profileCard]}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={32} color="#007AFF" />
-          </View>
-        </View>
+  const handleNotificationHourChange = async () => {
+    const currentIndex = reminderOptions.indexOf(notificationPreferences.dailyPushHour);
+    const nextHour = reminderOptions[(currentIndex + 1 + reminderOptions.length) % reminderOptions.length];
+    try {
+      setNotificationSaving(true);
+      const updated = await ApiService.updateNotificationPreferences({
+        dailyPushEnabled: notificationPreferences.dailyPushEnabled,
+        dailyPushHour: nextHour,
+        timezone: notificationPreferences.timezone || deviceTimezone,
+      });
+      setNotificationPreferences({
+        dailyPushEnabled: !!updated.dailyPushEnabled,
+        dailyPushHour: typeof updated.dailyPushHour === 'number' ? updated.dailyPushHour : nextHour,
+        timezone: updated.timezone || notificationPreferences.timezone || deviceTimezone,
+      });
+    } catch (error) {
+      console.error('Failed to update reminder hour', error);
+      Alert.alert(t('profile.notificationsErrorTitle'), t('profile.notificationsErrorMessage'));
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
 
-        <View style={styles.profileInfo}>
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>First Name</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.firstName}
-                editable={isEditing}
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, firstName: text }))}
+  const metrics = [
+    { label: t('profile.metricWeight'), value: `${profile.weight || '--'} kg`, icon: 'barbell' },
+    { label: t('profile.metricHeight'), value: `${profile.height || '--'} cm`, icon: 'body' },
+    { label: t('profile.metricAge'), value: `${profile.age || '--'}`, icon: 'calendar' },
+    { label: t('profile.metricCalories'), value: `${profile.dailyCalories || '--'} kcal`, icon: 'flame' },
+  ];
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <MotiView
+          from={reduceMotion ? undefined : { opacity: 0, translateY: 12 }}
+          animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 320 }}
+        >
+          <AppCard style={styles.heroCard} padding="xl">
+            <View style={styles.heroHeader}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+              <View style={styles.heroInfo}>
+                <Text style={styles.heroEyebrow}>{t('profile.welcomeBack')}</Text>
+                <Text style={styles.heroTitle}>
+                  {profile.firstName || t('profile.defaultName')} {profile.lastName}
+                </Text>
+                <Text style={styles.heroSubtitle}>{profile.email}</Text>
+              </View>
+            </View>
+            <View style={styles.metricsRow}>
+              {metrics.map((metric, index) => (
+                <MotiView
+                  key={metric.label}
+                  from={reduceMotion ? undefined : { opacity: 0, translateY: 8 }}
+                  animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
+                  transition={{
+                    type: 'timing',
+                    duration: 260,
+                    delay: reduceMotion ? 0 : index * 80,
+                  }}
+                  style={styles.metricWrapper}
+                >
+                  <View style={styles.metricCard}>
+                    <View style={styles.metricIcon}>
+                      <Ionicons name={metric.icon} size={18} color={tokens.colors.primary} />
+                    </View>
+                    <Text style={styles.metricValue}>{metric.value}</Text>
+                    <Text style={styles.metricLabel}>{metric.label}</Text>
+                  </View>
+                </MotiView>
+              ))}
+            </View>
+            <PrimaryButton
+              title={editing ? t('common.save') : t('profile.editProfile')}
+              onPress={editing ? handleSave : () => setEditing(true)}
+              loading={loading}
+              style={styles.heroButton}
+            />
+          </AppCard>
+        </MotiView>
+
+        {editing ? (
+          <AppCard style={styles.formCard}>
+            <Text style={styles.sectionTitle}>{t('profile.details')}</Text>
+            <View style={styles.fieldRow}>
+              <ProfileField
+                label={t('profile.firstName')}
+                value={profile.firstName}
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, firstName: text }))}
+              />
+              <ProfileField
+                label={t('profile.lastName')}
+                value={profile.lastName}
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, lastName: text }))}
               />
             </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.inputLabel}>Last Name</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.lastName}
-                editable={isEditing}
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, lastName: text }))}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-              value={userProfile.email}
-              editable={isEditing}
+            <ProfileField
+              label={t('profile.email')}
+              value={profile.email}
               keyboardType="email-address"
-              onChangeText={(text) => setUserProfile(prev => ({ ...prev, email: text }))}
+              onChangeText={(text) => setProfile((prev) => ({ ...prev, email: text }))}
+            />
+            <View style={styles.fieldRow}>
+              <ProfileField
+                label={t('profile.height')}
+                value={profile.height ? String(profile.height) : ''}
+                keyboardType="numeric"
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, height: parseInt(text, 10) || 0 }))}
+              />
+              <ProfileField
+                label={t('profile.weight')}
+                value={profile.weight ? String(profile.weight) : ''}
+                keyboardType="numeric"
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, weight: parseInt(text, 10) || 0 }))}
+              />
+            </View>
+            <View style={styles.fieldRow}>
+              <ProfileField
+                label={t('profile.age')}
+                value={profile.age ? String(profile.age) : ''}
+                keyboardType="numeric"
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, age: parseInt(text, 10) || 0 }))}
+              />
+              <ProfileField
+                label={t('profile.dailyCalories')}
+                value={profile.dailyCalories ? String(profile.dailyCalories) : ''}
+                keyboardType="numeric"
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, dailyCalories: parseInt(text, 10) || 0 }))}
+              />
+            </View>
+            <PrimaryButton
+              title={t('common.save')}
+              onPress={handleSave}
+              loading={loading}
+              style={styles.formSaveButton}
+            />
+          </AppCard>
+        ) : null}
+
+        <AppCard style={styles.preferencesCard}>
+          <Text style={styles.sectionTitle}>{t('profile.preferences')}</Text>
+          <View style={styles.preferenceRow}>
+            <Text style={styles.preferenceLabel}>{t('profile.language')}</Text>
+            <LanguageSelector
+              selectedLanguage={language}
+              languages={availableLanguages}
+              onLanguageChange={changeLanguage}
             />
           </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>Height (cm)</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.height.toString()}
-                editable={isEditing}
-                keyboardType="numeric"
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, height: parseInt(text) || 0 }))}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.inputLabel}>Weight (kg)</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.weight.toString()}
-                editable={isEditing}
-                keyboardType="numeric"
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, weight: parseInt(text) || 0 }))}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>Age</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.age.toString()}
-                editable={isEditing}
-                keyboardType="numeric"
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, age: parseInt(text) || 0 }))}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.inputLabel}>Gender</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.pickerInput, !isEditing && styles.inputDisabled]}
-                disabled={!isEditing}
-                onPress={() => {
-                  Alert.alert(
-                    'Select Gender',
-                    '',
-                    [
-                      { text: 'Male', onPress: () => setUserProfile(prev => ({ ...prev, gender: 'male' })) },
-                      { text: 'Female', onPress: () => setUserProfile(prev => ({ ...prev, gender: 'female' })) },
-                      { text: 'Other', onPress: () => setUserProfile(prev => ({ ...prev, gender: 'other' })) },
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.pickerText}>
-                  {userProfile.gender ? userProfile.gender.charAt(0).toUpperCase() + userProfile.gender.slice(1) : 'Select Gender'}
-                </Text>
-                <Ionicons name="chevron-down" size={16} color="#8E8E93" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Activity Level</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.pickerInput, !isEditing && styles.inputDisabled]}
-              disabled={!isEditing}
-              onPress={() => {
-                Alert.alert(
-                  'Select Activity Level',
-                  '',
-                  [
-                    { text: 'Sedentary', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'sedentary' })) },
-                    { text: 'Lightly Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'lightly_active' })) },
-                    { text: 'Moderately Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'moderately_active' })) },
-                    { text: 'Very Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'very_active' })) },
-                    { text: 'Extremely Active', onPress: () => setUserProfile(prev => ({ ...prev, activityLevel: 'extremely_active' })) },
-                  ]
-                );
-              }}
-            >
-              <Text style={styles.pickerText}>
-                {userProfile.activityLevel ? userProfile.activityLevel.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Select Activity Level'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color="#8E8E93" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Goal</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.pickerInput, !isEditing && styles.inputDisabled]}
-              disabled={!isEditing}
-              onPress={() => {
-                Alert.alert(
-                  'Select Goal',
-                  '',
-                  [
-                    { text: 'Lose Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'lose_weight' })) },
-                    { text: 'Maintain Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'maintain_weight' })) },
-                    { text: 'Gain Weight', onPress: () => setUserProfile(prev => ({ ...prev, goal: 'gain_weight' })) },
-                  ]
-                );
-              }}
-            >
-              <Text style={styles.pickerText}>
-                {userProfile.goal ? userProfile.goal.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Select Goal'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color="#8E8E93" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>Target Weight (kg)</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.targetWeight.toString()}
-                editable={isEditing}
-                keyboardType="numeric"
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, targetWeight: parseInt(text) || 0 }))}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.inputLabel}>Daily Calories</Text>
-              <TextInput
-                style={[styles.input, dynamicStyles.input, !isEditing && styles.inputDisabled, !isEditing && dynamicStyles.inputDisabled]}
-                value={userProfile.dailyCalories.toString()}
-                editable={isEditing}
-                keyboardType="numeric"
-                onChangeText={(text) => setUserProfile(prev => ({ ...prev, dailyCalories: parseInt(text) || 0 }))}
-              />
-            </View>
-          </View>
-        </View>
-      </View>
-    </MotiView>
-  );
-
-  const renderSettingsSection = () => (
-    <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 15 }}
-      style={styles.section}
-    >
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('profile.settings')}</Text>
-      </View>
-      
-      <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
-        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="notifications" size={24} color={colors.primary} />
-            <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.notifications')}</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.notificationsSubtitle')}</Text>
-            </View>
-          </View>
-          <Switch
-            value={settings.notifications}
-            onValueChange={(value) => handleSettingChange('notifications', value)}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-
-        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
-          <View style={styles.settingInfo}>
-            <Ionicons name={isDark ? "moon" : "sunny"} size={24} color={colors.secondary} />
-            <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, { color: colors.text }]}>{t('profile.darkMode')}</Text>
-              <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
+          <View style={[styles.preferenceRow, styles.themeRow]}>
+            <View>
+              <Text style={styles.preferenceLabel}>{t('profile.theme')}</Text>
+              <Text style={styles.preferenceCaption}>
                 {themeMode === 'system' ? t('profile.systemTheme') : isDark ? t('profile.darkModeSubtitle') : t('profile.lightMode')}
               </Text>
             </View>
+            <View style={styles.themeToggles}>
+              <TouchableOpacity
+                style={[styles.themeChip, !isDark && styles.themeChipActive]}
+                onPress={() => toggleTheme('light')}
+              >
+                <Ionicons name="partly-sunny" size={18} color={!isDark ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.themeChip, isDark && styles.themeChipActive]}
+                onPress={() => toggleTheme('dark')}
+              >
+                <Ionicons name="moon" size={18} color={isDark ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.themeChip, themeMode === 'system' && styles.themeChipActive]}
+                onPress={() => toggleTheme('system')}
+              >
+                <Ionicons name="phone-portrait" size={18} color={themeMode === 'system' ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.themeControls}>
+          <View style={styles.preferenceRow}>
+            <View style={styles.notificationCopy}>
+              <Text style={styles.preferenceLabel}>{t('profile.notificationsDailyTitle')}</Text>
+              <Text style={styles.notificationDescription}>
+                {notificationPreferences.dailyPushEnabled
+                  ? t('profile.notificationsDailyDescription', {
+                      time: formatReminderTime(notificationPreferences.dailyPushHour),
+                    })
+                  : t('profile.notificationsDailyDisabled')}
+              </Text>
+              {notificationPreferences.dailyPushEnabled && (
+                <TouchableOpacity
+                  style={styles.notificationTimeButton}
+                  onPress={handleNotificationHourChange}
+                  disabled={notificationSaving}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="time" size={16} color={tokens.colors.primary} />
+                  <Text style={styles.notificationTimeText}>
+                    {t('profile.notificationsChangeTime', {
+                      time: formatReminderTime(notificationPreferences.dailyPushHour),
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <Switch
-              value={isDark}
-              onValueChange={(value) => handleSettingChange('darkMode', value)}
-              trackColor={{ false: colors.border, true: colors.secondary }}
-              thumbColor="#FFFFFF"
+              value={notificationPreferences.dailyPushEnabled}
+              onValueChange={(value) => handleNotificationToggle(value)}
+              trackColor={{ false: tokens.colors.borderMuted, true: tokens.colors.primary }}
+              thumbColor={tokens.states.primary.on}
+              disabled={notificationLoading || notificationSaving}
             />
-            <TouchableOpacity
-              style={styles.systemThemeButton}
-              onPress={() => toggleTheme(themeMode === 'system' ? (isDark ? 'dark' : 'light') : 'system')}
-            >
-              <Ionicons 
-                name={themeMode === 'system' ? "phone-portrait" : "phone-portrait-outline"} 
-                size={18} 
-                color={themeMode === 'system' ? colors.secondary : colors.textTertiary} 
-              />
-            </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="sync" size={24} color={colors.success} />
-            <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.autoSync')}</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.autoSyncSubtitle')}</Text>
-            </View>
-          </View>
-          <Switch
-            value={settings.autoSync}
-            onValueChange={(value) => handleSettingChange('autoSync', value)}
-            trackColor={{ false: colors.border, true: colors.success }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-
-        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="analytics" size={24} color={colors.warning} />
-            <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.dataSharing')}</Text>
-              <Text style={[styles.settingSubtitle, dynamicStyles.settingSubtitle]}>{t('profile.dataSharingSubtitle')}</Text>
-            </View>
-          </View>
-          <Switch
-            value={settings.dataSharing}
-            onValueChange={(value) => handleSettingChange('dataSharing', value)}
-            trackColor={{ false: colors.border, true: colors.warning }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-      </View>
-    </MotiView>
-  );
-
-  const renderAccountSection = () => (
-    <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 15, delay: 100 }}
-      style={styles.section}
-    >
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('profile.account')}</Text>
-      </View>
-      
-      <View style={[styles.settingsCard, dynamicStyles.settingsCard]}>
-        <TouchableOpacity
-          style={[styles.settingItem, dynamicStyles.settingItem]}
-          onPress={() => navigation.navigate('HelpSupport')}
-        >
-          <View style={styles.settingInfo}>
-            <Ionicons name="help-circle" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.helpSupport')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingItem, dynamicStyles.settingItem]}
-          onPress={() => navigation.navigate('PrivacyPolicy')}
-        >
-          <View style={styles.settingInfo}>
-            <Ionicons name="document-text" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.privacyPolicy')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingItem, dynamicStyles.settingItem]}
-          onPress={() => navigation.navigate('TermsOfService')}
-        >
-          <View style={styles.settingInfo}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.textTertiary} />
-            <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.termsOfService')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
-
-        <View style={[styles.settingItem, dynamicStyles.settingItem]}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="language" size={24} color={colors.textTertiary} />
-            <View style={styles.settingText}>
-              <Text style={[styles.settingTitle, dynamicStyles.settingTitle]}>{t('profile.language')}</Text>
-            </View>
-          </View>
-          <LanguageSelector
-            selectedLanguage={language}
-            onLanguageChange={async (langCode) => {
-              await saveLanguage(langCode);
-            }}
-          />
-        </View>
-
-        <TouchableOpacity style={[styles.settingItem, dynamicStyles.settingItem]} onPress={handleLogout}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="log-out" size={24} color="#FF3B30" />
-            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>{t('profile.logout')}</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.settingItem, dynamicStyles.settingItem, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
-          <View style={styles.settingInfo}>
-            <Ionicons name="trash" size={24} color="#FF3B30" />
-            <Text style={[styles.settingTitle, { color: '#FF3B30' }]}>{t('profile.deleteAccount')}</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-    </MotiView>
-  );
-
-  const dynamicStyles = {
-    container: { backgroundColor: colors.background },
-    sectionTitle: { color: colors.text },
-    profileCard: { backgroundColor: colors.card, ...SHADOW.sm },
-    settingsCard: { backgroundColor: colors.card, ...SHADOW.sm },
-    settingTitle: { color: colors.text },
-    settingSubtitle: { color: colors.textSecondary },
-    input: { 
-      backgroundColor: colors.inputBackground, 
-      color: colors.input,
-      borderColor: colors.border,
-    },
-    inputDisabled: { backgroundColor: isDark ? '#2C2C2E' : '#F8F9FA' },
-    settingItem: { borderBottomColor: colors.border },
-  };
-
-  return (
-    <SafeAreaView style={[styles.container, dynamicStyles.container]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {renderProfileSection()}
-        {renderSettingsSection()}
-        {renderAccountSection()}
+        </AppCard>
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  section: {
-    marginBottom: SPACING.xxl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: PADDING.screen,
-    paddingTop: PADDING.lg,
-    marginBottom: SPACING.md,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  editButton: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  profileCard: {
-    marginHorizontal: PADDING.screen,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: PADDING.screen,
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F8F9FA',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileInfo: {
-    gap: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#8E8E93',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  inputDisabled: {
-    opacity: 0.6,
-  },
-  inputRow: {
-    flexDirection: 'row',
-  },
-  pickerInput: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pickerText: {
-    fontSize: 16,
-    color: '#1C1C1E',
-  },
-  settingsCard: {
-    marginHorizontal: PADDING.screen,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    backgroundColor: 'transparent', // Ensure transparent background
-  },
-  themeControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  systemThemeButton: {
-    padding: 4,
-  },
-  settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  settingSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-});
+const ProfileField = ({ label, style, ...rest }) => {
+  const tokens = useDesignTokens();
+  const styles = useMemo(() => createFieldStyles(tokens), [tokens]);
+  return (
+    <View style={[styles.container, style]}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput style={styles.input} {...rest} />
+    </View>
+  );
+};
+
+const createStyles = (tokens) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: tokens.colors.background,
+    },
+    container: {
+      padding: tokens.spacing.xl,
+      gap: tokens.spacing.xl,
+    },
+    heroCard: {
+      gap: tokens.spacing.md,
+    },
+    heroHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.lg,
+    },
+    heroInfo: {
+      flex: 1,
+      gap: tokens.spacing.xs,
+    },
+    heroEyebrow: {
+      fontSize: 13,
+      color: tokens.colors.textSubdued,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    heroTitle: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: tokens.colors.textPrimary,
+    },
+    heroSubtitle: {
+      fontSize: 15,
+      color: tokens.colors.textSecondary,
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.md,
+      marginVertical: tokens.spacing.sm,
+    },
+    metricWrapper: {
+      flexGrow: 1,
+      minWidth: 140,
+    },
+    metricCard: {
+      borderRadius: tokens.radii.md,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      backgroundColor: tokens.colors.card,
+      paddingVertical: tokens.spacing.sm,
+      paddingHorizontal: tokens.spacing.md,
+      gap: tokens.spacing.xs,
+      ...(tokens.states.cardShadow || tokens.elevations.xs),
+    },
+    metricIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: tokens.radii.full,
+      backgroundColor: tokens.colors.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    metricValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    metricLabel: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    heroButton: {
+      marginTop: tokens.spacing.md,
+      alignSelf: 'flex-start',
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: tokens.radii.full,
+      backgroundColor: tokens.colors.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: tokens.colors.primary,
+    },
+    formCard: {
+      gap: tokens.spacing.lg,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    fieldRow: {
+      flexDirection: 'row',
+      gap: tokens.spacing.md,
+    },
+    formSaveButton: {
+      marginTop: tokens.spacing.sm,
+    },
+    preferencesCard: {
+      gap: tokens.spacing.lg,
+    },
+    preferenceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: tokens.colors.card,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.lg,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    notificationCopy: {
+      flex: 1,
+      marginRight: tokens.spacing.lg,
+      gap: tokens.spacing.xs,
+    },
+    preferenceLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    preferenceCaption: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+      marginTop: 4,
+    },
+    themeRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    themeToggles: {
+      flexDirection: 'row',
+      gap: tokens.spacing.sm,
+    },
+    themeChip: {
+      width: 40,
+      height: 40,
+      borderRadius: tokens.radii.pill,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tokens.states.surface.base ?? tokens.colors.surface,
+    },
+    themeChipActive: {
+      backgroundColor: tokens.states.primary.base,
+      borderColor: tokens.states.primary.border || tokens.states.primary.base,
+    },
+    notificationDescription: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    notificationTimeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    notificationTimeText: {
+      fontSize: 13,
+      color: tokens.colors.primary,
+      fontWeight: '500',
+    },
+  });
+
+const createFieldStyles = (tokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      gap: tokens.spacing.xs,
+    },
+    label: {
+      fontSize: 13,
+      color: tokens.colors.textSecondary,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      borderRadius: tokens.radii.md,
+      paddingVertical: tokens.spacing.sm,
+      paddingHorizontal: tokens.spacing.md,
+      backgroundColor: tokens.colors.inputBackground,
+      color: tokens.colors.textPrimary,
+      fontSize: 15,
+    },
+  });
+
+export default ProfileScreen;

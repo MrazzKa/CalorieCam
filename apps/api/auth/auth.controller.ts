@@ -1,17 +1,31 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+  BadRequestException,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { OtpService } from './otp.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { LoginDto, RegisterDto, VerifyOtpDto, RefreshTokenDto, RequestOtpDto, RequestMagicLinkDto } from './dto';
+import {
+  LoginDto,
+  RegisterDto,
+  VerifyOtpDto,
+  RefreshTokenDto,
+  RequestOtpDto,
+  RequestMagicLinkDto,
+} from './dto';
+import { Request as ExpressRequest } from 'express';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly otpService: OtpService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -27,21 +41,23 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Post('otp/request')
+  @Post('request-otp')
   @ApiOperation({ summary: 'Request OTP code' })
   @ApiResponse({ status: 200, description: 'OTP sent successfully' })
-  async requestOtp(@Body() requestOtpDto: RequestOtpDto) {
-    return this.authService.requestOtp(requestOtpDto);
+  async requestOtp(@Req() req: ExpressRequest, @Body() requestOtpDto: RequestOtpDto) {
+    const clientIp = this.getClientIp(req);
+    return this.authService.requestOtp(requestOtpDto, clientIp);
   }
 
-  @Post('magic/request')
+  @Post('request-magic-link')
   @ApiOperation({ summary: 'Request magic link' })
   @ApiResponse({ status: 200, description: 'Magic link sent successfully' })
-  async requestMagicLink(@Body() requestMagicLinkDto: RequestMagicLinkDto) {
-    return this.authService.requestMagicLink(requestMagicLinkDto);
+  async requestMagicLink(@Req() req: ExpressRequest, @Body() requestMagicLinkDto: RequestMagicLinkDto) {
+    const clientIp = this.getClientIp(req);
+    return this.authService.requestMagicLink(requestMagicLinkDto, clientIp);
   }
 
-  @Get('magic/consume')
+  @Get('magic-link')
   @ApiOperation({ summary: 'Consume magic link' })
   @ApiResponse({ status: 200, description: 'Magic link verified successfully' })
   async consumeMagicLink(@Query('token') token: string) {
@@ -72,5 +88,16 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Logout successful' })
   async logout(@Request() req: any) {
     return this.authService.logout(req.user.id);
+  }
+
+  private getClientIp(req: ExpressRequest): string | undefined {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+      return forwardedFor.split(',')[0].trim();
+    }
+    if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
+      return forwardedFor[0];
+    }
+    return req.ip;
   }
 }

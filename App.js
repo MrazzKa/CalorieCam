@@ -12,6 +12,11 @@ import { DEV_TOKEN, DEV_REFRESH_TOKEN, API_BASE_URL } from './src/config/env';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from './src/contexts/ThemeContext';
+import { useI18n } from './app/i18n/hooks';
+import { I18nProvider } from './app/i18n/provider';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
 // Import screens
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -28,7 +33,7 @@ import ArticlesScreen from './src/screens/ArticlesScreen';
 import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
 import AuthScreen from './src/components/AuthScreen';
 import { AppWrapper } from './src/components/AppWrapper';
-import './src/i18n/config';
+import { SplashLogo } from './src/components/SplashLogo';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -61,6 +66,8 @@ export const testAPIConnection = async () => {
 
 function MainTabs() {
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -92,10 +99,34 @@ function MainTabs() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Articles" component={ArticlesScreen} />
-      <Tab.Screen name="Recently" component={RecentlyScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: t('tabs.dashboard'),
+        }}
+      />
+      <Tab.Screen 
+        name="Articles" 
+        component={ArticlesScreen}
+        options={{
+          tabBarLabel: t('tabs.articles'),
+        }}
+      />
+      <Tab.Screen 
+        name="Recently" 
+        component={RecentlyScreen}
+        options={{
+          tabBarLabel: t('tabs.recently'),
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: t('tabs.profile'),
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -104,6 +135,18 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const { expoPushToken } = usePushNotifications();
+
+  useEffect(() => {
+    if (expoPushToken && isAuthenticated) {
+      ApiService.expoPushToken = expoPushToken;
+      const deviceId = Device.osInternalBuildId || Device.osBuildId || Device.modelId || Device.modelName || 'unknown-device';
+      const platform = Device.osName || Device.platformApiLevel?.toString() || Device.platformArchitecture || 'unknown';
+      const appVersion = Constants.expoConfig?.version || Constants.expoConfig?.runtimeVersion || Constants.nativeAppVersion || 'unknown';
+      ApiService.registerPushToken(expoPushToken, deviceId, platform, appVersion);
+      console.log('[App] Registered Expo push token', expoPushToken);
+    }
+  }, [expoPushToken, isAuthenticated]);
 
   useEffect(() => {
     // Log configuration on startup
@@ -231,26 +274,27 @@ export default function App() {
   }, []);
 
   if (isLoading) {
-    // Show splash screen while loading - Expo handles native splash screen
-    // The custom splash screen component can be added if needed
-    return null;
-  }
-
-  // Show AuthScreen if not authenticated
-  if (!isAuthenticated) {
     return (
-      <AppWrapper>
-        <SafeAreaProvider>
-          <AuthScreen onAuthSuccess={handleAuthSuccess} />
-        </SafeAreaProvider>
-      </AppWrapper>
+      <I18nProvider fallback={null}>
+        <AppWrapper>
+          <SafeAreaProvider>
+            <SplashLogo />
+          </SafeAreaProvider>
+        </AppWrapper>
+      </I18nProvider>
     );
   }
 
-  // Determine initial route based on onboarding status
+  // Show AuthScreen if not authenticated
   const initialRouteName = hasCompletedOnboarding ? 'MainTabs' : 'Onboarding';
 
-  return (
+  const content = !isAuthenticated ? (
+    <AppWrapper>
+      <SafeAreaProvider>
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
+      </SafeAreaProvider>
+    </AppWrapper>
+  ) : (
     <AppWrapper>
       <SafeAreaProvider>
         <NavigationContainer>
@@ -260,19 +304,25 @@ export default function App() {
               headerShown: false,
             }}
           >
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Camera" component={CameraScreen} />
-          <Stack.Screen name="Gallery" component={GalleryScreen} />
-          <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
-          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-          <Stack.Screen name="Articles" component={ArticlesScreen} />
-          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Camera" component={CameraScreen} />
+            <Stack.Screen name="Gallery" component={GalleryScreen} />
+            <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
+            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+            <Stack.Screen name="Articles" component={ArticlesScreen} />
+            <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
     </AppWrapper>
+  );
+
+  return (
+    <I18nProvider fallback={null}>
+      {content}
+    </I18nProvider>
   );
 }
