@@ -82,7 +82,7 @@ importers:
         version: 0.27.8(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       expo-router:
         specifier: ^3.5.14
-        version: 3.5.24(bb9de9fcc5c7fea0d50c359f28304100)
+        version: 3.5.24(a35c8e1571fe4773c8528f3c83606fd7)
       expo-secure-store:
         specifier: ^15.0.7
         version: 15.0.7(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
@@ -179,7 +179,7 @@ importers:
         version: 29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3))
       jest-expo:
         specifier: ~54.0.13
-        version: 54.0.13(@babel/core@7.28.5)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(jest@29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3)))(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(webpack@5.102.1)
+        version: 54.0.13(@babel/core@7.28.5)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(jest@29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3)))(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(webpack@5.97.1)
       prettier:
         specifier: ^3.2.5
         version: 3.6.2
@@ -399,7 +399,7 @@ importers:
         version: 29.4.5(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.5))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3)))(typescript@5.9.3)
       ts-loader:
         specifier: ^9.4.3
-        version: 9.5.4(typescript@5.9.3)(webpack@5.102.1)
+        version: 9.5.4(typescript@5.9.3)(webpack@5.97.1)
       tsconfig-paths:
         specifier: ^4.2.0
         version: 4.2.0
@@ -408,14 +408,6 @@ importers:
         version: 5.9.3
 
 packages:
-
-  '@0no-co/graphql.web@1.2.0':
-    resolution: {integrity: sha512-/1iHy9TTr63gE1YcR5idjx8UREz1s0kFhydf3bBLCXyqjhkIc6igAzTOx3zPifCwFR87tsh/4Pa9cNts6d2otw==}
-    peerDependencies:
-      graphql: ^14.0.0 || ^15.0.0 || ^16.0.0
-    peerDependenciesMeta:
-      graphql:
-        optional: true
 
   '@angular-devkit/core@17.3.11':
     resolution: {integrity: sha512-vTNDYNsLIWpYk2I969LMQFH29GTsLzxNk/0cLw5q56ARF0v5sIWfHYwGTS88jdDqIpuuettcSczbxeA7EuAmqQ==}
@@ -3060,9 +3052,6 @@ packages:
     peerDependencies:
       graphql: ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
 
-  '@urql/core@5.2.0':
-    resolution: {integrity: sha512-/n0ieD0mvvDnVAXEQgX/7qJiVcvYvNkOHeBvkwtylfjydar123caCXcl58PXFY11oU1oquJocVXHxLAbtv4x1A==}
-
   '@urql/exchange-retry@0.3.0':
     resolution: {integrity: sha512-hHqer2mcdVC0eYnVNbWyi28AlGOPb2vjH3lP3/Bc8Lc8BjhMsDwFMm7WhoP5C1+cfbr/QJ6Er3H/L08wznXxfg==}
     peerDependencies:
@@ -3148,12 +3137,6 @@ packages:
 
   acorn-globals@7.0.1:
     resolution: {integrity: sha512-umOSDSDrfHbTNPuNpC2NSnnA3LUrqpevPb4T9jRx4MagXNS0rs+gwiTcAvqCRmsD6utzsrzNt+ebm00SNWiC3Q==}
-
-  acorn-import-phases@1.0.4:
-    resolution: {integrity: sha512-wKmbr/DDiIXzEOiWrTTUcDm24kQ2vGfZQvM2fwg2vXqR5uW6aapr7ObPtj1th32b9u90/Pf4AItvdTh42fBmVQ==}
-    engines: {node: '>=10.13.0'}
-    peerDependencies:
-      acorn: ^8.14.0
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -4548,10 +4531,6 @@ packages:
 
   expo-modules-autolinking@1.11.3:
     resolution: {integrity: sha512-oYh8EZEvYF5TYppxEKUTTJmbr8j7eRRnrIxzZtMvxLTXoujThVPMFS/cbnSnf2bFm1lq50TdDNABhmEi7z0ngQ==}
-    hasBin: true
-
-  expo-modules-autolinking@3.0.19:
-    resolution: {integrity: sha512-tSMYGnfZmAaN77X8iMLiaSgbCFnA7eh6s2ac09J2N2N0Rcf2RCE27jg0c0XenTMTWUcM4QvLhsNHof/WtlKqPw==}
     hasBin: true
 
   expo-modules-core@1.12.26:
@@ -7945,16 +7924,6 @@ packages:
     resolution: {integrity: sha512-yd1RBzSGanHkitROoPFd6qsrxt+oFhg/129YzheDGqeustzX0vTZJZsSsQjVQC4yzBQ56K55XU8gaNCtIzOnTg==}
     engines: {node: '>=10.13.0'}
 
-  webpack@5.102.1:
-    resolution: {integrity: sha512-7h/weGm9d/ywQ6qzJ+Xy+r9n/3qgp/thalBbpOi5i223dPXKi04IBtqPN9nTd+jBc7QKfvDbaBnFipYp4sJAUQ==}
-    engines: {node: '>=10.13.0'}
-    hasBin: true
-    peerDependencies:
-      webpack-cli: '*'
-    peerDependenciesMeta:
-      webpack-cli:
-        optional: true
-
   webpack@5.97.1:
     resolution: {integrity: sha512-EksG6gFY3L1eFMROS/7Wzgrii5mBAFe4rIr3r2BTfo7bcc+DWwFZ4OJ/miOuHJO/A85HwyI4eQ0F6IKXesO7Fg==}
     engines: {node: '>=10.13.0'}
@@ -8017,9 +7986,6 @@ packages:
 
   wonka@4.0.15:
     resolution: {integrity: sha512-U0IUQHKXXn6PFo9nqsHphVCE5m3IntqZNB9Jjn7EB1lrR7YTDY3YWgFvEvwniTzXSvOH/XMzAZaIfJF/LvHYXg==}
-
-  wonka@6.3.5:
-    resolution: {integrity: sha512-SSil+ecw6B4/Dm7Pf2sAshKQ5hWFvfyGlfPbEd6A14dOH6VDjrmbY86u6nZvy9omGwwIPFR8V41+of1EezgoUw==}
 
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
@@ -8168,10 +8134,6 @@ packages:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
-
-  '@0no-co/graphql.web@1.2.0(graphql@15.8.0)':
-    optionalDependencies:
-      graphql: 15.8.0
 
   '@angular-devkit/core@17.3.11(chokidar@3.6.0)':
     dependencies:
@@ -9820,7 +9782,7 @@ snapshots:
       getenv: 1.0.0
       glob: 7.1.6
       resolve-from: 5.0.0
-      semver: 7.7.3
+      semver: 7.5.3
       slash: 3.0.0
       slugify: 1.6.6
       xcode: 3.0.1
@@ -10077,24 +10039,6 @@ snapshots:
       '@react-native/normalize-colors': 0.74.85
       debug: 4.4.3
       expo-modules-autolinking: 1.11.3
-      fs-extra: 9.1.0
-      resolve-from: 5.0.0
-      semver: 7.7.3
-      xml2js: 0.6.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@expo/prebuild-config@7.0.9(expo-modules-autolinking@3.0.19)':
-    dependencies:
-      '@expo/config': 9.0.4
-      '@expo/config-plugins': 8.0.11
-      '@expo/config-types': 51.0.3
-      '@expo/image-utils': 0.5.1
-      '@expo/json-file': 8.3.3
-      '@react-native/normalize-colors': 0.74.85
-      debug: 4.4.3
-      expo-modules-autolinking: 3.0.19
       fs-extra: 9.1.0
       resolve-from: 5.0.0
       semver: 7.7.3
@@ -12109,16 +12053,9 @@ snapshots:
       graphql: 15.8.0
       wonka: 4.0.15
 
-  '@urql/core@5.2.0(graphql@15.8.0)':
-    dependencies:
-      '@0no-co/graphql.web': 1.2.0(graphql@15.8.0)
-      wonka: 6.3.5
-    transitivePeerDependencies:
-      - graphql
-
   '@urql/exchange-retry@0.3.0(graphql@15.8.0)':
     dependencies:
-      '@urql/core': 5.2.0(graphql@15.8.0)
+      '@urql/core': 2.3.6(graphql@15.8.0)
       graphql: 15.8.0
       wonka: 4.0.15
 
@@ -12226,10 +12163,6 @@ snapshots:
     dependencies:
       acorn: 8.15.0
       acorn-walk: 8.3.4
-
-  acorn-import-phases@1.0.4(acorn@8.15.0):
-    dependencies:
-      acorn: 8.15.0
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
@@ -13515,7 +13448,7 @@ snapshots:
       eslint: 8.57.1
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1)
       eslint-plugin-expo: 1.0.0(eslint@8.57.1)(typescript@5.9.3)
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
       eslint-plugin-react: 7.37.5(eslint@8.57.1)
       eslint-plugin-react-hooks: 5.2.0(eslint@8.57.1)
       globals: 16.5.0
@@ -13548,7 +13481,7 @@ snapshots:
       tinyglobby: 0.2.15
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -13572,7 +13505,7 @@ snapshots:
       - supports-color
       - typescript
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.46.3(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -13876,15 +13809,6 @@ snapshots:
       require-from-string: 2.0.2
       resolve-from: 5.0.0
 
-  expo-modules-autolinking@3.0.19:
-    dependencies:
-      '@expo/spawn-async': 1.7.2
-      chalk: 4.1.2
-      commander: 7.2.0
-      glob: 10.4.5
-      require-from-string: 2.0.2
-      resolve-from: 5.0.0
-
   expo-modules-core@1.12.26:
     dependencies:
       invariant: 2.2.4
@@ -13904,7 +13828,7 @@ snapshots:
       - encoding
       - supports-color
 
-  expo-router@3.5.24(bb9de9fcc5c7fea0d50c359f28304100):
+  expo-router@3.5.24(a35c8e1571fe4773c8528f3c83606fd7):
     dependencies:
       '@expo/metro-runtime': 3.2.3(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
       '@expo/server': 0.4.4(typescript@5.9.3)
@@ -13915,7 +13839,7 @@ snapshots:
       expo: 51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-constants: 18.0.10(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))
       expo-linking: 8.0.8(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      expo-splash-screen: 0.27.7(expo-modules-autolinking@3.0.19)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
+      expo-splash-screen: 0.27.7(expo-modules-autolinking@1.11.3)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       expo-status-bar: 3.0.8(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-helmet-async: 2.0.4(react@19.1.0)
       react-native-safe-area-context: 5.6.2(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -13943,9 +13867,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  expo-splash-screen@0.27.7(expo-modules-autolinking@3.0.19)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
+  expo-splash-screen@0.27.7(expo-modules-autolinking@1.11.3)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
     dependencies:
-      '@expo/prebuild-config': 7.0.9(expo-modules-autolinking@3.0.19)
+      '@expo/prebuild-config': 7.0.9(expo-modules-autolinking@1.11.3)
       expo: 51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - encoding
@@ -15086,7 +15010,7 @@ snapshots:
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
-  jest-expo@54.0.13(@babel/core@7.28.5)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(jest@29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3)))(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(webpack@5.102.1):
+  jest-expo@54.0.13(@babel/core@7.28.5)(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(jest@29.7.0(@types/node@20.19.24)(ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3)))(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(webpack@5.97.1):
     dependencies:
       '@expo/config': 12.0.10
       '@expo/json-file': 10.0.7
@@ -15101,7 +15025,7 @@ snapshots:
       json5: 2.2.3
       lodash: 4.17.21
       react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0)
-      react-server-dom-webpack: 19.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.102.1)
+      react-server-dom-webpack: 19.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.97.1)
       react-test-renderer: 19.1.0(react@19.1.0)
       server-only: 0.0.1
       stacktrace-js: 2.0.2
@@ -16715,13 +16639,13 @@ snapshots:
 
   react-refresh@0.14.2: {}
 
-  react-server-dom-webpack@19.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.102.1):
+  react-server-dom-webpack@19.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.97.1):
     dependencies:
       acorn-loose: 8.5.2
       neo-async: 2.6.2
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
-      webpack: 5.102.1
+      webpack: 5.97.1
       webpack-sources: 3.3.3
 
   react-test-renderer@19.1.0(react@19.1.0):
@@ -17473,15 +17397,6 @@ snapshots:
       ansi-escapes: 4.3.2
       supports-hyperlinks: 2.3.0
 
-  terser-webpack-plugin@5.3.14(webpack@5.102.1):
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.31
-      jest-worker: 27.5.1
-      schema-utils: 4.3.3
-      serialize-javascript: 6.0.2
-      terser: 5.44.1
-      webpack: 5.102.1
-
   terser-webpack-plugin@5.3.14(webpack@5.97.1):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
@@ -17596,7 +17511,7 @@ snapshots:
       babel-jest: 29.7.0(@babel/core@7.28.5)
       jest-util: 29.7.0
 
-  ts-loader@9.5.4(typescript@5.9.3)(webpack@5.102.1):
+  ts-loader@9.5.4(typescript@5.9.3)(webpack@5.97.1):
     dependencies:
       chalk: 4.1.2
       enhanced-resolve: 5.18.3
@@ -17604,7 +17519,7 @@ snapshots:
       semver: 7.7.3
       source-map: 0.7.6
       typescript: 5.9.3
-      webpack: 5.102.1
+      webpack: 5.97.1
 
   ts-node@10.9.2(@types/node@20.19.24)(typescript@5.9.3):
     dependencies:
@@ -17920,38 +17835,6 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.102.1:
-    dependencies:
-      '@types/eslint-scope': 3.7.7
-      '@types/estree': 1.0.8
-      '@types/json-schema': 7.0.15
-      '@webassemblyjs/ast': 1.14.1
-      '@webassemblyjs/wasm-edit': 1.14.1
-      '@webassemblyjs/wasm-parser': 1.14.1
-      acorn: 8.15.0
-      acorn-import-phases: 1.0.4(acorn@8.15.0)
-      browserslist: 4.27.0
-      chrome-trace-event: 1.0.4
-      enhanced-resolve: 5.18.3
-      es-module-lexer: 1.7.0
-      eslint-scope: 5.1.1
-      events: 3.3.0
-      glob-to-regexp: 0.4.1
-      graceful-fs: 4.2.11
-      json-parse-even-better-errors: 2.3.1
-      loader-runner: 4.3.1
-      mime-types: 2.1.35
-      neo-async: 2.6.2
-      schema-utils: 4.3.3
-      tapable: 2.3.0
-      terser-webpack-plugin: 5.3.14(webpack@5.102.1)
-      watchpack: 2.4.4
-      webpack-sources: 3.3.3
-    transitivePeerDependencies:
-      - '@swc/core'
-      - esbuild
-      - uglify-js
-
   webpack@5.97.1:
     dependencies:
       '@types/eslint-scope': 3.7.7
@@ -18058,8 +17941,6 @@ snapshots:
       isexe: 2.0.0
 
   wonka@4.0.15: {}
-
-  wonka@6.3.5: {}
 
   word-wrap@1.2.5: {}
 
