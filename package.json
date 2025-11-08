@@ -93,8 +93,8 @@
     "react-native-dotenv": "^3.4.11",
     "typescript": "~5.9.3"
   },
-  "engines": {
-    "node": ">=20.19.0"
-  },
-  "private": true
+  "engines": { "node": "20.19.x" },
+  "packageManager": "pnpm@10.19.0",
+  "private": true,
+  "workspaces": ["apps/*"]
 }
