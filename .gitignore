@@ -277,4 +277,6 @@ $RECYCLE.BIN/
 
 # USDA Data
 data/usda/**
-!data/usda/README.md
+!data/usda/README.md!.tool-versions
+!.nvmrc
+!pnpm-lock.yaml
