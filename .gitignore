@@ -282,3 +282,5 @@ data/usda/**
 !pnpm-lock.yaml
 ios/
 android/
+ios/
+android/
