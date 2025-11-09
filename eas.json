@@ -1,31 +1,30 @@
 {
-  "cli": {
-    "version": ">= 3.21.0"
-  },
+  "cli": { "version": ">= 3.21.0" },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "resourceClass": "m-medium" },
+      "env": {
+        "EXPO_PUBLIC_ENV": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
+      }
+    },
     "preview": {
       "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
-      },
+      "ios": { "resourceClass": "m-medium" },
       "env": {
-        "EXPO_PUBLIC_ENV": "staging"
+        "EXPO_PUBLIC_ENV": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_ENV": "production"
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
       }
     }
   },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "<apple-id>@example.com",
-        "ascAppId": "<app-store-connect-app-id>",
-        "appleTeamId": "<team-id>"
-      }
-    }
-  }
+  "submit": { "production": { "ios": {} } }
 }

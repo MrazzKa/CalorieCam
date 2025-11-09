@@ -2,35 +2,35 @@ export default {
   expo: {
     name: "CalorieCam",
     slug: "caloriecam",
+    owner: "eatsense",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
+
     extra: {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
       environment: process.env.EXPO_PUBLIC_ENV,
-      eas: {
-        projectId: process.env.EAS_PROJECT_ID || "replace-with-eas-project-id"
-      }
+      eas: { projectId: "23f73ee7-a478-4c3d-bdf9-78f6cec090a8" }
     },
-    runtimeVersion: {
-      policy: "appVersion"
-    },
-    updates: {
-      url: process.env.EXPO_UPDATES_URL
-    },
+
+    runtimeVersion: { policy: "appVersion" },
+
+    // Если EAS Updates не используешь — эту секцию лучше убрать
+    // updates: { url: process.env.EXPO_UPDATES_URL },
+
     splash: {
-      image: "./assets/splash.png", // Using PNG for native splash - custom SVG logo shown in app
+      image: "./assets/splash.png",
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
-    assetBundlePatterns: [
-      "**/*"
-    ],
+
     scheme: "caloriecam",
+
     ios: {
+      bundleIdentifier: "app.eatsense.caloriecam",
+      buildNumber: "1.0.0",
       supportsTablet: true,
-      bundleIdentifier: "com.caloriecam.app",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription: "CalorieCam needs access to your camera to take photos of food for nutrition analysis.",
@@ -40,17 +40,13 @@ export default {
         NSHealthShareUsageDescription: "CalorieCam can integrate with HealthKit to sync nutrition data (optional).",
         NSHealthUpdateUsageDescription: "CalorieCam can update HealthKit with your nutrition data (optional)."
       },
-      associatedDomains: [
-        "applinks:caloriecam.app",
-        "applinks:*.caloriecam.app"
-      ]
+      associatedDomains: ["applinks:caloriecam.app", "applinks:*.caloriecam.app"]
     },
+
     android: {
-      adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#FFFFFF"
-      },
-      package: "com.caloriecam.app",
+      package: "app.eatsense.caloriecam",        // ← оставить только ЭТО
+      versionCode: 1,
+      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
       permissions: [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -65,28 +61,23 @@ export default {
           action: "VIEW",
           autoVerify: true,
           data: [
-            {
-              scheme: "https",
-              host: "caloriecam.app",
-              pathPrefix: "/v1/auth/magic/consume"
-            },
-            {
-              scheme: "caloriecam"
-            }
+            { scheme: "https", host: "caloriecam.app", pathPrefix: "/v1/auth/magic/consume" },
+            { scheme: "caloriecam" }
           ],
           category: ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
-    web: {
-      favicon: "./assets/favicon.png"
-    },
-    notification: {
+
+    web: { favicon: "./assets/favicon.png" },
+
+    notification: {         // ок для SDK 51
       icon: "./assets/icon.png",
       color: "#FF6B6B",
       androidMode: "default",
       androidCollapsedTitle: "CalorieCam"
     },
+
     plugins: [
       "expo-camera",
       "expo-image-picker",
