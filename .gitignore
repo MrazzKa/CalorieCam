@@ -288,3 +288,11 @@ ios/
 android/
 ios/
 android/
+.eas/*.p8
+
+.credentials/*
+.eas/*.p8
+
+# secrets
+.credentials/*
+.eas/*.p8
