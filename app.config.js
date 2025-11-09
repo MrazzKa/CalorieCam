@@ -8,23 +8,16 @@ export default {
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
 
+    // EAS Updates не используем → убираем runtimeVersion/updates
+    // runtimeVersion и updates удалены
+
     extra: {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
       environment: process.env.EXPO_PUBLIC_ENV,
       eas: { projectId: "23f73ee7-a478-4c3d-bdf9-78f6cec090a8" }
     },
 
-    runtimeVersion: { policy: "appVersion" },
-
-    // Если EAS Updates не используешь — эту секцию лучше убрать
-    // updates: { url: process.env.EXPO_UPDATES_URL },
-
-    splash: {
-      image: "./assets/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#ffffff"
-    },
-
+    splash: { image: "./assets/splash.png", resizeMode: "contain", backgroundColor: "#ffffff" },
     scheme: "caloriecam",
 
     ios: {
@@ -44,13 +37,12 @@ export default {
     },
 
     android: {
-      package: "app.eatsense.caloriecam",        // ← оставить только ЭТО
+      package: "app.eatsense.caloriecam",
       versionCode: 1,
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
+      // Убираем устаревшие Storage-права
       permissions: [
         "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
         "READ_MEDIA_IMAGES",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -71,7 +63,7 @@ export default {
 
     web: { favicon: "./assets/favicon.png" },
 
-    notification: {         // ок для SDK 51
+    notification: {
       icon: "./assets/icon.png",
       color: "#FF6B6B",
       androidMode: "default",
@@ -83,7 +75,10 @@ export default {
       "expo-image-picker",
       "expo-media-library",
       "expo-localization",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser"
     ]
   }
 };

@@ -1,10 +1,12 @@
 {
-  "cli": { "version": ">= 3.21.0" },
+  "cli": {
+    "version": ">= 3.21.0",
+    "appVersionSource": "remote"
+  },
   "build": {
-    "development": {
-      "developmentClient": true,
+    "simulator": {
       "distribution": "internal",
-      "ios": { "resourceClass": "m-medium" },
+      "ios": { "simulator": true },
       "env": {
         "EXPO_PUBLIC_ENV": "staging",
         "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
@@ -19,7 +21,9 @@
       }
     },
     "production": {
+      "distribution": "store",
       "autoIncrement": true,
+      "ios": { "resourceClass": "m-medium" },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
