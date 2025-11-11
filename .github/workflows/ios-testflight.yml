@@ -106,7 +106,7 @@ jobs:
 
         env:
 
-          IOS_DIST_P12_BASE64: ${{ secrets.IOS_MOBILEPROV_BASE64 }}
+          IOS_DIST_P12_BASE64: ${{ secrets.IOS_DIST_P12_BASE64 }}
 
           IOS_MOBILEPROV_BASE64: ${{ secrets.IOS_MOBILEPROV_BASE64 }}
 
