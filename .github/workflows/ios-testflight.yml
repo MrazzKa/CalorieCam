@@ -1,122 +1,55 @@
-name: iOS — Build & Upload (Xcode 16.2)
+name: "iOS - Build & Upload (Xcode 16.2)"
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   build-ios:
     runs-on: macos-14
     env:
-<<<<<<< HEAD
       DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-      APP_NAME: ${{ vars.APP_NAME }}           # CalorieCam
-      SCHEME: ${{ vars.SCHEME }}               # CalorieCam
-      BUNDLE_ID: ${{ vars.BUNDLE_ID }}         # ch.eatsense.app
-=======
-
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-
       APP_NAME: ${{ vars.APP_NAME }}
-
       SCHEME: ${{ vars.SCHEME }}
-
       BUNDLE_ID: ${{ vars.BUNDLE_ID }}
-
-      CI: "1"                                # 1) for expo-cli to auto-accept prompts
->>>>>>> fbe1198b1 (New 11.11.25)
+      CI: "1"
 
     steps:
       - uses: actions/checkout@v4
 
-<<<<<<< HEAD
       - name: Setup Node 20
-=======
-      - uses: actions/checkout@v4
-
-      - name: Setup Node 20
-
->>>>>>> fbe1198b1 (New 11.11.25)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-<<<<<<< HEAD
       - name: Enable corepack & install deps
         run: |
+          set -euxo pipefail
           corepack enable
           pnpm i --frozen-lockfile
 
       - name: Expo prebuild (iOS)
         run: |
-          npx --yes expo prebuild --platform ios --no-install --non-interactive
+          set -euxo pipefail
+          npx --yes expo prebuild --platform ios --no-install
           cd ios && pod install --repo-update
 
       - name: Decode signing assets
-=======
-          node-version: '20'
-
-      - name: Enable corepack & install deps
-
-        run: |
-
-          set -euxo pipefail
-
-          corepack enable
-
-          pnpm i --frozen-lockfile
-
-      - name: Expo prebuild (iOS)
-
-        run: |
-
-          set -euxo pipefail
-
-          npx --yes expo prebuild --platform ios --no-install
-
-          cd ios
-
-          pod install --repo-update
-
-      - name: Decode signing assets
-
->>>>>>> fbe1198b1 (New 11.11.25)
         env:
           IOS_DIST_P12_BASE64: ${{ secrets.IOS_DIST_P12_BASE64 }}
           IOS_MOBILEPROV_BASE64: ${{ secrets.IOS_MOBILEPROV_BASE64 }}
-<<<<<<< HEAD
-=======
-
->>>>>>> fbe1198b1 (New 11.11.25)
         run: |
-          mkdir -p signing
-          (printf "%s" "$IOS_DIST_P12_BASE64" | base64 -d > signing/dist.p12) || (printf "%s" "$IOS_DIST_P12_BASE64" | base64 -D > signing/dist.p12)
-          (printf "%s" "$IOS_MOBILEPROV_BASE64" | base64 -d > signing/profile.mobileprovision) || (printf "%s" "$IOS_MOBILEPROV_BASE64" | base64 -D > signing/profile.mobileprovision)
-          security cms -D -i signing/profile.mobileprovision >/dev/null
-
-<<<<<<< HEAD
-      - name: Create keychain & import cert
-        env:
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-=======
           set -euxo pipefail
-
           mkdir -p signing
-
           (printf "%s" "$IOS_DIST_P12_BASE64" | base64 -d > signing/dist.p12) || (printf "%s" "$IOS_DIST_P12_BASE64" | base64 -D > signing/dist.p12)
-
           (printf "%s" "$IOS_MOBILEPROV_BASE64" | base64 -d > signing/profile.mobileprovision) || (printf "%s" "$IOS_MOBILEPROV_BASE64" | base64 -D > signing/profile.mobileprovision)
-
           security cms -D -i signing/profile.mobileprovision >/dev/null
 
       - name: Create keychain & import cert
-
         env:
-
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-
->>>>>>> fbe1198b1 (New 11.11.25)
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
         run: |
+          set -euxo pipefail
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -125,222 +58,75 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning
 
-<<<<<<< HEAD
       - name: Install provisioning profile
-        env:
-          IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
         run: |
+          set -euxo pipefail
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin <<< "$(security cms -D -i signing/profile.mobileprovision)")
           NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /dev/stdin <<< "$(security cms -D -i signing/profile.mobileprovision)")
           echo "Profile UUID: $UUID / Name: $NAME"
           cp signing/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
-
-      - name: Show build settings (debug aid)
-        working-directory: ios
-        run: |
-          xcodebuild -list -workspace "${APP_NAME}.xcworkspace"
-=======
-        run: |
-
-          set -euxo pipefail
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-
-          security set-keychain-settings -lut 21600 build.keychain
-
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-
-          security import signing/dist.p12 -k build.keychain -P "$IOS_DIST_P12_PASSWORD" -A -f pkcs12
-
-          security list-keychain -d user -s build.keychain login.keychain
-
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-
-          security find-identity -v -p codesigning
-
-      - name: Install provisioning profile
-
-        run: |
-
-          set -euxo pipefail
-
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin <<< "$(security cms -D -i signing/profile.mobileprovision)")
-
-          NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /dev/stdin <<< "$(security cms -D -i signing/profile.mobileprovision)")
-
-          echo "Profile UUID: $UUID / Name: $NAME"
-
-          cp signing/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-
-          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
-
           echo "IOS_PROFILE_NAME=$NAME" >> $GITHUB_ENV
 
       - name: Show build settings (debug aid)
-
         working-directory: ios
-
         run: |
-
           set -euxo pipefail
-
           xcodebuild -list -workspace "${APP_NAME}.xcworkspace"
-
->>>>>>> fbe1198b1 (New 11.11.25)
           xcodebuild -showBuildSettings -workspace "${APP_NAME}.xcworkspace" -scheme "${SCHEME}" | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN|PROVISIONING_PROFILE"
 
       - name: Build .xcarchive (Release)
         working-directory: ios
-<<<<<<< HEAD
         env:
           DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-          PROVISIONING_PROFILE_SPECIFIER: ${{ secrets.IOS_PROFILE_NAME }}
         run: |
-          xcodebuild -workspace "${APP_NAME}.xcworkspace" \
-=======
-
-        env:
-
-          DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-
-        run: |
-
           set -euxo pipefail
-
           xcodebuild -workspace "${APP_NAME}.xcworkspace" \
-
->>>>>>> fbe1198b1 (New 11.11.25)
             -scheme "${SCHEME}" \
             -configuration Release \
-<<<<<<< HEAD
-            -sdk iphoneos \
-            -archivePath $RUNNER_TEMP/build/${SCHEME}.xcarchive \
-            PRODUCT_BUNDLE_IDENTIFIER="${BUNDLE_ID}" \
-            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${PROVISIONING_PROFILE_SPECIFIER}" \
-            OTHER_CODE_SIGN_FLAGS="--keychain build.keychain" \
-            clean archive | xcpretty
-
-      - name: Export .ipa (app-store)
-        env:
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
-          IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
-        run: |
-          cat > $RUNNER_TEMP/exportOptions.plist <<PLIST
-=======
-
             -destination "generic/platform=iOS" \
-
             -sdk iphoneos \
-
             -archivePath "$RUNNER_TEMP/build/${SCHEME}.xcarchive" \
-
             PRODUCT_BUNDLE_IDENTIFIER="${BUNDLE_ID}" \
-
             DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
-
             CODE_SIGN_STYLE=Manual \
-
             CODE_SIGN_IDENTITY="Apple Distribution" \
-
             PROVISIONING_PROFILE_SPECIFIER="${IOS_PROFILE_NAME}" \
-
             PROVISIONING_PROFILE="${PROFILE_UUID}" \
-
             OTHER_CODE_SIGN_FLAGS="--keychain build.keychain" \
-
             clean archive | xcpretty
-
           ls -lah "$RUNNER_TEMP/build" || true
-
           /usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:ApplicationPath' "$RUNNER_TEMP/build/${SCHEME}.xcarchive/Info.plist"
 
       - name: Export .ipa (app-store)
-
         run: |
-
           set -euxo pipefail
-
           cat > "$RUNNER_TEMP/exportOptions.plist" <<PLIST
-
->>>>>>> fbe1198b1 (New 11.11.25)
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<<<<<<< HEAD
           <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
-            <key>teamID</key><string>${IOS_TEAM_ID}</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict>
-              <key>${{ env.BUNDLE_ID }}</key><string>${IOS_PROFILE_NAME}</string>
-            </dict>
-            <key>uploadSymbols</key><true/>
-          </dict></plist>
-=======
-
-          <plist version="1.0"><dict>
-
-            <key>method</key><string>app-store</string>
-
             <key>teamID</key><string>${{ secrets.IOS_TEAM_ID }}</string>
-
             <key>signingStyle</key><string>manual</string>
-
             <key>provisioningProfiles</key><dict>
-
               <key>${BUNDLE_ID}</key><string>${IOS_PROFILE_NAME}</string>
-
             </dict>
-
             <key>uploadSymbols</key><true/>
-
           </dict></plist>
-
->>>>>>> fbe1198b1 (New 11.11.25)
           PLIST
 
           xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/build/${{ env.SCHEME }}.xcarchive \
-            -exportOptionsPlist $RUNNER_TEMP/exportOptions.plist \
-            -exportPath $RUNNER_TEMP/export \
-            -allowProvisioningUpdates | xcpretty
-          ls -lh $RUNNER_TEMP/export
-
-<<<<<<< HEAD
-      - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@v1
-        with:
-          app-path: ${{ runner.temp }}/export/${{ env.SCHEME }}.ipa
-          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
-          api-key-id: ${{ secrets.ASC_KEY_ID }}
-=======
             -archivePath "$RUNNER_TEMP/build/${SCHEME}.xcarchive" \
-
             -exportOptionsPlist "$RUNNER_TEMP/exportOptions.plist" \
-
             -exportPath "$RUNNER_TEMP/export" \
-
             -allowProvisioningUpdates | xcpretty
-
           ls -lh "$RUNNER_TEMP/export"
 
       - name: Upload to TestFlight
-
         uses: apple-actions/upload-testflight-build@v1
-
         with:
-
           app-path: ${{ runner.temp }}/export/${{ env.SCHEME }}.ipa
-
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
-
           api-key-id: ${{ secrets.ASC_KEY_ID }}
-
->>>>>>> fbe1198b1 (New 11.11.25)
           api-private-key: ${{ secrets.ASC_KEY_P8 }}
