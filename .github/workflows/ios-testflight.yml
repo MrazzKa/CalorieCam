@@ -25,6 +25,8 @@ jobs:
         run: |
           set -euxo pipefail
           corepack enable
+          pnpm config set node-linker hoisted
+          pnpm config set shamefully-hoist true
           pnpm i --frozen-lockfile
 
       - name: Expo prebuild (iOS)
@@ -76,29 +78,10 @@ jobs:
           xcodebuild -list -workspace "${APP_NAME}.xcworkspace"
           xcodebuild -showBuildSettings -workspace "${APP_NAME}.xcworkspace" -scheme "${SCHEME}" | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN|PROVISIONING_PROFILE"
 
-      - name: Prebundle React Native (iOS release)
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: |
-          set -euxo pipefail
-          ENTRY="index.js"
-          [ -f "index.ts" ] && ENTRY="index.ts"
-          [ -f "index.tsx" ] && ENTRY="index.tsx"
-          npx --yes react-native bundle \
-            --platform ios \
-            --dev false \
-            --entry-file "$ENTRY" \
-            --bundle-output ios/main.jsbundle \
-            --assets-dest ios \
-            --reset-cache \
-            --verbose
-          ls -lh ios/main.jsbundle
-
       - name: Build .xcarchive (Release)
         working-directory: ios
         env:
           DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-          SKIP_BUNDLING: "1"
         run: |
           set -euxo pipefail
           xcodebuild -workspace "${APP_NAME}.xcworkspace" \
