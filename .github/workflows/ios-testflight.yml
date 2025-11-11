@@ -78,6 +78,10 @@ jobs:
 
         run: npx expo prebuild --platform ios --no-install --non-interactive --clean
 
+        env:
+
+          EXPO_APPLE_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+
       - name: CocoaPods install
 
         working-directory: ios
