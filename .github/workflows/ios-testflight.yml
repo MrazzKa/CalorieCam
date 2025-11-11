@@ -144,7 +144,7 @@ jobs:
 
           xcodebuild \
 
-            -workspace "ios/${APP_NAME}.xcworkspace" \
+            -workspace "$PWD/ios/${APP_NAME}.xcworkspace" \
 
             -scheme "${SCHEME}" \
 
