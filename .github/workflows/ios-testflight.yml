@@ -140,17 +140,19 @@ jobs:
 
       - name: Build .xcarchive (Release)
 
+        working-directory: ios
+
         run: |
 
           xcodebuild \
 
-            -workspace "$PWD/ios/${APP_NAME}.xcworkspace" \
+            -workspace "${APP_NAME}.xcworkspace" \
 
             -scheme "${SCHEME}" \
 
             -configuration Release \
 
-            -archivePath "$PWD/build/${APP_NAME}.xcarchive" \
+            -archivePath "$PWD/../build/${APP_NAME}.xcarchive" \
 
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
 
@@ -210,15 +212,17 @@ jobs:
 
       - name: Export .ipa
 
+        working-directory: ios
+
         run: |
 
           xcodebuild -exportArchive \
 
-            -archivePath "$PWD/build/${APP_NAME}.xcarchive" \
+            -archivePath "$PWD/../build/${APP_NAME}.xcarchive" \
 
-            -exportPath "$PWD/build" \
+            -exportPath "$PWD/../build" \
 
-            -exportOptionsPlist exportOptions.plist | xcpretty
+            -exportOptionsPlist ../exportOptions.plist | xcpretty
 
       - name: Upload .ipa artifact
 
