@@ -296,3 +296,4 @@ android/
 # secrets
 .credentials/*
 .eas/*.p8
+asc-api-key.json

@@ -1,0 +1,20 @@
+name: iOS — Submit IPA to TestFlight
+on: { workflow_dispatch: {} }
+
+jobs:
+  submit:
+    runs-on: macos-14
+    steps:
+      - name: Download IPA from EAS artifact
+        run: |
+          set -euxo pipefail
+          curl -L "https://expo.dev/artifacts/eas/bgsL8Q299CaFinmbaGb5zP.ipa" -o CalorieCam.ipa
+          ls -lh CalorieCam.ipa
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: CalorieCam.ipa
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY_P8 }}

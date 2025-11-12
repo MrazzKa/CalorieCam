@@ -10,8 +10,7 @@ export default {
 
     extra: {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
-      environment: process.env.EXPO_PUBLIC_ENV,
-      eas: { projectId: "23f73ee7-a478-4c3d-bdf9-78f6cec090a8" }
+      environment: process.env.EXPO_PUBLIC_ENV
     },
 
     splash: { image: "./assets/splash.png", resizeMode: "contain", backgroundColor: "#ffffff" },
@@ -52,6 +51,6 @@ export default {
 
     web: { favicon: "./assets/favicon.png" },
     notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "CalorieCam" },
-    plugins: ["expo-camera","expo-image-picker","expo-media-library","expo-localization","expo-notifications"]
+    plugins: ["expo-camera","expo-image-picker","expo-media-library","expo-localization","expo-notifications","expo-asset"]
   }
 };

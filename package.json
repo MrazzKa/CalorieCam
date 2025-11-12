@@ -35,10 +35,11 @@
     "build": "nest build",
     "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "submit:ios": "eas submit -p ios --profile production --latest --account eatsense --non-interactive"
   },
   "dependencies": {
-    "@babel/runtime": "^7.28.4",
+    "@babel/runtime": "^7.26.0",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.0.1",
@@ -63,7 +64,7 @@
     "expo-image-picker": "~15.1.0",
     "expo-linear-gradient": "~13.0.2",
     "expo-linking": "~6.3.1",
-    "expo-localization": "~15.0.3",
+    "expo-localization": "^15.0.3",
     "expo-media-library": "~16.0.5",
     "expo-notifications": "~0.28.19",
     "expo-router": "^3.5.14",

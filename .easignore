@@ -1,0 +1,10 @@
+apps/api
+**/*.mp4
+**/*.mov
+**/*.zip
+**/*.psd
+**/*.tgz
+**/backups/**
+**/data/**
+**/.github/**
+
