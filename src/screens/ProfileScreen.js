@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, Touchable
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView, useReducedMotion } from 'moti';
+import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/apiService';
 import { useTheme, useDesignTokens } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
+import { useAuth } from '../contexts/AuthContext';
 import { LanguageSelector } from '../components/LanguageSelector';
 import AppCard from '../components/common/AppCard';
 import PrimaryButton from '../components/common/PrimaryButton';
@@ -13,6 +15,8 @@ import PrimaryButton from '../components/common/PrimaryButton';
 const ProfileScreen = () => {
   const { t, language, changeLanguage, availableLanguages } = useI18n();
   const { tokens, isDark, themeMode, toggleTheme } = useTheme();
+  const { signOut } = useAuth();
+  const navigation = useNavigation();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const reduceMotion = useReducedMotion();
 
@@ -41,7 +45,7 @@ const ProfileScreen = () => {
       return profile.email.charAt(0).toUpperCase();
     }
     if (parts.length === 0) {
-      return 'CC';
+      return 'ES';
     }
     return parts
       .map((value) => value.trim().charAt(0).toUpperCase())
@@ -58,14 +62,16 @@ const ProfileScreen = () => {
     try {
       const result = await ApiService.getUserProfile();
       if (result) {
+        // Extract data from userProfile if available, otherwise use profile JSON field
+        const userProfile = result.userProfile || result.profile || {};
         setProfile({
-          firstName: result.firstName || '',
-          lastName: result.lastName || '',
+          firstName: userProfile.firstName || result.firstName || '',
+          lastName: userProfile.lastName || result.lastName || '',
           email: result.email || '',
-          height: result.height || 0,
-          weight: result.weight || 0,
-          age: result.age || 0,
-          dailyCalories: result.dailyCalories || 0,
+          height: userProfile.height || result.height || 0,
+          weight: userProfile.weight || result.weight || 0,
+          age: userProfile.age || result.age || 0,
+          dailyCalories: userProfile.dailyCalories || result.dailyCalories || 0,
         });
       }
     } catch (error) {
@@ -73,7 +79,7 @@ const ProfileScreen = () => {
       setProfile({
         firstName: 'Demo',
         lastName: 'User',
-        email: 'demo@caloriecam.com',
+        email: 'demo@eatsense.ch',
         height: 170,
         weight: 70,
         age: 28,
@@ -168,6 +174,48 @@ const ProfileScreen = () => {
     } finally {
       setNotificationSaving(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t('profile.deleteAccountTitle'),
+      t('profile.deleteAccountMessage'),
+      [
+        {
+          text: t('profile.deleteAccountCancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('profile.deleteAccountConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await ApiService.deleteAccount();
+              // Clear tokens
+              await ApiService.setToken(null, null);
+              // Sign out
+              await signOut();
+              // Show success message
+              Alert.alert(t('profile.deleteAccountSuccess'), '', [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Navigation will be handled by App.js when isAuthenticated becomes false
+                  },
+                },
+              ]);
+            } catch (error) {
+              console.error('Failed to delete account', error);
+              Alert.alert(t('profile.errorTitle'), t('profile.deleteAccountError'));
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
   };
 
   const metrics = [
@@ -361,6 +409,19 @@ const ProfileScreen = () => {
             />
           </View>
         </AppCard>
+
+        <AppCard style={styles.dangerCard}>
+          <Text style={[styles.sectionTitle, styles.dangerTitle]}>{t('profile.deleteAccount')}</Text>
+          <Text style={styles.dangerDescription}>{t('profile.deleteAccountMessage')}</Text>
+          <TouchableOpacity
+            style={styles.dangerButton}
+            onPress={handleDeleteAccount}
+            disabled={loading}
+          >
+            <Ionicons name="trash-outline" size={18} color={tokens.colors.error} />
+            <Text style={styles.dangerButtonText}>{t('profile.deleteAccount')}</Text>
+          </TouchableOpacity>
+        </AppCard>
       </ScrollView>
     </SafeAreaView>
   );
@@ -548,6 +609,38 @@ const createStyles = (tokens) =>
       fontSize: 13,
       color: tokens.colors.primary,
       fontWeight: '500',
+    },
+    dangerCard: {
+      gap: tokens.spacing.lg,
+      borderWidth: 1,
+      borderColor: tokens.colors.error + '33',
+      backgroundColor: tokens.colors.error + '0A',
+    },
+    dangerTitle: {
+      color: tokens.colors.error,
+    },
+    dangerDescription: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
+      color: tokens.colors.textSecondary,
+      marginBottom: tokens.spacing.md,
+    },
+    dangerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: tokens.spacing.sm,
+      paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.lg,
+      borderRadius: tokens.radii.lg,
+      borderWidth: 1,
+      borderColor: tokens.colors.error,
+      backgroundColor: 'transparent',
+    },
+    dangerButtonText: {
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+      color: tokens.colors.error,
     },
   });
 

@@ -51,10 +51,10 @@ export default function HelpSupportScreen() {
     {
       id: 1,
       title: 'Email Support',
-      subtitle: 'support@caloriecam.com',
+      subtitle: 'support@eatsense.ch',
       icon: 'mail-outline',
       color: '#007AFF',
-      onPress: () => Linking.openURL('mailto:support@caloriecam.com'),
+      onPress: () => Linking.openURL('mailto:support@eatsense.ch'),
     },
     {
       id: 2,

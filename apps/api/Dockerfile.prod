@@ -1,4 +1,4 @@
-# Production Dockerfile for CalorieCam API
+# Production Dockerfile for EatSense API
 
 # Build stage
 FROM node:18-alpine AS builder
@@ -46,7 +46,7 @@ RUN apk add --no-cache \
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S caloriecam -u 1001
+RUN adduser -S eatsense -u 1001
 
 # Set working directory
 WORKDIR /app
@@ -60,17 +60,17 @@ RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy built application from builder stage
-COPY --from=builder --chown=caloriecam:nodejs /app/dist ./dist
-COPY --from=builder --chown=caloriecam:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=eatsense:nodejs /app/dist ./dist
+COPY --from=builder --chown=eatsense:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy Prisma schema for migrations
-COPY --chown=caloriecam:nodejs prisma ./prisma
+COPY --chown=eatsense:nodejs prisma ./prisma
 
 # Create directories for uploads and logs
-RUN mkdir -p uploads logs && chown caloriecam:nodejs uploads logs
+RUN mkdir -p uploads logs && chown eatsense:nodejs uploads logs
 
 # Switch to non-root user
-USER caloriecam
+USER eatsense
 
 # Expose port
 EXPOSE 3000

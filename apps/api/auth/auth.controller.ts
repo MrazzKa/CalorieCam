@@ -19,6 +19,8 @@ import {
   RefreshTokenDto,
   RequestOtpDto,
   RequestMagicLinkDto,
+  AppleSignInDto,
+  GoogleSignInDto,
 } from './dto';
 import { Request as ExpressRequest } from 'express';
 
@@ -88,6 +90,20 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Logout successful' })
   async logout(@Request() req: any) {
     return this.authService.logout(req.user.id);
+  }
+
+  @Post('apple')
+  @ApiOperation({ summary: 'Sign in with Apple' })
+  @ApiResponse({ status: 200, description: 'Apple Sign In successful' })
+  async signInWithApple(@Body() appleSignInDto: AppleSignInDto) {
+    return this.authService.signInWithApple(appleSignInDto);
+  }
+
+  @Post('google')
+  @ApiOperation({ summary: 'Sign in with Google' })
+  @ApiResponse({ status: 200, description: 'Google Sign In successful' })
+  async signInWithGoogle(@Body() googleSignInDto: GoogleSignInDto) {
+    return this.authService.signInWithGoogle(googleSignInDto);
   }
 
   private getClientIp(req: ExpressRequest): string | undefined {

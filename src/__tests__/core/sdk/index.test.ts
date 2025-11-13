@@ -1,14 +1,14 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { CalorieCamSDK, createSDK } from '../../../core/sdk';
+import { EatSenseSDK, createSDK } from '../../../core/sdk';
 
 // Mock fetch
 global.fetch = jest.fn();
 
-describe('CalorieCamSDK', () => {
-  let sdk: CalorieCamSDK;
+describe('EatSenseSDK', () => {
+  let sdk: EatSenseSDK;
 
   beforeEach(() => {
-    sdk = new CalorieCamSDK({
+    sdk = new EatSenseSDK({
       baseURL: 'http://localhost:3000',
       timeout: 10000,
       retryAttempts: 3,
@@ -24,7 +24,7 @@ describe('CalorieCamSDK', () => {
       retryAttempts: 2,
       retryDelay: 500,
     });
-    expect(sdk).toBeInstanceOf(CalorieCamSDK);
+    expect(sdk).toBeInstanceOf(EatSenseSDK);
   });
 
   it('should analyze image', async () => {

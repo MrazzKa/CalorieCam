@@ -200,7 +200,7 @@
     "signUp": "Registrarse"
   },
   "onboarding": {
-    "welcome": "Bienvenido a CalorieCam",
+    "welcome": "Bienvenido a EatSense",
     "getStarted": "Comenzar",
     "personalInfo": "Información personal",
     "physicalInfo": "Información física",
@@ -217,15 +217,15 @@
   "terms": {
     "title": "Términos de Servicio",
     "lastUpdated": "Última actualización",
-    "intro": "Por favor, lea estos Términos de Servicio cuidadosamente antes de usar CalorieCam.",
+    "intro": "Por favor, lea estos Términos de Servicio cuidadosamente antes de usar EatSense.",
     "sections": {
       "acceptance": {
         "title": "1. Aceptación de Términos",
-        "content": "Al usar CalorieCam, acepta estos Términos de Servicio. Si no está de acuerdo con estos términos, por favor no use la aplicación."
+        "content": "Al usar EatSense, acepta estos Términos de Servicio. Si no está de acuerdo con estos términos, por favor no use la aplicación."
       },
       "description": {
         "title": "2. Descripción del Servicio",
-        "content": "CalorieCam proporciona herramientas para el seguimiento de nutrición, análisis de alimentos y recomendaciones personalizadas utilizando inteligencia artificial."
+        "content": "EatSense proporciona herramientas para el seguimiento de nutrición, análisis de alimentos y recomendaciones personalizadas utilizando inteligencia artificial."
       },
       "registration": {
         "title": "3. Registro y Cuenta",
@@ -241,11 +241,11 @@
       },
       "intellectual": {
         "title": "6. Propiedad Intelectual",
-        "content": "Todo el contenido, características y funcionalidad de CalorieCam son de nuestra propiedad y están protegidos por leyes de propiedad intelectual."
+        "content": "Todo el contenido, características y funcionalidad de EatSense son de nuestra propiedad y están protegidos por leyes de propiedad intelectual."
       },
       "limitation": {
         "title": "7. Limitación de Responsabilidad",
-        "content": "CalorieCam se proporciona 'tal cual' sin garantías. No somos responsables de daños derivados del uso."
+        "content": "EatSense se proporciona 'tal cual' sin garantías. No somos responsables de daños derivados del uso."
       },
       "changes": {
         "title": "8. Cambios en los Términos",
@@ -253,14 +253,14 @@
       },
       "contact": {
         "title": "9. Contacto",
-        "content": "Para preguntas sobre estos términos, contacte: legal@caloriecam.com"
+        "content": "Para preguntas sobre estos términos, contacte: legal@eatsense.ch"
       }
     }
   },
   "privacy": {
     "title": "Política de Privacidad",
     "lastUpdated": "Última actualización",
-    "intro": "CalorieCam valora su privacidad. Esta política describe cómo recopilamos, usamos y protegemos su información.",
+    "intro": "EatSense valora su privacidad. Esta política describe cómo recopilamos, usamos y protegemos su información.",
     "sections": {
       "collection": {
         "title": "1. Recopilación de Información",
@@ -288,7 +288,7 @@
       },
       "children": {
         "title": "7. Privacidad de los Niños",
-        "content": "CalorieCam no está destinado a niños menores de 13 años. No recopilamos información de niños."
+        "content": "EatSense no está destinado a niños menores de 13 años. No recopilamos información de niños."
       },
       "changes": {
         "title": "8. Cambios en la Política",
@@ -296,7 +296,7 @@
       },
       "contact": {
         "title": "9. Contáctenos",
-        "content": "Para consultas de privacidad: privacy@caloriecam.com"
+        "content": "Para consultas de privacidad: privacy@eatsense.ch"
       }
     }
   }

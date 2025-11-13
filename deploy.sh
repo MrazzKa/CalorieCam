@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CalorieCam Production Deployment Script
+# EatSense Production Deployment Script
 set -euo pipefail
 
 # Colors for output
@@ -27,7 +27,7 @@ error() {
 ENVIRONMENT=${1:-production}
 COMPOSE_FILE="docker-compose.prod.yml"
 
-log "Starting CalorieCam deployment for $ENVIRONMENT environment"
+log "Starting EatSense deployment for $ENVIRONMENT environment"
 
 # Check requirements
 check_requirements() {
@@ -58,9 +58,9 @@ check_requirements() {
 create_env_template() {
     cat > .env.production << 'EOF'
 # Database Configuration
-DATABASE_USER=caloriecam_user
+DATABASE_USER=eatsense_user
 DATABASE_PASSWORD=secure_password_change_me
-DATABASE_URL=postgresql://caloriecam_user:secure_password_change_me@postgres:5432/caloriecam
+DATABASE_URL=postgresql://eatsense_user:secure_password_change_me@postgres:5432/eatsense
 
 # Redis Configuration
 REDIS_PASSWORD=redis_secure_password
@@ -74,16 +74,16 @@ OPENAI_API_KEY=your-openai-api-key
 USDA_API_KEY=your-usda-api-key
 
 # Server Configuration
-API_BASE_URL=https://api.caloriecam.com
-CORS_ORIGIN=https://caloriecam.com,https://www.caloriecam.com
+API_BASE_URL=https://api.eatsense.app
+CORS_ORIGIN=https://eatsense.app,https://www.eatsense.app
 
 # Monitoring
 GRAFANA_PASSWORD=admin_password_change_me
 
 # Domain Configuration (update these with your actual domains)
-DOMAIN=caloriecam.com
-API_DOMAIN=api.caloriecam.com
-MONITORING_DOMAIN=monitoring.caloriecam.com
+DOMAIN=eatsense.app
+API_DOMAIN=api.eatsense.app
+MONITORING_DOMAIN=monitoring.eatsense.app
 EOF
 
     warn "Please edit .env.production with your actual configuration before continuing!"
@@ -98,7 +98,7 @@ setup_ssl() {
     mkdir -p nginx/ssl
     
     # Check if certificates exist
-    if [[ ! -f "nginx/ssl/caloriecam.com.crt" ]] || [[ ! -f "nginx/ssl/api.caloriecam.com.crt" ]]; then
+    if [[ ! -f "nginx/ssl/eatsense.app.crt" ]] || [[ ! -f "nginx/ssl/api.eatsense.app.crt" ]]; then
         warn "SSL certificates not found."
         echo "You need to obtain SSL certificates. Options:"
         echo "1. Use Let's Encrypt (recommended)"
@@ -113,9 +113,9 @@ setup_ssl() {
                 ;;
             2)
                 echo "Please place your certificates in the nginx/ssl/ directory:"
-                echo "  - caloriecam.com.crt and caloriecam.com.key"
-                echo "  - api.caloriecam.com.crt and api.caloriecam.com.key"
-                echo "  - monitoring.caloriecam.com.crt and monitoring.caloriecam.com.key"
+                echo "  - eatsense.app.crt and eatsense.app.key"
+                echo "  - api.eatsense.app.crt and api.eatsense.app.key"
+                echo "  - monitoring.eatsense.app.crt and monitoring.eatsense.app.key"
                 read -p "Press Enter when certificates are in place..."
                 ;;
             3)
@@ -149,7 +149,7 @@ setup_letsencrypt() {
     fi
     
     # Get certificates
-    domains=("caloriecam.com" "www.caloriecam.com" "api.caloriecam.com" "monitoring.caloriecam.com")
+    domains=("eatsense.app" "www.eatsense.app" "api.eatsense.app" "monitoring.eatsense.app")
     
     for domain in "${domains[@]}"; do
         log "Obtaining certificate for $domain..."
@@ -166,13 +166,13 @@ setup_letsencrypt() {
 generate_selfsigned_certs() {
     warn "Generating self-signed certificates (not suitable for production!)"
     
-    domains=("caloriecam.com" "api.caloriecam.com" "monitoring.caloriecam.com")
+    domains=("eatsense.app" "api.eatsense.app" "monitoring.eatsense.app")
     
     for domain in "${domains[@]}"; do
         openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
             -keyout "nginx/ssl/$domain.key" \
             -out "nginx/ssl/$domain.crt" \
-            -subj "/C=US/ST=CA/L=San Francisco/O=CalorieCam/CN=$domain"
+            -subj "/C=US/ST=CA/L=San Francisco/O=EatSense/CN=$domain"
     done
 }
 
@@ -245,10 +245,10 @@ show_status() {
     
     echo
     log "Service URLs:"
-    echo "🌐 API: https://api.caloriecam.com"
-    echo "📊 Monitoring: https://monitoring.caloriecam.com"
-    echo "📈 Grafana: https://monitoring.caloriecam.com"
-    echo "🔍 Prometheus: https://monitoring.caloriecam.com/prometheus"
+    echo "🌐 API: https://api.eatsense.app"
+    echo "📊 Monitoring: https://monitoring.eatsense.app"
+    echo "📈 Grafana: https://monitoring.eatsense.app"
+    echo "🔍 Prometheus: https://monitoring.eatsense.app/prometheus"
     
     echo
     log "Useful commands:"
@@ -267,7 +267,7 @@ backup() {
     mkdir -p $backup_dir
     
     # Database backup
-    docker-compose -f $COMPOSE_FILE exec -T postgres pg_dump -U caloriecam_user caloriecam > "$backup_dir/database.sql"
+    docker-compose -f $COMPOSE_FILE exec -T postgres pg_dump -U eatsense_user eatsense > "$backup_dir/database.sql"
     
     # Redis backup
     docker-compose -f $COMPOSE_FILE exec -T redis redis-cli BGSAVE

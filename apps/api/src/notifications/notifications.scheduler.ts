@@ -56,7 +56,7 @@ export class NotificationsScheduler {
       try {
         const result = await this.notificationsService.sendPushNotification(
           pref.userId,
-          'CalorieCam Daily Reminder',
+          'EatSense Daily Reminder',
           'Log your meals today to stay on track!',
           { type: 'daily-reminder' },
         );

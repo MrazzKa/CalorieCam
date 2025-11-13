@@ -114,7 +114,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) 
       
       <View style={styles.aboutCard}>
         <Text style={styles.aboutText}>
-          CalorieCam is an AI-powered nutrition analysis app that helps you track your food intake and maintain a healthy lifestyle.
+          EatSense is an AI-powered nutrition analysis app that helps you track your food intake and maintain a healthy lifestyle.
         </Text>
         <Text style={styles.aboutText}>
           Our advanced AI technology can identify ingredients and calculate nutritional values from photos of your meals.

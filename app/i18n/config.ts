@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 
 import en from './locales/en.json';
-import ru from './locales/ru.json';
 import es from './locales/es.json';
 import de from './locales/de.json';
 import fr from './locales/fr.json';
@@ -12,18 +11,17 @@ import ko from './locales/ko.json';
 import ja from './locales/ja.json';
 import zh from './locales/zh.json';
 
-const STORAGE_KEY = '@caloriecam:language';
+const STORAGE_KEY = '@eatsense:language';
 
 const DEFAULT_FALLBACK = (process.env.EXPO_PUBLIC_DEFAULT_LOCALE || 'en').trim();
 
-const SUPPORTED_LOCALES = (process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,ru,es,de,fr,ko,ja,zh')
+const SUPPORTED_LOCALES = (process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,es,de,fr,ko,ja,zh')
   .split(',')
   .map(locale => locale.trim())
   .filter(Boolean);
 
 const resources = {
   en: { translation: en },
-  ru: { translation: ru },
   es: { translation: es },
   de: { translation: de },
   fr: { translation: fr },

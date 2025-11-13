@@ -2,7 +2,7 @@
 
 This guide assumes you have a Railway project with the following services:
 
-- **Web Service:** `caloriecam-api` – deploys the NestJS backend from `apps/api`
+- **Web Service:** `eatsense-api` – deploys the NestJS backend from `apps/api`
 - **PostgreSQL:** managed Railway database
 - **Redis:** managed Railway redis
 - **MinIO:** docker service (`minio/minio:latest`) with a persistent volume
@@ -13,7 +13,7 @@ This guide assumes you have a Railway project with the following services:
 # From repository root
 pnpm install
 pnpm -r build
-pnpm --filter caloriecam-api prisma migrate deploy
+pnpm --filter eatsense-api prisma migrate deploy
 ```
 
 `pnpm -r build` runs `nest build` and confirms the mobile placeholder script.
@@ -37,13 +37,13 @@ Use Railway variable references to avoid hard-coding secrets. Example:
 | `PORT` | `8080` |
 | `DATABASE_URL` | `${{PG_DATABASE_URL}}` |
 | `REDIS_URL` | `${{REDIS_URL}}` |
-| `API_BASE_URL` | `https://api.caloriecam.app` |
-| `APP_BASE_URL` | `https://app.caloriecam.app` |
-| `CORS_ORIGINS` | `https://app.caloriecam.app,https://studio.expo.dev` |
+| `API_BASE_URL` | `https://api.eatsense.app` |
+| `APP_BASE_URL` | `https://app.eatsense.app` |
+| `CORS_ORIGINS` | `https://app.eatsense.app,https://studio.expo.dev` |
 | `JWT_SECRET` | generate securely |
 | `JWT_REFRESH_SECRET` | generate securely |
 | `SENDGRID_API_KEY` | SendGrid API key |
-| `MAIL_FROM` | `CalorieCam <noreply@caloriecam.app>` |
+| `MAIL_FROM` | `EatSense <timur.kamaraev@eatsense.ch>` |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `FDC_API_KEY` | USDA FoodData Central key |
 | `FREE_DAILY_ANALYSES` | `3` |
@@ -59,7 +59,7 @@ Use Railway variable references to avoid hard-coding secrets. Example:
 | `ARTICLES_DETAIL_CACHE_TTL_SEC` | `86400` |
 | `ASSISTANT_SESSION_TTL_SEC` | `1800` |
 | `S3_ENDPOINT` | `${{MINIO_URL}}` (e.g. `https://minio.up.railway.app`) |
-| `S3_BUCKET` | `caloriecam-media` |
+| `S3_BUCKET` | `eatsense-media` |
 | `S3_REGION` | `us-east-1` |
 | `S3_ACCESS_KEY_ID` | MinIO access key |
 | `S3_SECRET_ACCESS_KEY` | MinIO secret key |
@@ -89,7 +89,7 @@ In the Railway dashboard, add variable references:
 
 ## 6. Domain & SSL
 
-- Point `api.caloriecam.app` to the Railway web-service CNAME (`*.up.railway.app`).
+- Point `api.eatsense.app` to the Railway web-service CNAME (`*.up.railway.app`).
 - Use Railway’s custom domain wizard to provision TLS automatically.
 
 ## 7. Smoke Test
@@ -97,7 +97,7 @@ In the Railway dashboard, add variable references:
 After deployment:
 
 ```bash
-curl https://api.caloriecam.app/health
+curl https://api.eatsense.app/health
 node apps/api/test-api.js usda:search "greek yogurt"
 node apps/api/test-api.js analyze-text "oatmeal 60g with milk"
 ```

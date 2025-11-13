@@ -5,7 +5,7 @@ const envPath = path.join(__dirname, '..', '.env');
 const envExamplePath = path.join(__dirname, '..', '.env.example');
 
 const baseContent = `# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/caloriecam"
+DATABASE_URL="postgresql://username:password@localhost:5432/eatsense"
 
 # Redis
 REDIS_HOST=localhost
@@ -53,16 +53,22 @@ HEALTH_SCORE_WEIGHTS='{"protein":0.25,"fiber":0.2,"satFat":-0.2,"sugar":-0.2,"en
 EXPO_ACCESS_TOKEN=
 NOTIFICATIONS_DAILY_DEFAULT_HOUR=8
 
-# Mail / SendGrid
-SENDGRID_API_KEY=
-MAIL_FROM="CalorieCam <noreply@yourdomain>"
+# Mail
+MAIL_PROVIDER=SMTP
 MAIL_DISABLE=false
 AUTH_DEV_IGNORE_MAIL_ERRORS=false
+MAIL_FROM="EatSense <timur.kamaraev@eatsense.ch>"
+SMTP_HOST=mail.infomaniak.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=timur.kamaraev@eatsense.ch
+SMTP_PASS=your-infimomaniak-password
+SENDGRID_API_KEY=
 
 # Object Storage (MinIO / S3)
 S3_ENDPOINT=http://127.0.0.1:9000
 S3_REGION=us-east-1
-S3_BUCKET=caloriecam-media
+S3_BUCKET=eatsense-media
 S3_ACCESS_KEY_ID=
 S3_SECRET_ACCESS_KEY=
 S3_FORCE_PATH_STYLE=true

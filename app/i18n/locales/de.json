@@ -213,7 +213,7 @@
     "magicLink": "Magic Link senden",
     "signIn": "Anmelden",
     "signUp": "Registrieren",
-    "welcomeTitle": "Willkommen bei CalorieCam",
+    "welcomeTitle": "Willkommen bei EatSense",
     "welcomeSubtitle": "Melde dich an, um deine Ernährung zu tracken und Ziele zu erreichen.",
     "emailLabel": "E-Mail-Adresse",
     "signInWithOtp": "Mit E-Mail-Code anmelden",
@@ -247,7 +247,7 @@
     }
   },
   "onboarding": {
-    "welcome": "Willkommen bei CalorieCam",
+    "welcome": "Willkommen bei EatSense",
     "getStarted": "Loslegen",
     "personalInfo": "Persönliche Informationen",
     "physicalInfo": "Körperliche Informationen",
@@ -264,15 +264,15 @@
   "terms": {
     "title": "Nutzungsbedingungen",
     "lastUpdated": "Zuletzt aktualisiert",
-    "intro": "Bitte lesen Sie diese Nutzungsbedingungen sorgfältig, bevor Sie CalorieCam verwenden.",
+    "intro": "Bitte lesen Sie diese Nutzungsbedingungen sorgfältig, bevor Sie EatSense verwenden.",
     "sections": {
       "acceptance": {
         "title": "1. Annahme der Bedingungen",
-        "content": "Durch die Nutzung von CalorieCam stimmen Sie diesen Nutzungsbedingungen zu. Wenn Sie diesen Bedingungen nicht zustimmen, verwenden Sie bitte die Anwendung nicht."
+        "content": "Durch die Nutzung von EatSense stimmen Sie diesen Nutzungsbedingungen zu. Wenn Sie diesen Bedingungen nicht zustimmen, verwenden Sie bitte die Anwendung nicht."
       },
       "description": {
         "title": "2. Servicebeschreibung",
-        "content": "CalorieCam bietet Tools zur Ernährungserfassung, Lebensmittelanalyse und personalisierten Ernährungsempfehlungen unter Verwendung von künstlicher Intelligenz."
+        "content": "EatSense bietet Tools zur Ernährungserfassung, Lebensmittelanalyse und personalisierten Ernährungsempfehlungen unter Verwendung von künstlicher Intelligenz."
       },
       "registration": {
         "title": "3. Registrierung und Konto",
@@ -288,11 +288,11 @@
       },
       "intellectual": {
         "title": "6. Geistiges Eigentum",
-        "content": "Alle Inhalte, Funktionen und Funktionalitäten von CalorieCam gehören uns und sind durch Urheberrechts- und andere Gesetze zum geistigen Eigentum geschützt."
+        "content": "Alle Inhalte, Funktionen und Funktionalitäten von EatSense gehören uns und sind durch Urheberrechts- und andere Gesetze zum geistigen Eigentum geschützt."
       },
       "limitation": {
         "title": "7. Haftungsbeschränkung",
-        "content": "CalorieCam wird 'wie besehen' ohne Gewährleistungen bereitgestellt. Wir haften nicht für Schäden, die aus der Nutzung der Anwendung resultieren."
+        "content": "EatSense wird 'wie besehen' ohne Gewährleistungen bereitgestellt. Wir haften nicht für Schäden, die aus der Nutzung der Anwendung resultieren."
       },
       "changes": {
         "title": "8. Änderungen der Bedingungen",
@@ -300,14 +300,14 @@
       },
       "contact": {
         "title": "9. Kontakt",
-        "content": "Bei Fragen zu diesen Nutzungsbedingungen kontaktieren Sie: legal@caloriecam.com"
+        "content": "Bei Fragen zu diesen Nutzungsbedingungen kontaktieren Sie: legal@eatsense.ch"
       }
     }
   },
   "privacy": {
     "title": "Datenschutzrichtlinie",
     "lastUpdated": "Zuletzt aktualisiert",
-    "intro": "CalorieCam schätzt Ihre Privatsphäre. Diese Richtlinie beschreibt, wie wir Ihre Informationen sammeln, verwenden und schützen.",
+    "intro": "EatSense schätzt Ihre Privatsphäre. Diese Richtlinie beschreibt, wie wir Ihre Informationen sammeln, verwenden und schützen.",
     "sections": {
       "collection": {
         "title": "1. Informationssammlung",
@@ -335,7 +335,7 @@
       },
       "children": {
         "title": "7. Datenschutz von Kindern",
-        "content": "CalorieCam richtet sich nicht an Kinder unter 13 Jahren. Wir erheben wissentlich keine Daten von Kindern und löschen sie umgehend, falls dies doch passiert."
+        "content": "EatSense richtet sich nicht an Kinder unter 13 Jahren. Wir erheben wissentlich keine Daten von Kindern und löschen sie umgehend, falls dies doch passiert."
       },
       "rights": {
         "title": "8. Deine Rechte",
@@ -347,7 +347,7 @@
       },
       "contact": {
         "title": "10. Kontakt",
-        "content": "Bei Datenschutzfragen wende dich an privacy@caloriecam.com"
+        "content": "Bei Datenschutzfragen wende dich an privacy@eatsense.ch"
       }
     }
   },

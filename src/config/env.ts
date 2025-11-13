@@ -4,7 +4,9 @@ const isDebug =
   (typeof __DEV__ !== 'undefined' && __DEV__) ||
   process.env.EXPO_PUBLIC_ENV === 'development';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://172.20.10.2:3000';
+// Default to localhost for development, but can be overridden via .env
+// For mobile devices on same network, use the machine's IP address (e.g., http://192.168.168.201:3000)
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 export const DEV_TOKEN = process.env.EXPO_PUBLIC_DEV_TOKEN || '';
 export const DEV_REFRESH_TOKEN = process.env.EXPO_PUBLIC_DEV_REFRESH_TOKEN || '';
 

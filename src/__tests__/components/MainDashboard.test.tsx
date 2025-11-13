@@ -22,7 +22,7 @@ describe('MainDashboard', () => {
       />
     );
 
-    expect(getByText('CalorieCam')).toBeTruthy();
+    expect(getByText('EatSense')).toBeTruthy();
     expect(getByText('Calories Remaining')).toBeTruthy();
   });
 

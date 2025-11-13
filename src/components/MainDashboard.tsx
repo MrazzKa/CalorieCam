@@ -62,7 +62,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ onAnalyzePress, on
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.time}>20:27</Text>
-          <Text style={styles.appTitle}>CalorieCam</Text>
+          <Text style={styles.appTitle}>EatSense</Text>
           <TouchableOpacity style={styles.headerRight} onPress={onProfilePress}>
             <Ionicons name="person-circle-outline" size={24} color="#2C3E50" />
           </TouchableOpacity>
@@ -207,14 +207,14 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ onAnalyzePress, on
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No dishes yet!</Text>
               <Text style={styles.emptySubtitle}>
-                Eat something delicious, add it here and check out our Instagram @caloriecam!
+                Eat something delicious, add it here and check out our Instagram @eatsense!
               </Text>
             </View>
           )}
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={onAnalyzePress}>
+      <TouchableOpacity style={styles.fab} onPress={onAnalyzePress} testID="fab">
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
     </View>

@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsObject, IsOptional, IsString } from 'class-validator';
 
 export class SendTestNotificationDto {
-  @ApiProperty({ example: 'CalorieCam', description: 'Push notification title' })
+  @ApiProperty({ example: 'EatSense', description: 'Push notification title' })
   @IsString()
   title: string;
 

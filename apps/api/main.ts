@@ -34,7 +34,7 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('CalorieCam API')
+    .setTitle('EatSense API')
     .setDescription('AI-powered nutrition analysis API')
     .setVersion('1.0')
     .addBearerAuth()
@@ -46,7 +46,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 CalorieCam API is running on port ${port}`);
+  console.log(`🚀 EatSense API is running on port ${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 
   const os = require('os');

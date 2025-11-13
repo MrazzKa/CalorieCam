@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { UpdateProfileDto } from './dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
+  ) {}
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -15,6 +21,22 @@ export class UsersService {
         profile: true,
         createdAt: true,
         updatedAt: true,
+        userProfile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            age: true,
+            height: true,
+            weight: true,
+            gender: true,
+            activityLevel: true,
+            goal: true,
+            targetWeight: true,
+            dailyCalories: true,
+            preferences: true,
+            isOnboardingCompleted: true,
+          },
+        },
       },
     });
 
@@ -40,31 +62,115 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        profile: {
-          ...(user.profile as any || {}),
-          ...updateProfileDto,
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        profile: true,
-        updatedAt: true,
+    // Build update data (only include defined fields)
+    const updateData: any = {};
+    if (updateProfileDto.firstName !== undefined) updateData.firstName = updateProfileDto.firstName;
+    if (updateProfileDto.lastName !== undefined) updateData.lastName = updateProfileDto.lastName;
+    if (updateProfileDto.age !== undefined) updateData.age = updateProfileDto.age;
+    if (updateProfileDto.height !== undefined) updateData.height = updateProfileDto.height;
+    if (updateProfileDto.weight !== undefined) updateData.weight = updateProfileDto.weight;
+    if (updateProfileDto.gender !== undefined) updateData.gender = updateProfileDto.gender;
+    if (updateProfileDto.activityLevel !== undefined) updateData.activityLevel = updateProfileDto.activityLevel;
+    if (updateProfileDto.goal !== undefined) updateData.goal = updateProfileDto.goal;
+    if (updateProfileDto.targetWeight !== undefined) updateData.targetWeight = updateProfileDto.targetWeight;
+    if (updateProfileDto.dailyCalories !== undefined) updateData.dailyCalories = updateProfileDto.dailyCalories;
+    if (updateProfileDto.preferences !== undefined) updateData.preferences = updateProfileDto.preferences;
+    if (updateProfileDto.isOnboardingCompleted !== undefined) updateData.isOnboardingCompleted = updateProfileDto.isOnboardingCompleted;
+
+    // Update or create UserProfile
+    await this.prisma.userProfile.upsert({
+      where: { userId },
+      update: updateData,
+      create: {
+        userId,
+        ...updateData,
       },
     });
 
-    return updatedUser;
+    // Also update JSON profile field for backward compatibility
+    const userProfile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+    });
+
+    if (userProfile) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          profile: {
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+            age: userProfile.age,
+            height: userProfile.height,
+            weight: userProfile.weight,
+            gender: userProfile.gender,
+            activityLevel: userProfile.activityLevel,
+            goal: userProfile.goal,
+            targetWeight: userProfile.targetWeight,
+            dailyCalories: userProfile.dailyCalories,
+            preferences: userProfile.preferences,
+            isOnboardingCompleted: userProfile.isOnboardingCompleted,
+          },
+        },
+      });
+    }
+
+    // Return updated user with profile
+    return this.getProfile(userId);
   }
 
   async deleteAccount(userId: string) {
-    // Delete user (cascade will delete related records)
-    await this.prisma.user.delete({
-      where: { id: userId },
-    });
+    try {
+      // Revoke all refresh tokens
+      const refreshTokens = await this.prisma.refreshToken.findMany({
+        where: { userId, revoked: false },
+      });
 
-    return { message: 'Account deleted successfully' };
+      // Add all active tokens to Redis blacklist
+      const blacklistPrefix = process.env.REDIS_BLACKLIST_PREFIX || 'auth:refresh:blacklist:';
+      for (const token of refreshTokens) {
+        const blacklistKey = `${blacklistPrefix}${token.token}`;
+        const ttl = Math.max(0, Math.floor((token.expiresAt.getTime() - Date.now()) / 1000));
+        if (ttl > 0) {
+          await this.redisService.set(blacklistKey, '1', ttl);
+        }
+      }
+
+      // Revoke all refresh tokens in database
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, revoked: false },
+        data: { revoked: true },
+      });
+
+      // Get user email for OTP cleanup
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+
+      // Clean up Redis daily limit counters
+      const today = new Date().toISOString().split('T')[0];
+      await this.redisService.del(`daily:food:${userId}:${today}`);
+      await this.redisService.del(`daily:chat:${userId}:${today}`);
+
+      // Clean up OTP entries (stored by email, not userId)
+      if (user?.email) {
+        const normalizedEmail = user.email.trim().toLowerCase();
+        await this.redisService.del(`auth:otp:${normalizedEmail}`);
+        await this.redisService.del(`auth:otp:cooldown:${normalizedEmail}`);
+        await this.redisService.del(`auth:otp:rate:${normalizedEmail}`);
+      }
+
+      // Delete user (cascade will delete related records: analyses, meals, media, etc.)
+      await this.prisma.user.delete({
+        where: { id: userId },
+      });
+
+      this.logger.log(`[UsersService] Account deleted for user ${userId}`);
+
+      return { message: 'Account deleted successfully' };
+    } catch (error) {
+      this.logger.error(`[UsersService] Failed to delete account for user ${userId}:`, error);
+      throw error;
+    }
   }
 }

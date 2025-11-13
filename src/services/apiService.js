@@ -228,6 +228,20 @@ class ApiService {
     });
   }
 
+  async signInWithApple(appleData) {
+    return this.request('/auth/apple', {
+      method: 'POST',
+      body: JSON.stringify(appleData),
+    });
+  }
+
+  async signInWithGoogle(googleData) {
+    return this.request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(googleData),
+    });
+  }
+
   // Food Analysis
   async analyzeImage(imageUri) {
     const formData = new FormData();

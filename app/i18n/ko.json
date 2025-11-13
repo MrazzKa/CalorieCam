@@ -200,7 +200,7 @@
     "signUp": "가입하기"
   },
   "onboarding": {
-    "welcome": "CalorieCam에 오신 것을 환영합니다",
+    "welcome": "EatSense에 오신 것을 환영합니다",
     "getStarted": "시작하기",
     "personalInfo": "개인 정보",
     "physicalInfo": "신체 정보",
@@ -217,15 +217,15 @@
   "terms": {
     "title": "이용약관",
     "lastUpdated": "마지막 업데이트",
-    "intro": "CalorieCam을 사용하기 전에 이용약관을 확인하세요.",
+    "intro": "EatSense를 사용하기 전에 이용약관을 확인하세요.",
     "sections": {
       "acceptance": {
         "title": "1. 약관 동의",
-        "content": "CalorieCam을 사용하면 약관에 동의하는 것입니다. 동의하지 않으면 사용하지 마세요."
+        "content": "EatSense를 사용하면 약관에 동의하는 것입니다. 동의하지 않으면 사용하지 마세요."
       },
       "description": {
         "title": "2. 서비스 설명",
-        "content": "CalorieCam은 영양 추적, 식품 분석 및 맞춤형 추천 도구를 제공합니다."
+        "content": "EatSense는 영양 추적, 식품 분석 및 맞춤형 추천 도구를 제공합니다."
       },
       "registration": {
         "title": "3. 등록 및 계정",
@@ -241,11 +241,11 @@
       },
       "intellectual": {
         "title": "6. 지적 재산",
-        "content": "CalorieCam의 콘텐츠와 기능은 보호받는 자산입니다."
+        "content": "EatSense의 콘텐츠와 기능은 보호받는 자산입니다."
       },
       "limitation": {
         "title": "7. 책임 제한",
-        "content": "CalorieCam은 보증 없이 제공되며, 사용으로 인한 손해에 대해 책임지지 않습니다."
+        "content": "EatSense는 보증 없이 제공되며, 사용으로 인한 손해에 대해 책임지지 않습니다."
       },
       "changes": {
         "title": "8. 약관 변경",
@@ -253,14 +253,14 @@
       },
       "contact": {
         "title": "9. 문의",
-        "content": "문의: legal@caloriecam.com"
+        "content": "문의: legal@eatsense.ch"
       }
     }
   },
   "privacy": {
     "title": "개인정보 처리방침",
     "lastUpdated": "마지막 업데이트",
-    "intro": "CalorieCam은 개인정보를 소중히 다룹니다. 본 방침은 수집과 이용, 보호 방법을 설명합니다.",
+    "intro": "EatSense는 개인정보를 소중히 다룹니다. 본 방침은 수집과 이용, 보호 방법을 설명합니다.",
     "sections": {
       "collection": {
         "title": "1. 정보 수집",
@@ -288,7 +288,7 @@
       },
       "children": {
         "title": "7. 어린이",
-        "content": "CalorieCam은 13세 미만 어린이를 대상으로 하지 않습니다."
+        "content": "EatSense는 13세 미만 어린이를 대상으로 하지 않습니다."
       },
       "changes": {
         "title": "8. 방침 변경",
@@ -296,7 +296,7 @@
       },
       "contact": {
         "title": "9. 문의",
-        "content": "개인정보 문의: privacy@caloriecam.com"
+        "content": "개인정보 문의: privacy@eatsense.ch"
       }
     }
   }

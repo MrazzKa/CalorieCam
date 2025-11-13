@@ -1,11 +1,16 @@
-import { IsOptional, IsString, IsNumber, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEnum, IsBoolean, IsObject } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
-  @ApiProperty({ example: 'John Doe', required: false })
+  @ApiProperty({ example: 'John', required: false })
   @IsOptional()
   @IsString()
-  name?: string;
+  firstName?: string;
+
+  @ApiProperty({ example: 'Doe', required: false })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
 
   @ApiProperty({ example: 25, required: false })
   @IsOptional()
@@ -22,18 +27,38 @@ export class UpdateProfileDto {
   @IsNumber()
   height?: number;
 
-  @ApiProperty({ example: 'MALE', required: false })
+  @ApiProperty({ example: 'male', required: false, enum: ['male', 'female', 'other'] })
   @IsOptional()
-  @IsEnum(['MALE', 'FEMALE', 'OTHER'])
+  @IsEnum(['male', 'female', 'other'])
   gender?: string;
 
-  @ApiProperty({ example: 'MODERATE', required: false })
+  @ApiProperty({ example: 'moderately_active', required: false, enum: ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active'] })
   @IsOptional()
-  @IsEnum(['SEDENTARY', 'LIGHT', 'MODERATE', 'ACTIVE', 'VERY_ACTIVE'])
+  @IsEnum(['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active'])
   activityLevel?: string;
 
-  @ApiProperty({ example: 'WEIGHT_LOSS', required: false })
+  @ApiProperty({ example: 'lose_weight', required: false, enum: ['lose_weight', 'maintain_weight', 'gain_weight'] })
   @IsOptional()
-  @IsEnum(['WEIGHT_LOSS', 'WEIGHT_GAIN', 'MAINTENANCE'])
+  @IsEnum(['lose_weight', 'maintain_weight', 'gain_weight'])
   goal?: string;
+
+  @ApiProperty({ example: 65, required: false })
+  @IsOptional()
+  @IsNumber()
+  targetWeight?: number;
+
+  @ApiProperty({ example: 2000, required: false })
+  @IsOptional()
+  @IsNumber()
+  dailyCalories?: number;
+
+  @ApiProperty({ example: { dietaryPreferences: ['vegetarian'], allergies: ['nuts'] }, required: false })
+  @IsOptional()
+  @IsObject()
+  preferences?: any;
+
+  @ApiProperty({ example: true, required: false })
+  @IsOptional()
+  @IsBoolean()
+  isOnboardingCompleted?: boolean;
 }

@@ -11,7 +11,7 @@ app.use(express.json());
 let userProfile = {
   firstName: 'Demo',
   lastName: 'User',
-  email: 'demo@caloriecam.com',
+  email: 'demo@eatsense.ch',
   height: 170,
   weight: 70,
   age: 25,

@@ -1,24 +1,26 @@
 {
-  "cli": { "version": ">= 13.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 6.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "production": {
       "distribution": "store",
       "credentialsSource": "local",
-      "ios": { "image": "macos-sequoia-15.3-xcode-16.2", "resourceClass": "m-medium" },
+      "ios": {
+        "image": "macos-14-xcode-16.2",
+        "resourceClass": "m-medium"
+      },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://caloriecam-production.up.railway.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.eatsense.app"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6755033261",
-        "appleTeamId": "73T7PB4F99",
-        "ascApiKeyPath": ".eas/AuthKey_59Z95427L7.p8",
-        "ascApiKeyIssuerId": "08095b2a-4f37-4237-bc99-933b80aa2869",
-        "ascApiKeyId": "59Z95427L7"
+        "ascAppId": "6755033261"
       }
     }
   }

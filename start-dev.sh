@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting CalorieCam Development Environment..."
+echo "🚀 Starting EatSense Development Environment..."
 
 # Check if .env exists
 if [ ! -f .env ]; then

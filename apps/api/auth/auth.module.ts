@@ -18,7 +18,7 @@ import { MailerModule } from '../mailer/mailer.module';
     MailerModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '45m' },
+      signOptions: { expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME || '45m' },
     }),
   ],
   controllers: [AuthController],

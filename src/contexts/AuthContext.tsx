@@ -41,8 +41,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (typeof ApiService.logout === 'function') {
         await ApiService.logout();
       }
+      // Clear tokens from storage
+      await ApiService.setToken(null, null);
     } catch (error) {
       // ignore logout errors – we just want to clear local state
+      console.warn('[AuthContext] Logout error (ignored):', error);
     } finally {
       setUser(null);
     }

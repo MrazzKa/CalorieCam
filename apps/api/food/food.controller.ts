@@ -9,8 +9,8 @@ import { AnalyzeImageDto, AnalyzeTextDto } from './dto';
 
 @ApiTags('Food Analysis')
 @Controller('food')
-// @UseGuards(JwtAuthGuard, DailyLimitGuard) // Temporarily disabled for testing
-// @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, DailyLimitGuard)
+@ApiBearerAuth()
 export class FoodController {
   constructor(private readonly foodService: FoodService) {}
 
@@ -23,7 +23,7 @@ export class FoodController {
       },
     }),
   )
-  @DailyLimit({ limit: 5, resource: 'food' })
+  @DailyLimit({ resource: 'food' }) // Uses FREE_DAILY_ANALYSES or PRO_DAILY_ANALYSES from env
   @ApiOperation({ summary: 'Analyze food image' })
   @ApiResponse({ status: 200, description: 'Analysis completed successfully' })
   @ApiConsumes('multipart/form-data')
@@ -34,14 +34,10 @@ export class FoodController {
     if (!file) {
       throw new BadRequestException('No image file provided');
     }
-    console.log('[FoodController] File received:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      bufferLength: file.buffer?.length || 0,
-      isBuffer: Buffer.isBuffer(file.buffer),
-    });
-    const userId = req.user?.id || 'test-user'; // Use test-user if no auth
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
     return this.foodService.analyzeImage(file, userId);
   }
 
@@ -52,7 +48,10 @@ export class FoodController {
     @Body() analyzeTextDto: AnalyzeTextDto,
     @Request() req: any,
   ) {
-    const userId = req.user?.id || 'test-user'; // Use test-user if no auth
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
     return this.foodService.analyzeText(analyzeTextDto.description, userId);
   }
 
@@ -63,7 +62,10 @@ export class FoodController {
     @Param('analysisId') analysisId: string,
     @Request() req: any,
   ) {
-    const userId = req.user?.id || 'test-user'; // Use test-user if no auth
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
     return this.foodService.getAnalysisStatus(analysisId, userId);
   }
 
@@ -74,7 +76,10 @@ export class FoodController {
     @Param('analysisId') analysisId: string,
     @Request() req: any,
   ) {
-    const userId = req.user?.id || 'test-user'; // Use test-user if no auth
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
     return this.foodService.getAnalysisResult(analysisId, userId);
   }
 }

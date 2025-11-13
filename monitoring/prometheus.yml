@@ -1,4 +1,4 @@
-# CalorieCam Prometheus Configuration
+# EatSense Prometheus Configuration
 
 global:
   scrape_interval: 15s
@@ -22,8 +22,8 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # CalorieCam API
-  - job_name: 'caloriecam-api'
+  # EatSense API
+  - job_name: 'eatsense-api'
     metrics_path: '/metrics'
     static_configs:
       - targets: ['api:3000']

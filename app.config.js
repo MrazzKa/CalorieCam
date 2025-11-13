@@ -1,20 +1,29 @@
 export default {
   expo: {
-    name: "CalorieCam",
-    slug: "caloriecam",
+    name: "EatSense",
+    slug: "eatsense",
     owner: "eatsense",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    // Use Logo.jpeg for app icon (Expo will auto-generate required sizes)
+    icon: "./assets/logo/Logo.jpeg",
     userInterfaceStyle: "light",
 
     extra: {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
-      environment: process.env.EXPO_PUBLIC_ENV
+      environment: process.env.EXPO_PUBLIC_ENV,
+      // Google OAuth Client IDs (separate for iOS/Android/Web)
+      googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID, // Legacy fallback
+      googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      eas: {
+        projectId: "23f73ee7-a478-4c3d-bdf9-78f6cec090a8"
+      }
     },
 
     splash: { image: "./assets/splash.png", resizeMode: "contain", backgroundColor: "#ffffff" },
-    scheme: "caloriecam",
+    scheme: "eatsense",
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",      // <-- ВАЖНО: именно такой
@@ -22,35 +31,48 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription:
-          "CalorieCam needs access to your camera to take photos of food for nutrition analysis.",
+          "EatSense needs access to your camera to take photos of food for nutrition analysis.",
         NSPhotoLibraryUsageDescription:
-          "CalorieCam needs access to your photo library to select food photos for nutrition analysis.",
+          "EatSense needs access to your photo library to select food photos for nutrition analysis.",
         NSPhotoLibraryAddUsageDescription:
-          "CalorieCam needs access to save analyzed food photos to your library.",
+          "EatSense needs access to save analyzed food photos to your library.",
         NSLocationWhenInUseUsageDescription:
-          "CalorieCam may use your location to provide location-based nutrition recommendations (optional).",
+          "EatSense may use your location to provide location-based nutrition recommendations (optional).",
         NSHealthShareUsageDescription:
-          "CalorieCam can integrate with HealthKit to sync nutrition data (optional).",
+          "EatSense can integrate with HealthKit to sync nutrition data (optional).",
         NSHealthUpdateUsageDescription:
-          "CalorieCam can update HealthKit with your nutrition data (optional)."
+          "EatSense can update HealthKit with your nutrition data (optional)."
       },
-      associatedDomains: ["applinks:caloriecam.app", "applinks:*.caloriecam.app"]
+      associatedDomains: ["applinks:eatsense.app", "applinks:*.eatsense.app"]
     },
 
     android: {
-      package: "app.eatsense.caloriecam",
+      package: "ch.eatsense.app",
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
       permissions: ["CAMERA","READ_MEDIA_IMAGES","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","POST_NOTIFICATIONS"],
       intentFilters: [{
         action: "VIEW",
         autoVerify: true,
-        data: [{ scheme: "https", host: "caloriecam.app", pathPrefix: "/v1/auth/magic/consume" }, { scheme: "caloriecam" }],
+        data: [{ scheme: "https", host: "eatsense.app", pathPrefix: "/v1/auth/magic/consume" }, { scheme: "eatsense" }],
         category: ["BROWSABLE","DEFAULT"]
       }]
     },
 
     web: { favicon: "./assets/favicon.png" },
-    notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "CalorieCam" },
-    plugins: ["expo-camera","expo-image-picker","expo-media-library","expo-localization","expo-notifications","expo-asset"]
+    notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "EatSense" },
+    plugins: [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-media-library",
+      "expo-localization",
+      "expo-notifications",
+      "expo-asset",
+      [
+        "expo-apple-authentication",
+        {
+          "appleTeamId": "73T7PB4F99"
+        }
+      ]
+    ]
   }
 };

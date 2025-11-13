@@ -21,7 +21,7 @@ interface CacheEntry<T> {
 @Injectable()
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
-  private readonly prefix = 'caloriecam';
+  private readonly prefix = 'eatsense';
 
   private readonly defaultTtl = parseInt(process.env.CACHE_DEFAULT_TTL_SEC || '900', 10);
   private readonly usdaTtl = parseInt(process.env.USDA_CACHE_TTL_SEC || '259200', 10);

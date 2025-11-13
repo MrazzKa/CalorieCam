@@ -47,7 +47,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </ImageBackground>
       ) : (
         <View style={[styles.coverPlaceholder, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.coverPlaceholderText, { color: colors.textTertiary }]}>CalorieCam</Text>
+          <Text style={[styles.coverPlaceholderText, { color: colors.textTertiary }]}>EatSense</Text>
         </View>
       )}
 

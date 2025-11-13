@@ -5,7 +5,7 @@ import { RedisService } from '../redis/redis.service';
 export const DAILY_LIMIT_KEY = 'dailyLimit';
 
 export interface DailyLimitOptions {
-  limit: number;
+  limit?: number; // Optional: if not provided, uses FREE_DAILY_ANALYSES or PRO_DAILY_ANALYSES from env
   resource: 'food' | 'chat';
 }
 
@@ -33,9 +33,26 @@ export class DailyLimitGuard implements CanActivate {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
 
+    // Check if limits are disabled (for admin/testing)
+    const disableLimits = process.env.DISABLE_LIMITS === 'true';
+    if (disableLimits) {
+      return true;
+    }
+
     // Check user subscription (free vs paid)
-    // For now, assume all users are free (5 photos/day, 10 chats/day)
-    // TODO: Check user subscription from database
+    // For now, assume all users are free
+    // TODO: Check user subscription from database when subscription model is added
+    const isFreeUser = true; // TODO: Get from user profile/subscription
+    
+    // Get limits from environment variables
+    const freeDailyAnalyses = parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10);
+    const proDailyAnalyses = parseInt(process.env.PRO_DAILY_ANALYSES || '25', 10);
+    
+    // Use appropriate limit based on subscription
+    const userLimit = isFreeUser ? freeDailyAnalyses : proDailyAnalyses;
+    
+    // Override with explicit limit from decorator if provided
+    const effectiveLimit = options.limit || (options.resource === 'food' ? userLimit : 10);
     
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const key = `daily:${options.resource}:${userId}:${today}`;
@@ -46,14 +63,14 @@ export class DailyLimitGuard implements CanActivate {
 
     const resetTime = getResetTime();
 
-    if (currentCount >= options.limit) {
+    if (currentCount >= effectiveLimit) {
       const secondsUntilReset = Math.floor((resetTime.getTime() - Date.now()) / 1000);
 
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: `Daily limit reached. You have used ${currentCount} of ${options.limit} ${options.resource === 'food' ? 'photo analyses' : 'chat requests'} today. Limit resets at midnight.`,
-          limit: options.limit,
+          message: `Daily limit reached. You have used ${currentCount} of ${effectiveLimit} ${options.resource === 'food' ? 'photo analyses' : 'chat requests'} today. Limit resets at midnight.`,
+          limit: effectiveLimit,
           used: currentCount,
           remaining: 0,
           resetAt: resetTime.toISOString(),

@@ -18,7 +18,7 @@ This document captures the minimal steps required to ship the mobile client to T
 
 ## 2. EAS Project Config
 
-- Check `app.config.js` for bundle identifiers (`com.caloriecam.app`).
+- Check `app.config.js` for bundle identifiers (`ch.eatsense.app`).
 - Update `process.env.EAS_PROJECT_ID` (or hard-code the value) so `extra.eas.projectId` resolves correctly.
 - `eas.json` defines the build profiles:
   - `preview` – internal distribution (used for TestFlight preview)
@@ -39,7 +39,7 @@ eas build -p ios --profile production
 
 Important flags:
 
-- `EXPO_PUBLIC_API_BASE_URL` must point to the Railway deployment (e.g. `https://api.caloriecam.app`).
+- `EXPO_PUBLIC_API_BASE_URL` must point to the Railway deployment (e.g. `https://api.eatsense.app`).
 - Set `EXPO_PUBLIC_ENV=production` for production builds (`preview` can keep `staging`).
 
 ## 4. Submit to TestFlight

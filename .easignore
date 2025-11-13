@@ -1,10 +1,20 @@
 apps/api
 **/*.mp4
 **/*.mov
+**/*.mkv
 **/*.zip
 **/*.psd
+**/*.ai
+**/*.sketch
 **/*.tgz
+**/*.7z
+**/*.rar
 **/backups/**
 **/data/**
 **/.github/**
+node_modules/.cache
+**/*.log
+**/*.xcarchive
+**/*.xcworkspace
+**/Pods
 

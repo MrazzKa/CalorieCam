@@ -20,6 +20,8 @@ import {
   RefreshTokenDto,
   RequestOtpDto,
   RequestMagicLinkDto,
+  AppleSignInDto,
+  GoogleSignInDto,
 } from './dto';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -186,6 +188,14 @@ export class AuthService {
     const { refreshToken } = refreshTokenDto;
 
     try {
+      // Check if token is blacklisted in Redis
+      const blacklistKey = `${process.env.REDIS_BLACKLIST_PREFIX || 'auth:refresh:blacklist:'}${refreshToken}`;
+      const isBlacklisted = await this.redisService.exists(blacklistKey);
+      
+      if (isBlacklisted) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
       const payload = this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
       });
@@ -196,39 +206,182 @@ export class AuthService {
       });
 
       if (!tokenRecord || tokenRecord.revoked) {
+        // Add to blacklist if token was revoked
+        if (tokenRecord?.revoked) {
+          const ttl = Math.max(0, Math.floor((tokenRecord.expiresAt.getTime() - Date.now()) / 1000));
+          if (ttl > 0) {
+            await this.redisService.set(blacklistKey, '1', ttl);
+          }
+        }
         throw new UnauthorizedException('Invalid refresh token');
       }
 
+      // Generate new tokens (rotation)
       const tokens = await this.generateTokens(tokenRecord.user.id, tokenRecord.user.email);
 
+      // Revoke old token and add to blacklist
       await this.prisma.refreshToken.update({
         where: { id: tokenRecord.id },
         data: { revoked: true },
       });
+
+      // Add old token to Redis blacklist until it expires
+      const oldTokenTtl = Math.max(0, Math.floor((tokenRecord.expiresAt.getTime() - Date.now()) / 1000));
+      if (oldTokenTtl > 0) {
+        await this.redisService.set(blacklistKey, '1', oldTokenTtl);
+      }
+
+      this.logger.log(`[AuthService] Token refreshed for user ${this.maskEmail(tokenRecord.user.email)}`);
 
       return {
         message: 'Token refreshed successfully',
         ...tokens,
       };
     } catch (error) {
+      this.logger.warn(`[AuthService] Refresh token verification failed: ${error.message}`);
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
   async logout(userId: string) {
+    // Get all active refresh tokens for the user
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: { userId, revoked: false },
+    });
+
+    // Add all active tokens to Redis blacklist
+    const blacklistPrefix = process.env.REDIS_BLACKLIST_PREFIX || 'auth:refresh:blacklist:';
+    for (const token of refreshTokens) {
+      const blacklistKey = `${blacklistPrefix}${token.token}`;
+      const ttl = Math.max(0, Math.floor((token.expiresAt.getTime() - Date.now()) / 1000));
+      if (ttl > 0) {
+        await this.redisService.set(blacklistKey, '1', ttl);
+      }
+    }
+
+    // Revoke all refresh tokens in database
     await this.prisma.refreshToken.updateMany({
       where: { userId, revoked: false },
       data: { revoked: true },
     });
 
+    this.logger.log(`[AuthService] User ${userId} logged out, ${refreshTokens.length} tokens revoked`);
+
     return { message: 'Logout successful' };
+  }
+
+  async signInWithApple(appleSignInDto: AppleSignInDto) {
+    try {
+      // Verify Apple identity token (simplified - in production, verify with Apple's public keys)
+      // For now, we'll trust the token from the client and extract email/user info
+      const email = appleSignInDto.email || appleSignInDto.user;
+      const normalizedEmail = this.normalizeEmail(email);
+
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        throw new BadRequestException('Invalid email from Apple Sign In');
+      }
+
+      // Find or create user
+      const user = await this.findOrCreateUser(normalizedEmail);
+
+      // Update or create user profile with name if provided
+      if (appleSignInDto.fullName) {
+        const firstName = appleSignInDto.fullName.givenName || '';
+        const lastName = appleSignInDto.fullName.familyName || '';
+        if (firstName || lastName) {
+          await this.prisma.userProfile.upsert({
+            where: { userId: user.id },
+            update: {
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            },
+            create: {
+              userId: user.id,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            },
+          });
+        }
+      }
+
+      const tokens = await this.generateTokens(user.id, user.email);
+
+      this.logger.log(`[AuthService] Apple Sign In successful for ${this.maskEmail(normalizedEmail)}`);
+
+      return {
+        message: 'Signed in successfully with Apple.',
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+        ...tokens,
+      };
+    } catch (error) {
+      this.logger.error(`[AuthService] Apple Sign In failed:`, error);
+      throw new UnauthorizedException('Apple Sign In failed. Please try again.');
+    }
+  }
+
+  async signInWithGoogle(googleSignInDto: GoogleSignInDto) {
+    try {
+      const normalizedEmail = this.normalizeEmail(googleSignInDto.email);
+
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        throw new BadRequestException('Invalid email from Google Sign In');
+      }
+
+      // Verify Google access token by fetching user info (already done on client, but we can verify)
+      // For production, verify the idToken signature with Google's public keys
+      // For now, we trust the email provided
+
+      // Find or create user
+      const user = await this.findOrCreateUser(normalizedEmail);
+
+      // Update or create user profile with name if provided
+      if (googleSignInDto.name) {
+        const nameParts = googleSignInDto.name.split(' ') || [];
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        if (firstName || lastName) {
+          await this.prisma.userProfile.upsert({
+            where: { userId: user.id },
+            update: {
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            },
+            create: {
+              userId: user.id,
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+            },
+          });
+        }
+      }
+
+      const tokens = await this.generateTokens(user.id, user.email);
+
+      this.logger.log(`[AuthService] Google Sign In successful for ${this.maskEmail(normalizedEmail)}`);
+
+      return {
+        message: 'Signed in successfully with Google.',
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+        ...tokens,
+      };
+    } catch (error) {
+      this.logger.error(`[AuthService] Google Sign In failed:`, error);
+      throw new UnauthorizedException('Google Sign In failed. Please try again.');
+    }
   }
 
   private async generateTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '15m',
+      expiresIn: '45m', // 30-60 minutes as requested, using 45m as middle ground
     });
 
     const refreshToken = this.jwtService.sign(payload, {

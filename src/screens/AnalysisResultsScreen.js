@@ -311,7 +311,7 @@ export default function AnalysisResultsScreen() {
     try {
       await Share.share({
         message: `I just analyzed my meal: ${analysisResult.dishName}! ${analysisResult.totalCalories} calories.`,
-        title: 'CalorieCam Analysis',
+        title: 'EatSense Analysis',
       });
     } catch (error) {
       console.error('Error sharing:', error);

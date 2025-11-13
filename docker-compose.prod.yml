@@ -4,10 +4,10 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: caloriecam-postgres
+    container_name: eatsense-postgres
     environment:
-      POSTGRES_DB: caloriecam
-      POSTGRES_USER: ${DATABASE_USER:-caloriecam_user}
+      POSTGRES_DB: eatsense
+      POSTGRES_USER: ${DATABASE_USER:-eatsense_user}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-secure_password_change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -15,10 +15,10 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - caloriecam-network
+      - eatsense-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-caloriecam_user} -d caloriecam"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-eatsense_user} -d eatsense"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,14 +26,14 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: caloriecam-redis
+    container_name: eatsense-redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password}
     volumes:
       - redis_data:/data
     ports:
       - "6379:6379"
     networks:
-      - caloriecam-network
+      - eatsense-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -46,11 +46,11 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile.prod
-    container_name: caloriecam-api
+    container_name: eatsense-api
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${DATABASE_USER:-caloriecam_user}:${DATABASE_PASSWORD:-secure_password_change_me}@postgres:5432/caloriecam
+      DATABASE_URL: postgresql://${DATABASE_USER:-eatsense_user}:${DATABASE_PASSWORD:-secure_password_change_me}@postgres:5432/eatsense
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password}
@@ -58,15 +58,15 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-jwt_refresh_super_secret_key_change_me}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       USDA_API_KEY: ${USDA_API_KEY}
-      API_BASE_URL: ${API_BASE_URL:-https://api.caloriecam.com}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://caloriecam.com,https://www.caloriecam.com}
+      API_BASE_URL: ${API_BASE_URL:-https://api.eatsense.app}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://eatsense.app,https://www.eatsense.app}
     volumes:
       - api_uploads:/app/uploads
       - api_logs:/app/logs
     ports:
       - "3000:3000"
     networks:
-      - caloriecam-network
+      - eatsense-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +82,7 @@ services:
   # Nginx Reverse Proxy with SSL
   nginx:
     image: nginx:alpine
-    container_name: caloriecam-nginx
+    container_name: eatsense-nginx
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
@@ -92,7 +92,7 @@ services:
       - "80:80"
       - "443:443"
     networks:
-      - caloriecam-network
+      - eatsense-network
     depends_on:
       - api
     restart: unless-stopped
@@ -105,7 +105,7 @@ services:
   # Monitoring - Prometheus
   prometheus:
     image: prom/prometheus:latest
-    container_name: caloriecam-prometheus
+    container_name: eatsense-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -118,13 +118,13 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - caloriecam-network
+      - eatsense-network
     restart: unless-stopped
 
   # Monitoring - Grafana
   grafana:
     image: grafana/grafana:latest
-    container_name: caloriecam-grafana
+    container_name: eatsense-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin_password_change_me}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -134,7 +134,7 @@ services:
     ports:
       - "3001:3000"
     networks:
-      - caloriecam-network
+      - eatsense-network
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -142,7 +142,7 @@ services:
   # Log Management - Loki
   loki:
     image: grafana/loki:latest
-    container_name: caloriecam-loki
+    container_name: eatsense-loki
     ports:
       - "3100:3100"
     volumes:
@@ -150,20 +150,20 @@ services:
       - ./monitoring/loki.yml:/etc/loki/local-config.yaml:ro
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - caloriecam-network
+      - eatsense-network
     restart: unless-stopped
 
   # Log Forwarder - Promtail
   promtail:
     image: grafana/promtail:latest
-    container_name: caloriecam-promtail
+    container_name: eatsense-promtail
     volumes:
       - api_logs:/var/log/api:ro
       - ./nginx/logs:/var/log/nginx:ro
       - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - caloriecam-network
+      - eatsense-network
     depends_on:
       - loki
     restart: unless-stopped
@@ -171,7 +171,7 @@ services:
   # Health Monitor & Alerting
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: caloriecam-alertmanager
+    container_name: eatsense-alertmanager
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -181,11 +181,11 @@ services:
     ports:
       - "9093:9093"
     networks:
-      - caloriecam-network
+      - eatsense-network
     restart: unless-stopped
 
 networks:
-  caloriecam-network:
+  eatsense-network:
     driver: bridge
 
 volumes:

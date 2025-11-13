@@ -11,13 +11,13 @@ module.exports = {
   apps: {
     'ios.debug': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/CalorieCam.app',
-      build: 'xcodebuild -workspace ios/CalorieCam.xcworkspace -scheme CalorieCam -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build'
+      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/EatSense.app',
+      build: 'xcodebuild -workspace ios/EatSense.xcworkspace -scheme EatSense -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build'
     },
     'ios.release': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/CalorieCam.app',
-      build: 'xcodebuild -workspace ios/CalorieCam.xcworkspace -scheme CalorieCam -configuration Release -sdk iphonesimulator -derivedDataPath ios/build'
+      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/EatSense.app',
+      build: 'xcodebuild -workspace ios/EatSense.xcworkspace -scheme EatSense -configuration Release -sdk iphonesimulator -derivedDataPath ios/build'
     },
     'android.debug': {
       type: 'android.apk',

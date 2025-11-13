@@ -33,7 +33,7 @@ export const getAdminUsers = async (): Promise<AdminUser[]> => {
   return [
     {
       id: '1',
-      email: 'admin@caloriecam.com',
+      email: 'admin@eatsense.ch',
       role: 'admin',
       createdAt: new Date('2024-01-01'),
       lastLoginAt: new Date(),

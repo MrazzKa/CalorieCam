@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🛑 Stopping CalorieCam Development Environment..."
+echo "🛑 Stopping EatSense Development Environment..."
 
 # Kill all Node.js processes
 pkill -f "node.*expo"

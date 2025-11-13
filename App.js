@@ -15,6 +15,7 @@ import { useTheme } from './src/contexts/ThemeContext';
 import { useI18n } from './app/i18n/hooks';
 import { I18nProvider } from './app/i18n/provider';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+import { useAuth } from './src/contexts/AuthContext';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
@@ -131,11 +132,12 @@ function MainTabs() {
   );
 }
 
-export default function App() {
+function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const { expoPushToken } = usePushNotifications();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (expoPushToken && isAuthenticated) {
@@ -151,7 +153,7 @@ export default function App() {
   useEffect(() => {
     // Log configuration on startup
     console.log('========================================');
-    console.log('[App] Starting CalorieCam App');
+    console.log('[App] Starting EatSense App');
     console.log('[App] API_BASE_URL:', API_BASE_URL);
     console.log('[App] process.env.EXPO_PUBLIC_API_BASE_URL:', process.env.EXPO_PUBLIC_API_BASE_URL);
     console.log('[App] DEV_TOKEN present:', !!DEV_TOKEN);
@@ -273,56 +275,68 @@ export default function App() {
     };
   }, []);
 
+  // Sync authentication state with AuthContext
+  useEffect(() => {
+    if (user === null && isAuthenticated) {
+      // User was deleted or signed out via AuthContext, update state
+      setIsAuthenticated(false);
+      setHasCompletedOnboarding(false);
+    } else if (user !== null && ApiService.token && !isAuthenticated) {
+      // User authenticated via AuthContext, sync state
+      setIsAuthenticated(true);
+    }
+  }, [user, isAuthenticated]);
+
   if (isLoading) {
     return (
-      <I18nProvider fallback={null}>
-        <AppWrapper>
-          <SafeAreaProvider>
-            <SplashLogo />
-          </SafeAreaProvider>
-        </AppWrapper>
-      </I18nProvider>
+      <SafeAreaProvider>
+        <SplashLogo />
+      </SafeAreaProvider>
     );
   }
 
   // Show AuthScreen if not authenticated
   const initialRouteName = hasCompletedOnboarding ? 'MainTabs' : 'Onboarding';
 
-  const content = !isAuthenticated ? (
-    <AppWrapper>
+  if (!isAuthenticated) {
+    return (
       <SafeAreaProvider>
         <AuthScreen onAuthSuccess={handleAuthSuccess} />
       </SafeAreaProvider>
-    </AppWrapper>
-  ) : (
-    <AppWrapper>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName={initialRouteName}
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="Camera" component={CameraScreen} />
-            <Stack.Screen name="Gallery" component={GalleryScreen} />
-            <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
-            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-            <Stack.Screen name="Articles" component={ArticlesScreen} />
-            <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </AppWrapper>
-  );
+    );
+  }
 
   return (
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName={initialRouteName}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Camera" component={CameraScreen} />
+          <Stack.Screen name="Gallery" component={GalleryScreen} />
+          <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+          <Stack.Screen name="Articles" component={ArticlesScreen} />
+          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
     <I18nProvider fallback={null}>
-      {content}
+      <AppWrapper>
+        <AppContent />
+      </AppWrapper>
     </I18nProvider>
   );
 }

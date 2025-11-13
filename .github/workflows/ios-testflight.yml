@@ -8,9 +8,9 @@ jobs:
     runs-on: macos-14
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-      APP_NAME: ${{ vars.APP_NAME }}
-      SCHEME: ${{ vars.SCHEME }}
-      BUNDLE_ID: ${{ vars.BUNDLE_ID }}
+      APP_NAME: ${{ vars.APP_NAME || 'EatSense' }}
+      SCHEME: ${{ vars.SCHEME || 'EatSense' }}
+      BUNDLE_ID: ${{ vars.BUNDLE_ID || 'ch.eatsense.app' }}
       CI: "1"
 
     steps:

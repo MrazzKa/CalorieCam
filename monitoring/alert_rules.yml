@@ -1,7 +1,7 @@
-# CalorieCam Alert Rules
+# EatSense Alert Rules
 
 groups:
-  - name: caloriecam.rules
+  - name: eatsense.rules
     rules:
       # Service availability alerts
       - alert: ServiceDown

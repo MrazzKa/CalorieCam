@@ -9,12 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+import Constants from 'expo-constants';
 import ApiService from '../services/apiService';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
+
+// Complete web browser auth session for Google
+WebBrowser.maybeCompleteAuthSession();
 
 function maskEmail(email) {
   if (!email) {
@@ -35,7 +44,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   const { tokens, colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(tokens, colors, isDark), [tokens, colors, isDark]);
 
-  const [step, setStep] = useState('email');
+  const [step, setStep] = useState('welcome'); // 'welcome' | 'email' | 'verify'
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,8 +52,16 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [statusMessage, setStatusMessage] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
   const [codeExpiresIn, setCodeExpiresIn] = useState(0);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(false);
 
   const codeInputRef = useRef(null);
+
+  // Check Apple Sign In availability
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      AppleAuthentication.isAvailableAsync().then(setIsAppleAvailable);
+    }
+  }, []);
 
   useEffect(() => {
     if (step !== 'verify' || resendCooldown <= 0) {
@@ -108,6 +125,129 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
 
     return t(fallbackKey);
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsSubmitting(true);
+      resetFeedback();
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (credential.identityToken) {
+        // Send identity token to backend for verification
+        const response = await ApiService.request('/auth/apple', {
+          method: 'POST',
+          body: JSON.stringify({
+            identityToken: credential.identityToken,
+            user: credential.user,
+            email: credential.email,
+            fullName: credential.fullName,
+          }),
+        });
+
+        if (response?.accessToken) {
+          await ApiService.setToken(response.accessToken, response.refreshToken);
+          setStatusMessage(t('auth.messages.signedIn'));
+          if (onAuthSuccess) {
+            onAuthSuccess();
+          }
+        }
+      }
+    } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        // User canceled, do nothing
+        return;
+      }
+      setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Google OAuth configuration with separate Client IDs for iOS/Android/Web
+  const iosClientId = Constants.expoConfig?.extra?.googleIosClientId || process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId || process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const webClientId = Constants.expoConfig?.extra?.googleWebClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    iosClientId,
+    androidClientId,
+    webClientId,
+    scopes: ['openid', 'profile', 'email'],
+    redirectUri: makeRedirectUri({
+      scheme: 'eatsense',
+    }),
+  });
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      handleGoogleSignInSuccess(googleResponse.authentication);
+    } else if (googleResponse?.type === 'error') {
+      setErrorMessage(getErrorMessage({ message: googleResponse.error?.message }, 'auth.errors.verifyFailed'));
+      setIsSubmitting(false);
+    }
+  }, [googleResponse]);
+
+  const handleGoogleSignInSuccess = async (authentication) => {
+    try {
+      if (!authentication?.accessToken) {
+        throw new Error('No access token from Google');
+      }
+
+      // Get user info from Google
+      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${authentication.accessToken}` },
+      });
+      const userInfo = await userInfoResponse.json();
+
+      if (!userInfo.email) {
+        throw new Error('Could not get email from Google profile');
+      }
+
+      // Send to backend for verification
+      const response = await ApiService.signInWithGoogle({
+        accessToken: authentication.accessToken,
+        idToken: authentication.idToken,
+        email: userInfo.email,
+        name: userInfo.name || undefined,
+        picture: userInfo.picture || undefined,
+      });
+
+      if (response?.accessToken) {
+        await ApiService.setToken(response.accessToken, response.refreshToken);
+        setStatusMessage(t('auth.messages.signedIn'));
+        if (onAuthSuccess) {
+          onAuthSuccess();
+        }
+      }
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsSubmitting(true);
+      resetFeedback();
+
+      if (!googleRequest) {
+        throw new Error('Google OAuth not configured');
+      }
+
+      await googlePromptAsync();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
+      setIsSubmitting(false);
+    }
   };
 
   const handleRequestCode = async ({ isResend = false } = {}) => {
@@ -198,8 +338,69 @@ export default function AuthScreen({ onAuthSuccess }) {
     resetFeedback();
   };
 
+  const handleEmailSignIn = () => {
+    setStep('email');
+  };
+
+  // Welcome screen with OAuth options (YAZIO-style)
+  const welcomeStep = (
+    <View style={styles.welcomeContainer}>
+      <View style={styles.logoContainer}>
+        {/* Logo will be loaded from assets/logo/Logo.svg or Logo.png */}
+        <View style={styles.logoPlaceholder}>
+          <Ionicons name="restaurant" size={64} color={colors.primary} />
+        </View>
+      </View>
+
+      <Text style={styles.welcomeTitle}>{t('auth.welcomeTitle')}</Text>
+      <Text style={styles.welcomeSubtitle}>{t('auth.welcomeSubtitle')}</Text>
+
+      <View style={styles.authButtonsContainer}>
+        {Platform.OS === 'ios' && isAppleAvailable && (
+          <TouchableOpacity
+            style={[styles.oauthButton, styles.appleButton, isSubmitting && styles.disabledButton]}
+            onPress={handleAppleSignIn}
+            disabled={isSubmitting}
+          >
+            <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+            <Text style={styles.oauthButtonText}>{t('auth.signInWithApple')}</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.oauthButton, styles.googleButton, isSubmitting && styles.disabledButton]}
+          onPress={handleGoogleSignIn}
+          disabled={!googleRequest || isSubmitting}
+        >
+          <View style={styles.googleIconContainer}>
+            <View style={styles.googleIcon}>
+              <Text style={styles.googleG}>G</Text>
+            </View>
+          </View>
+          <Text style={styles.oauthButtonText}>{t('auth.continueWithGoogle')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.oauthButton, styles.emailButton, isSubmitting && styles.disabledButton]}
+          onPress={handleEmailSignIn}
+          disabled={isSubmitting}
+        >
+          <Ionicons name="mail-outline" size={20} color={colors.textPrimary} />
+          <Text style={[styles.oauthButtonText, styles.emailButtonText]}>{t('auth.signUpWithEmail')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.termsText}>{t('auth.termsAcceptance')}</Text>
+    </View>
+  );
+
   const emailStep = (
     <View style={styles.card}>
+      <TouchableOpacity style={styles.backButton} onPress={() => setStep('welcome')}>
+        <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        <Text style={styles.backButtonText}>Back</Text>
+      </TouchableOpacity>
+
       <View style={styles.iconWrap}>
         <Ionicons name="mail" size={40} color={colors.primary} />
       </View>
@@ -221,13 +422,9 @@ export default function AuthScreen({ onAuthSuccess }) {
         />
       </View>
 
-      {Boolean(errorMessage) && (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      )}
+      {Boolean(errorMessage) && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-      {Boolean(statusMessage) && !errorMessage && (
-        <Text style={styles.successText}>{statusMessage}</Text>
-      )}
+      {Boolean(statusMessage) && !errorMessage && <Text style={styles.successText}>{statusMessage}</Text>}
 
       <TouchableOpacity
         style={[styles.primaryButton, isSubmitting && styles.disabledButton]}
@@ -281,19 +478,11 @@ export default function AuthScreen({ onAuthSuccess }) {
         />
       </View>
 
-      {codeExpiresIn > 0 && (
-        <Text style={styles.helperText}>
-          {t('auth.codeExpiresIn', { seconds: codeExpiresIn })}
-        </Text>
-      )}
+      {codeExpiresIn > 0 && <Text style={styles.helperText}>{t('auth.codeExpiresIn', { seconds: codeExpiresIn })}</Text>}
 
-      {Boolean(errorMessage) && (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      )}
+      {Boolean(errorMessage) && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-      {Boolean(statusMessage) && !errorMessage && (
-        <Text style={styles.successText}>{statusMessage}</Text>
-      )}
+      {Boolean(statusMessage) && !errorMessage && <Text style={styles.successText}>{statusMessage}</Text>}
 
       <TouchableOpacity
         style={[styles.primaryButton, (isSubmitting || code.length !== OTP_LENGTH) && styles.disabledButton]}
@@ -317,9 +506,7 @@ export default function AuthScreen({ onAuthSuccess }) {
       >
         <Ionicons name="refresh" size={18} color={colors.primary} style={styles.buttonIcon} />
         <Text style={styles.secondaryButtonText}>
-          {resendCooldown > 0
-            ? t('auth.resendIn', { seconds: resendCooldown })
-            : t('auth.resendCode')}
+          {resendCooldown > 0 ? t('auth.resendIn', { seconds: resendCooldown }) : t('auth.resendCode')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -327,12 +514,9 @@ export default function AuthScreen({ onAuthSuccess }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {step === 'email' ? emailStep : verifyStep}
+          {step === 'welcome' ? welcomeStep : step === 'email' ? emailStep : verifyStep}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -343,16 +527,112 @@ function createStyles(tokens, colors, isDark) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
     },
     flex: {
       flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: tokens.spacing.xxl,
+      paddingHorizontal: tokens.spacing.xl,
       paddingVertical: tokens.spacing.xxxl,
       justifyContent: 'center',
+    },
+    welcomeContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: tokens.spacing.xxxl,
+    },
+    logoContainer: {
+      marginBottom: tokens.spacing.xxl,
+      alignItems: 'center',
+    },
+    logoPlaceholder: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.primaryTint,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    welcomeTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.lg,
+    },
+    welcomeSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: tokens.spacing.xxxl,
+      paddingHorizontal: tokens.spacing.xl,
+      lineHeight: 22,
+    },
+    authButtonsContainer: {
+      width: '100%',
+      gap: tokens.spacing.md,
+      marginBottom: tokens.spacing.xxl,
+    },
+    oauthButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.lg,
+      borderRadius: tokens.radii.lg,
+      borderWidth: 1,
+      gap: tokens.spacing.sm,
+      minHeight: 52,
+    },
+    appleButton: {
+      backgroundColor: '#000000',
+      borderColor: '#333333',
+    },
+    googleButton: {
+      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+      borderColor: isDark ? colors.borderMuted : '#E0E0E0',
+    },
+    emailButton: {
+      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+      borderColor: isDark ? colors.borderMuted : '#E0E0E0',
+    },
+    oauthButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    emailButtonText: {
+      color: colors.textPrimary,
+    },
+    googleIconContainer: {
+      width: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    googleIcon: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#4285F4',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    googleG: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    termsText: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      textAlign: 'center',
+      paddingHorizontal: tokens.spacing.xl,
+      marginTop: tokens.spacing.lg,
     },
     card: {
       backgroundColor: colors.surface,
@@ -483,4 +763,3 @@ function createStyles(tokens, colors, isDark) {
     },
   });
 }
-

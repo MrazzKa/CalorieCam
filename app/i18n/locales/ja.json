@@ -213,7 +213,7 @@
     "magicLink": "マジックリンクを送信",
     "signIn": "ログイン",
     "signUp": "登録",
-    "welcomeTitle": "CalorieCamへようこそ",
+    "welcomeTitle": "EatSenseへようこそ",
     "welcomeSubtitle": "ログインして栄養を記録し、目標を達成しましょう。",
     "emailLabel": "メールアドレス",
     "signInWithOtp": "メールコードでログイン",
@@ -247,7 +247,7 @@
     }
   },
   "onboarding": {
-    "welcome": "CalorieCamへようこそ",
+    "welcome": "EatSenseへようこそ",
     "getStarted": "始める",
     "personalInfo": "個人情報",
     "physicalInfo": "身体情報",
@@ -264,15 +264,15 @@
   "terms": {
     "title": "利用規約",
     "lastUpdated": "最終更新",
-    "intro": "CalorieCamを使用する前に、これらの利用規約を注意深くお読みください。",
+    "intro": "EatSenseを使用する前に、これらの利用規約を注意深くお読みください。",
     "sections": {
       "acceptance": {
         "title": "1. 規約の受諾",
-        "content": "CalorieCamを使用することで、これらの利用規約に同意したものとみなされます。これらの規約に同意しない場合は、アプリケーションを使用しないでください。"
+        "content": "EatSenseを使用することで、これらの利用規約に同意したものとみなされます。これらの規約に同意しない場合は、アプリケーションを使用しないでください。"
       },
       "description": {
         "title": "2. サービスの説明",
-        "content": "CalorieCamは、人工知能を使用した栄養追跡、食品分析、および個別化された栄養推奨のためのツールを提供します。"
+        "content": "EatSenseは、人工知能を使用した栄養追跡、食品分析、および個別化された栄養推奨のためのツールを提供します。"
       },
       "registration": {
         "title": "3. 登録とアカウント",
@@ -288,11 +288,11 @@
       },
       "intellectual": {
         "title": "6. 知的財産",
-        "content": "CalorieCamのすべてのコンテンツ、機能、機能性は当社の所有物であり、著作権法およびその他の知的財産法によって保護されています。"
+        "content": "EatSenseのすべてのコンテンツ、機能、機能性は当社の所有物であり、著作権法およびその他の知的財産法によって保護されています。"
       },
       "limitation": {
         "title": "7. 責任の制限",
-        "content": "CalorieCamは「現状のまま」保証なしで提供されます。アプリケーションの使用に起因する損害について責任を負いません。"
+        "content": "EatSenseは「現状のまま」保証なしで提供されます。アプリケーションの使用に起因する損害について責任を負いません。"
       },
       "changes": {
         "title": "8. 規約の変更",
@@ -300,14 +300,14 @@
       },
       "contact": {
         "title": "9. お問い合わせ",
-        "content": "これらの利用規約に関する質問については、以下にお問い合わせください：legal@caloriecam.com"
+        "content": "これらの利用規約に関する質問については、以下にお問い合わせください：legal@eatsense.ch"
       }
     }
   },
   "privacy": {
     "title": "プライバシーポリシー",
     "lastUpdated": "最終更新",
-    "intro": "CalorieCamはお客様のプライバシーを大切にしています。このポリシーは、お客様の情報をどのように収集、使用、保護するかを説明しています。",
+    "intro": "EatSenseはお客様のプライバシーを大切にしています。このポリシーは、お客様の情報をどのように収集、使用、保護するかを説明しています。",
     "sections": {
       "collection": {
         "title": "1. 情報の収集",
@@ -335,7 +335,7 @@
       },
       "children": {
         "title": "7. 子どものプライバシー",
-        "content": "CalorieCamは13歳未満のお子様を対象としていません。お子様のデータを意図的に収集せず、保有が判明した場合は速やかに削除します。"
+        "content": "EatSenseは13歳未満のお子様を対象としていません。お子様のデータを意図的に収集せず、保有が判明した場合は速やかに削除します。"
       },
       "rights": {
         "title": "8. お客様の権利",
@@ -347,7 +347,7 @@
       },
       "contact": {
         "title": "10. お問い合わせ",
-        "content": "プライバシーに関するお問い合わせ: privacy@caloriecam.com"
+        "content": "プライバシーに関するお問い合わせ: privacy@eatsense.ch"
       }
     }
   },

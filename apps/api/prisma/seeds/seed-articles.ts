@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+const SOURCE_NAME = 'EatSense Editorial';
 
 const articles = [
   {
@@ -9,7 +10,7 @@ const articles = [
     tags: ['breakfast', 'protein', 'meal-planning'],
     coverUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8',
     coverAlt: 'Healthy breakfast with eggs and avocado toast',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: 'EatSense Editorial',
     readingMinutes: 6,
     contentMd: `
 Breakfast is an opportunity to nourish your body and mind. Adding protein provides lasting satiety, stabilises blood sugar, and supports muscle recovery.
@@ -44,7 +45,7 @@ Breakfast is an opportunity to nourish your body and mind. Adding protein provid
     tags: ['snacks', 'calorie-control', 'weight-loss'],
     coverUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
     coverAlt: 'Fresh fruit and nuts on a table',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Snacks can help you maintain energy and prevent overeating at the next meal. Focus on whole foods that blend fiber, protein, and healthy fats.
@@ -73,7 +74,7 @@ Snacks can help you maintain energy and prevent overeating at the next meal. Foc
     tags: ['hydration', 'wellness', 'productivity'],
     coverUrl: 'https://images.unsplash.com/photo-1502741338009-cac2772e18bc',
     coverAlt: 'Reusable water bottle on a desk',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 4,
     contentMd: `
 Hydration influences focus, digestion, and exercise performance. Adults typically need 30–35 ml of water per kg bodyweight, but activity and environment increase needs.
@@ -95,7 +96,7 @@ Hydration influences focus, digestion, and exercise performance. Adults typicall
     tags: ['portion-control', 'education'],
     coverUrl: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929',
     coverAlt: 'Balanced meal portions on a plate',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 7,
     contentMd: `
 Learning visual cues for portion sizes empowers you to make informed decisions everywhere—restaurants, cafeterias, or home dinners.
@@ -118,7 +119,7 @@ Learning visual cues for portion sizes empowers you to make informed decisions e
     tags: ['plant-based', 'protein', 'nutrition'],
     coverUrl: 'https://images.unsplash.com/photo-1452195100486-9cc805987862',
     coverAlt: 'Assorted legumes and seeds',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 6,
     contentMd: `
 Plant proteins can deliver all essential amino acids when combined smartly.
@@ -147,7 +148,7 @@ Plant proteins can deliver all essential amino acids when combined smartly.
     tags: ['sleep', 'dinner', 'recovery'],
     coverUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
     coverAlt: 'Evening dinner setting',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 What you eat at night matters for sleep quality. Focus on balanced macros, calming nutrients, and appropriate timing.
@@ -173,7 +174,7 @@ What you eat at night matters for sleep quality. Focus on balanced macros, calmi
     tags: ['meal-prep', 'planning', 'productivity'],
     coverUrl: 'https://images.unsplash.com/photo-1484980972926-edee96e0960d',
     coverAlt: 'Meal prep containers on a table',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 8,
     contentMd: `
 Meal prep streamlines nutrition decisions and reduces weekday stress.
@@ -197,7 +198,7 @@ Meal prep streamlines nutrition decisions and reduces weekday stress.
     tags: ['macros', 'education', 'tracking'],
     coverUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
     coverAlt: 'Notebook with diet tracking notes',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 7,
     contentMd: `
 Tracking macros helps align your intake with fitness goals. Start with a daily calorie target, then divide into protein, carb, and fat percentages based on objectives.
@@ -219,7 +220,7 @@ Tracking macros helps align your intake with fitness goals. Start with a daily c
     tags: ['lunch', 'meal-prep', 'work-life'],
     coverUrl: 'https://images.unsplash.com/photo-1432139555190-58524dae6a55',
     coverAlt: 'Lunchbox with balanced meal',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Skip the midday slump with nourishing lunches that travel well and reheat beautifully.
@@ -242,7 +243,7 @@ Skip the midday slump with nourishing lunches that travel well and reheat beauti
     tags: ['endurance', 'training', 'carbohydrates'],
     coverUrl: 'https://images.unsplash.com/photo-1541963463532-d68292c34b19',
     coverAlt: 'Runner tying shoes before workout',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 6,
     contentMd: `
 Endurance athletes rely on carbohydrates as their main fuel. Strategic timing ensures glycogen stores are available when needed most.
@@ -264,7 +265,7 @@ Endurance athletes rely on carbohydrates as their main fuel. Strategic timing en
     tags: ['strength', 'recovery', 'protein'],
     coverUrl: 'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17',
     coverAlt: 'Strength athlete preparing a meal',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Strength sessions create micro-tears that need amino acids and glycogen to rebuild stronger tissue.
@@ -288,7 +289,7 @@ Drink 500–700 ml of fluids post-session and add electrolytes if sweating heavi
     tags: ['gut-health', 'fermented', 'wellness'],
     coverUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314',
     coverAlt: 'Fermented vegetables in jars',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 4,
     contentMd: `
 Balanced gut flora assists digestion, immunity, and mood regulation. Fermented foods deliver probiotics naturally.
@@ -309,7 +310,7 @@ Introduce slowly (1–2 tbsp/day) to avoid bloating. Pair with prebiotic fibers 
     tags: ['mobility', 'office', 'wellness'],
     coverUrl: 'https://images.unsplash.com/photo-1518611012118-f0c5d4782181',
     coverAlt: 'Person stretching at a desk',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 3,
     contentMd: `
 Sedentary days can tighten hips, shoulders, and neck muscles. Reset every 90 minutes with this mini-circuit:
@@ -329,7 +330,7 @@ Combine with hydration and short walks to reduce stiffness and increase focus.
     tags: ['dessert', 'low-sugar', 'recipes'],
     coverUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
     coverAlt: 'Chocolate dessert with berries',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Dessert can fit into a balanced plan when portions and ingredients are considered.
@@ -349,7 +350,7 @@ Add spices (cinnamon, cardamom) to intensify flavour without sugar.
     tags: ['mindful-eating', 'habits'],
     coverUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
     coverAlt: 'Person eating calmly at a table',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 4,
     contentMd: `
 Mindful eating helps you recognise hunger, fullness, and satisfaction, preventing overeating and supporting digestion.
@@ -368,7 +369,7 @@ Practice without judgment. Use a journal to track patterns and triggers.
     tags: ['travel', 'planning', 'resilience'],
     coverUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
     coverAlt: 'Traveler preparing a meal on the go',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 6,
     contentMd: `
 Travel disrupts routines. Plan ahead to maintain energy and avoid defaulting to fast food.
@@ -391,7 +392,7 @@ Travel disrupts routines. Plan ahead to maintain energy and avoid defaulting to 
     tags: ['fiber', 'digestion', 'meal-planning'],
     coverUrl: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6',
     coverAlt: 'Bowl of vegetables and legumes',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 4,
     contentMd: `
 Fiber supports digestion, blood sugar balance, and satiety. Adults need 25–38 g daily, yet most fall short.
@@ -411,7 +412,7 @@ Increase intake gradually and hydrate well to avoid discomfort.
     tags: ['immune-health', 'shopping', 'seasonal'],
     coverUrl: 'https://images.unsplash.com/photo-1484980972926-edee96e0960d',
     coverAlt: 'Fresh produce in a market',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Immune function depends on nutrient sufficiency. Build grocery lists with these staples:
@@ -430,7 +431,7 @@ Aim for colour diversity and include fermented foods for gut support.
     tags: ['meal-prep', 'soups', 'comfort-food'],
     coverUrl: 'https://images.unsplash.com/photo-1447078806655-40579c2520d6',
     coverAlt: 'Bowl of hearty soup',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 6,
     contentMd: `
 Soups deliver hydration, vegetables, and comfort. Batch-cook on weekends and portion for busy days.
@@ -450,7 +451,7 @@ Freeze in single servings. Reheat gently and add fresh herbs before serving.
     tags: ['seafood', 'sustainability', 'omega-3'],
     coverUrl: 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f',
     coverAlt: 'Fresh seafood on ice',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 5,
     contentMd: `
 Seafood provides EPA/DHA omega-3s essential for heart and brain health. Opt for species that are both nutritious and responsibly harvested.
@@ -470,7 +471,7 @@ Check resources like the Monterey Bay Aquarium Seafood Watch for regional guidan
     tags: ['hydration', 'summer', 'sports-nutrition'],
     coverUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211',
     coverAlt: 'Runner hydrating outdoors',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 4,
     contentMd: `
 Heat increases fluid and electrolyte losses. Prepare accordingly to maintain performance and safety.
@@ -494,7 +495,7 @@ Heat increases fluid and electrolyte losses. Prepare accordingly to maintain per
     tags: ['education', 'labels', 'shopping'],
     coverUrl: 'https://images.unsplash.com/photo-1456945926143-7d4aa6e547b6',
     coverAlt: 'Person reading a food label in a store',
-    sourceName: 'CalorieCam Editorial',
+    sourceName: SOURCE_NAME,
     readingMinutes: 7,
     contentMd: `
 Food labels reveal nutrient density and ingredient quality. Knowing how to interpret them empowers smart decisions.

@@ -397,7 +397,7 @@ const OnboardingScreen = ({ navigation }) => {
   const ageAnimation = useRef(new Animated.Value(25)).current;
 
   const steps = [
-    { id: 'welcome', title: 'Welcome to CalorieCam' },
+    { id: 'welcome', title: 'Welcome to EatSense' },
     { id: 'personal', title: 'Personal Information' },
     { id: 'physical', title: 'Physical Stats' },
     { id: 'activity', title: 'Activity Level' },
@@ -581,7 +581,7 @@ const OnboardingScreen = ({ navigation }) => {
         <View style={styles.logoContainer}>
           <Ionicons name="camera" size={80} color={colors.primary} />
         </View>
-        <Text style={styles.welcomeTitle}>Welcome to CalorieCam</Text>
+        <Text style={styles.welcomeTitle}>Welcome to EatSense</Text>
         <Text style={styles.welcomeSubtitle}>
           Your AI-powered nutrition companion. Let's personalize your experience!
         </Text>

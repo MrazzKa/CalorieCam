@@ -13,7 +13,7 @@ export interface SDKResponse<T = any> {
   message?: string;
 }
 
-export class CalorieCamSDK {
+export class EatSenseSDK {
   private config: SDKConfig;
   private apiKey?: string;
 
@@ -137,6 +137,6 @@ export class CalorieCamSDK {
   }
 }
 
-export const createSDK = (config: SDKConfig): CalorieCamSDK => {
-  return new CalorieCamSDK(config);
+export const createSDK = (config: SDKConfig): EatSenseSDK => {
+  return new EatSenseSDK(config);
 };
