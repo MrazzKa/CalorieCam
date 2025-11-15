@@ -11,6 +11,7 @@ import ApiService from './src/services/apiService';
 import { DEV_TOKEN, DEV_REFRESH_TOKEN, API_BASE_URL } from './src/config/env';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useTheme } from './src/contexts/ThemeContext';
 import { useI18n } from './app/i18n/hooks';
 import { I18nProvider } from './app/i18n/provider';
@@ -35,6 +36,7 @@ import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
 import AuthScreen from './src/components/AuthScreen';
 import { AppWrapper } from './src/components/AppWrapper';
 import { SplashLogo } from './src/components/SplashLogo';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -162,54 +164,98 @@ function AppContent() {
     const initializeApp = async () => {
       try {
         // Load tokens from Secure Storage on app start
-        await ApiService.loadTokens();
+        try {
+          await ApiService.loadTokens();
+        } catch (loadError) {
+          console.warn('[App] Error loading tokens, continuing without tokens:', loadError.message);
+        }
         
         // Set dev token if provided (for development ONLY)
         // In production, users will authenticate via OTP/Magic Link
         if (DEV_TOKEN && __DEV__) {
           // Only use DEV_TOKEN in development mode
-          ApiService.setToken(DEV_TOKEN, DEV_REFRESH_TOKEN);
-          console.log('[App] Using DEV_TOKEN for development');
-          setIsAuthenticated(true);
-          
-          // Check if user has completed onboarding
           try {
-            const profile = await ApiService.getUserProfile();
-            setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
-          } catch (error) {
-            console.log('[App] No profile found, onboarding required');
-            setHasCompletedOnboarding(false);
+            ApiService.setToken(DEV_TOKEN, DEV_REFRESH_TOKEN);
+            console.log('[App] Using DEV_TOKEN for development');
+            setIsAuthenticated(true);
+            
+            // Check if user has completed onboarding
+            try {
+              const profilePromise = ApiService.getUserProfile();
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), 10000)
+              );
+              const profile = await Promise.race([profilePromise, timeoutPromise]);
+              setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
+            } catch (error) {
+              console.log('[App] No profile found or API error, onboarding required');
+              console.log('[App] Error:', error.message);
+              setHasCompletedOnboarding(false);
+            }
+          } catch (devTokenError) {
+            console.warn('[App] Error setting dev token:', devTokenError.message);
+            setIsAuthenticated(false);
           }
         } else {
           // Check if we have a token loaded from storage
-          const loadedToken = await AsyncStorage.getItem('auth.token');
-          if (loadedToken) {
-            ApiService.token = loadedToken;
-            // Check if token is valid by making a test request
-            try {
-              const profile = await ApiService.getUserProfile();
-              setIsAuthenticated(true);
-              setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
-            } catch (error) {
-              console.log('[App] Token invalid, authentication required');
+          try {
+            const loadedToken = await AsyncStorage.getItem('auth.token');
+            if (loadedToken) {
+              ApiService.token = loadedToken;
+              // Check if token is valid by making a test request
+              try {
+                // Add timeout to prevent hanging if API is unavailable
+                const profilePromise = ApiService.getUserProfile();
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Request timeout')), 10000)
+                );
+                const profile = await Promise.race([profilePromise, timeoutPromise]);
+                setIsAuthenticated(true);
+                setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
+              } catch (error) {
+                console.log('[App] Token invalid or API unavailable, authentication required');
+                console.log('[App] Error details:', error.message);
+                setIsAuthenticated(false);
+                // Clear invalid token
+                try {
+                  await AsyncStorage.removeItem('auth.token');
+                } catch (e) {
+                  console.warn('[App] Error removing token from AsyncStorage:', e.message);
+                }
+                try {
+                  await SecureStore.deleteItemAsync('auth.refreshToken');
+                } catch (e) {
+                  // Ignore SecureStore errors
+                  console.warn('[App] Error removing refresh token from SecureStore:', e.message);
+                }
+              }
+            } else {
+              console.log('[App] No tokens found, authentication required');
               setIsAuthenticated(false);
-              // Clear invalid token
-              await AsyncStorage.removeItem('auth.token');
             }
-          } else {
-            console.log('[App] No tokens found, authentication required');
+          } catch (storageError) {
+            console.warn('[App] Error reading from storage:', storageError.message);
             setIsAuthenticated(false);
           }
         }
       } catch (error) {
-        console.error('Error initializing app:', error);
+        console.error('[App] Error initializing app:', error);
+        console.error('[App] Error stack:', error.stack);
+        // Don't crash the app - just show auth screen
         setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeApp();
+    // Wrap in try-catch to prevent unhandled promise rejection
+    initializeApp().catch((error) => {
+      console.error('[App] Unhandled error in initializeApp:', error);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    });
   }, []);
 
   const handleAuthSuccess = async () => {
@@ -217,10 +263,16 @@ function AppContent() {
     
     // Check if user has completed onboarding
     try {
-      const profile = await ApiService.getUserProfile();
+      const profilePromise = ApiService.getUserProfile();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+      const profile = await Promise.race([profilePromise, timeoutPromise]);
       setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
     } catch (error) {
       console.log('[App] Error checking onboarding status:', error);
+      console.log('[App] Error details:', error.message);
+      // Default to showing onboarding if we can't check
       setHasCompletedOnboarding(false);
     }
   };
@@ -332,11 +384,38 @@ function AppContent() {
 }
 
 export default function App() {
+  // Add global error handler for React Native
+  useEffect(() => {
+    // React Native global error handler
+    if (global.ErrorUtils) {
+      const originalHandler = global.ErrorUtils.getGlobalHandler();
+      global.ErrorUtils.setGlobalHandler((error, isFatal) => {
+        console.error('[App] Global error handler:', error, 'isFatal:', isFatal);
+        console.error('[App] Error stack:', error.stack);
+        // ErrorBoundary will handle React errors
+        // For fatal errors, we still let them through but log them
+        if (originalHandler) {
+          // Only call original handler for truly fatal errors
+          // For non-fatal, ErrorBoundary will catch them
+          if (isFatal && error.name !== 'Error') {
+            originalHandler(error, isFatal);
+          }
+        }
+      });
+    }
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
   return (
-    <I18nProvider fallback={null}>
-      <AppWrapper>
-        <AppContent />
-      </AppWrapper>
-    </I18nProvider>
+    <ErrorBoundary>
+      <I18nProvider fallback={null}>
+        <AppWrapper>
+          <AppContent />
+        </AppWrapper>
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }

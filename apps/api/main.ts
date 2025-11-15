@@ -46,8 +46,12 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
+  console.log('========================================');
   console.log(`🚀 EatSense API is running on port ${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📡 API Base URL: ${process.env.API_BASE_URL || 'not set'}`);
+  console.log('========================================');
 
   const os = require('os');
   const interfaces = os.networkInterfaces();
@@ -70,4 +74,11 @@ async function bootstrap() {
   console.log(`   Use Windows IP (172.20.10.2) if mobile is on same network`);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('========================================');
+  console.error('❌ Failed to start EatSense API');
+  console.error('Error:', error);
+  console.error('Stack:', error.stack);
+  console.error('========================================');
+  process.exit(1);
+});

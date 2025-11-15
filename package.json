@@ -36,7 +36,11 @@
     "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "submit:ios": "eas submit -p ios --profile production --latest --account eatsense --non-interactive"
+    "eas:whoami": "pnpm dlx eas-cli@latest whoami",
+    "eas:login": "pnpm dlx eas-cli@latest login",
+    "eas:build:ios": "pnpm dlx eas-cli@latest build -p ios --profile production --non-interactive",
+    "eas:build:android": "pnpm dlx eas-cli@latest build -p android --profile production --non-interactive",
+    "eas:submit:ios": "pnpm dlx eas-cli@latest submit -p ios --profile production --latest --non-interactive"
   },
   "dependencies": {
     "@babel/runtime": "^7.26.0",
@@ -97,6 +101,7 @@
     "@types/react-test-renderer": "^18.2.0",
     "cross-env": "^7.0.3",
     "dotenv-cli": "^7.4.2",
+    "eas-cli": "^16.0.0",
     "eslint": "^8.57.0",
     "eslint-config-expo": "^7.1.2",
     "eslint-config-prettier": "^9.1.0",

@@ -98,18 +98,18 @@ export class AiAssistantController {
   }
 
   @Post('nutrition-advice')
-  getNutritionAdvice(@Body('userId') userId: string, @Body('question') question: string, @Body('context') context?: any) {
-    return this.assistantService.getNutritionAdvice(userId, question, context);
+  getNutritionAdvice(@Body('userId') userId: string, @Body('question') question: string, @Body('context') context?: any, @Body('language') language?: string) {
+    return this.assistantService.getNutritionAdvice(userId, question, context, language);
   }
 
   @Post('health-check')
-  getHealthCheck(@Body('userId') userId: string, @Body('question') question: string) {
-    return this.assistantService.getHealthCheck(userId, question);
+  getHealthCheck(@Body('userId') userId: string, @Body('question') question: string, @Body('language') language?: string) {
+    return this.assistantService.getHealthCheck(userId, question, language);
   }
 
   @Post('general-question')
-  getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string) {
-    return this.assistantService.getGeneralQuestion(userId, question);
+  getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string, @Body('language') language?: string) {
+    return this.assistantService.getGeneralQuestion(userId, question, language);
   }
 
   @Get('conversation-history')

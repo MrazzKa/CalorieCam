@@ -16,6 +16,8 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, fallback =
     ensureI18nReady()
       .catch((error) => {
         console.warn('[i18n] Failed to initialize:', error);
+        // Even if i18n fails, we should show the app with fallback
+        // The app will use default translations
       })
       .finally(() => {
         if (mounted) {

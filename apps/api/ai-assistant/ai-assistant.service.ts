@@ -16,18 +16,18 @@ export class AiAssistantService {
     });
   }
 
-  async getNutritionAdvice(userId: string, question: string, context?: any) {
-    const result = await this.generateCompletion('nutrition_advice', userId, question, context, 0.7);
+  async getNutritionAdvice(userId: string, question: string, context?: any, language?: string) {
+    const result = await this.generateCompletion('nutrition_advice', userId, question, context, 0.7, language);
     return result;
   }
 
-  async getHealthCheck(userId: string, question: string) {
-    const result = await this.generateCompletion('health_check', userId, question, undefined, 0.3);
+  async getHealthCheck(userId: string, question: string, language?: string) {
+    const result = await this.generateCompletion('health_check', userId, question, undefined, 0.3, language);
     return result;
   }
 
-  async getGeneralQuestion(userId: string, question: string) {
-    const result = await this.generateCompletion('general_question', userId, question, undefined, 0.7);
+  async getGeneralQuestion(userId: string, question: string, language?: string) {
+    const result = await this.generateCompletion('general_question', userId, question, undefined, 0.7, language);
     return result;
   }
 
@@ -94,8 +94,9 @@ export class AiAssistantService {
     question: string,
     extraContext?: any,
     temperature: number = 0.7,
+    language?: string,
   ) {
-    const { systemPrompt, context } = await this.buildSystemPrompt(type, userId, extraContext);
+    const { systemPrompt, context } = await this.buildSystemPrompt(type, userId, extraContext, language);
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -135,15 +136,30 @@ export class AiAssistantService {
     type: 'nutrition_advice' | 'health_check' | 'general_question',
     userId: string,
     extraContext?: any,
+    language?: string,
   ) {
+    // Get user language from profile or use provided language or default to English
+    const userProfile = await this.prisma.userProfile.findUnique({ where: { userId } });
+    const userLanguage = language || (userProfile?.preferences as any)?.language || 'en';
+    
+    // Map language codes to language names for OpenAI
+    const languageMap: Record<string, string> = {
+      en: 'English',
+      es: 'Spanish',
+      de: 'German',
+      fr: 'French',
+      ko: 'Korean',
+      ja: 'Japanese',
+      zh: 'Chinese',
+    };
+    const responseLanguage = languageMap[userLanguage] || 'English';
+    
     if (type === 'general_question') {
       return {
-        systemPrompt: `You are a nutrition and health assistant. Provide accurate, concise answers. Ask clarifying questions if needed. Always include a disclaimer to consult healthcare professionals for medical concerns. Respond in English.`,
+        systemPrompt: `You are a nutrition and health assistant. Provide accurate, concise answers. Ask clarifying questions if needed. Always include a disclaimer to consult healthcare professionals for medical concerns. Respond in ${responseLanguage}.`,
         context: {},
       };
     }
-
-    const userProfile = await this.prisma.userProfile.findUnique({ where: { userId } });
     const recentMeals = await this.prisma.meal.findMany({
       where: { userId },
       include: { items: true },
@@ -158,8 +174,8 @@ export class AiAssistantService {
     });
 
     const basePrompt = type === 'nutrition_advice'
-      ? this.buildNutritionSystemPrompt(userProfile, recentMeals, recentAnalyses)
-      : this.buildHealthCheckSystemPrompt(userProfile);
+      ? this.buildNutritionSystemPrompt(userProfile, recentMeals, recentAnalyses, responseLanguage)
+      : this.buildHealthCheckSystemPrompt(userProfile, responseLanguage);
 
     const context = {
       userProfile,
@@ -192,7 +208,7 @@ export class AiAssistantService {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  private buildNutritionSystemPrompt(userProfile: any, recentMeals: any[], recentAnalyses: any[]) {
+  private buildNutritionSystemPrompt(userProfile: any, recentMeals: any[], recentAnalyses: any[], language: string = 'English') {
     let prompt = `You are a professional nutritionist and healthy eating coach. Provide personalized nutrition advice based on the user's profile and eating habits.
 
 User Profile:
@@ -233,12 +249,12 @@ Recent Meals:`;
 4. Be encouraging and supportive.
 5. Suggest meal ideas where appropriate.
 6. ALWAYS recommend consulting with doctors for medical advice.
-7. Respond in English.`;
+7. Respond in ${language}.`;
 
     return prompt;
   }
 
-  private buildHealthCheckSystemPrompt(userProfile: any) {
+  private buildHealthCheckSystemPrompt(userProfile: any, language: string = 'English') {
     return `You are a health and wellness assistant. Provide general health information and suggestions based on the user's profile.
 
 User Profile:
@@ -251,7 +267,7 @@ User Profile:
 CRITICAL RULES:
 1. ALWAYS ask clarifying questions about symptoms and advise seeing professionals.
 2. Provide general wellness guidance (nutrition, sleep, training, stress).
-3. Respond in English.
+3. Respond in ${language}.
 `;
   }
 }

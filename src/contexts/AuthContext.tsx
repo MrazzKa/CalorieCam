@@ -29,7 +29,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const profile = await ApiService.getUserProfile();
       setUser(profile ?? null);
     } catch (error) {
-      // If session expired just clear the user in context
+      // If session expired or API unavailable, just clear the user in context
+      console.log('[AuthContext] Error refreshing user:', error.message);
       setUser(null);
     } finally {
       setLoading(false);
@@ -52,7 +53,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    refreshUser();
+    // Wrap in try-catch to prevent crashes
+    refreshUser().catch((error) => {
+      console.warn('[AuthContext] Error in initial refreshUser:', error.message);
+      // Don't set user to null here, let refreshUser handle it
+    });
   }, [refreshUser]);
 
   const value = useMemo<AuthContextValue>(

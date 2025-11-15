@@ -1,19 +1,20 @@
 {
   "cli": {
     "version": ">= 6.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "production": {
       "distribution": "store",
       "credentialsSource": "local",
       "ios": {
-        "image": "macos-14-xcode-16.2",
+        "image": "macos-sequoia-15.3-xcode-16.2",
         "resourceClass": "m-medium"
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.eatsense.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.eatsense.app",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "535303723114-95afjkjhsnns16s2kk3gh9ld435g8idl.apps.googleusercontent.com"
       }
     }
   },

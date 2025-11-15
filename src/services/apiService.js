@@ -318,21 +318,10 @@ class ApiService {
     return this.request(`/ai-assistant/token-usage?userId=${encodeURIComponent(userId)}&days=${days}`);
   }
 
-  // User Profile
-  async getUserProfile() {
-    return this.request('/users/profile');
-  }
-
+  // User Profile (legacy - use /user-profiles instead)
   async deleteAccount() {
     return this.request('/users/me', {
       method: 'DELETE',
-    });
-  }
-
-  async updateUserProfile(profileData) {
-    return this.request('/users/profile', {
-      method: 'PUT',
-      body: JSON.stringify(profileData),
     });
   }
 
@@ -404,24 +393,24 @@ class ApiService {
   }
 
   // AI Assistant
-  async getNutritionAdvice(question, context) {
+  async getNutritionAdvice(userId, question, context, language) {
     return this.request('/ai-assistant/nutrition-advice', {
       method: 'POST',
-      body: JSON.stringify({ question, context }),
+      body: JSON.stringify({ userId, question, context, language }),
     });
   }
 
-  async getHealthCheck(question) {
+  async getHealthCheck(userId, question, language) {
     return this.request('/ai-assistant/health-check', {
       method: 'POST',
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ userId, question, language }),
     });
   }
 
-  async getGeneralQuestion(question) {
+  async getGeneralQuestion(userId, question, language) {
     return this.request('/ai-assistant/general-question', {
       method: 'POST',
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ userId, question, language }),
     });
   }
 

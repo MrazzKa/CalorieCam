@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "EatSense",
-    slug: "eatsense",
+    slug: "caloriecam",
     owner: "eatsense",
     version: "1.0.0",
     orientation: "portrait",
@@ -27,6 +27,7 @@ export default {
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",      // <-- ВАЖНО: именно такой
+      buildNumber: "3",
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
