@@ -1,9 +1,6 @@
 {
   "pnpm": {
     "overrides": {
-      "metro": "0.80.8",
-      "metro-config": "0.80.8",
-      "metro-resolver": "0.80.8",
       "@expo/config-plugins": "8.0.6"
     }
   },
@@ -40,7 +37,7 @@
     "eas:login": "pnpm dlx eas-cli@latest login",
     "eas:build:ios": "pnpm dlx eas-cli@latest build -p ios --profile production --non-interactive",
     "eas:build:android": "pnpm dlx eas-cli@latest build -p android --profile production --non-interactive",
-    "eas:submit:ios": "pnpm dlx eas-cli@latest submit -p ios --profile production --latest --non-interactive"
+    "eas:submit:ios": "pnpm dlx eas-cli@latest submit -p ios --profile production --latest"
   },
   "dependencies": {
     "@babel/runtime": "^7.26.0",
@@ -77,6 +74,7 @@
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",
     "expo-web-browser": "~13.0.3",
+    "expo-application": "~6.0.2",
     "expo-apple-authentication": "~7.0.1",
     "expo-auth-session": "~6.0.1",
     "expo-crypto": "~13.0.1",

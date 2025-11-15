@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "EatSense",
-    slug: "caloriecam",
+    slug: "eatsense",
     owner: "eatsense",
     version: "1.0.0",
     orientation: "portrait",
@@ -18,7 +18,7 @@ export default {
       googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
       googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
       eas: {
-        projectId: "23f73ee7-a478-4c3d-bdf9-78f6cec090a8"
+        projectId: "cb87892c-d49d-4ac9-81d6-855083eaf0c3"
       }
     },
 
@@ -26,8 +26,8 @@ export default {
     scheme: "eatsense",
 
     ios: {
-      bundleIdentifier: "ch.eatsense.app",      // <-- ВАЖНО: именно такой
-      buildNumber: "3",
+      bundleIdentifier: "ch.eatsense.app",
+      buildNumber: "7",
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -62,6 +62,7 @@ export default {
     web: { favicon: "./assets/favicon.png" },
     notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "EatSense" },
     plugins: [
+      "expo-application",
       "expo-camera",
       "expo-image-picker",
       "expo-media-library",

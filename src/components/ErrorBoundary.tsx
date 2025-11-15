@@ -26,8 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary] Caught error:', error);
     console.error('[ErrorBoundary] Error info:', errorInfo);
     console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
-    // Log to crash reporting service if available
-    // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
+    // Error logged to console for debugging
   }
 
   handleReset = () => {

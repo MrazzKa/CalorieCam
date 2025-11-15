@@ -32,9 +32,27 @@ class ApiService {
       }
       if (refreshToken) {
         // Store refresh token in Secure Storage (Keychain/Keystore)
-        await SecureStore.setItemAsync('auth.refreshToken', refreshToken);
+        // Fallback to AsyncStorage if SecureStore is unavailable
+        try {
+          await SecureStore.setItemAsync('auth.refreshToken', refreshToken);
+        } catch (secureStoreError) {
+          console.warn('SecureStore not available, using AsyncStorage fallback:', secureStoreError);
+          await AsyncStorage.setItem('auth.refreshToken', refreshToken);
+        }
       } else {
-        await SecureStore.deleteItemAsync('auth.refreshToken');
+        // Try to delete from both SecureStore and AsyncStorage
+        try {
+          await SecureStore.deleteItemAsync('auth.refreshToken');
+        } catch (secureStoreError) {
+          // Ignore SecureStore errors when deleting
+          console.warn('SecureStore delete error (ignored):', secureStoreError);
+        }
+        try {
+          await AsyncStorage.removeItem('auth.refreshToken');
+        } catch (asyncStorageError) {
+          // Ignore AsyncStorage errors when deleting
+          console.warn('AsyncStorage delete error (ignored):', asyncStorageError);
+        }
       }
     } catch (error) {
       console.error('Error storing tokens:', error);
@@ -84,10 +102,18 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     console.log(`[ApiService] Requesting: ${url}`);
+    
+    // Create AbortController for timeout (more reliable than AbortSignal.timeout)
+    const timeoutMs = 30000; // 30 seconds
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, timeoutMs);
+    
     const config = {
       headers: this.getHeaders(),
       ...options,
-      signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
+      signal: abortController.signal,
     };
 
     try {
@@ -106,25 +132,52 @@ class ApiService {
       });
 
       let response = await fetch(url, config);
+      
+      // Clear timeout on successful fetch
+      clearTimeout(timeoutId);
 
       console.log(`[ApiService] Response status: ${response.status}`);
 
       if (response.status === 401 && this.refreshTokenValue) {
+        let refreshTimeoutId = null;
+        let retryTimeoutId = null;
         try {
+          // Create new AbortController for refresh token request
+          const refreshAbortController = new AbortController();
+          refreshTimeoutId = setTimeout(() => {
+            refreshAbortController.abort();
+          }, timeoutMs);
+          
           const refreshRes = await fetch(`${this.baseURL}/auth/refresh-token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken: this.refreshTokenValue }),
+            signal: refreshAbortController.signal,
           });
+          
+          clearTimeout(refreshTimeoutId);
+          refreshTimeoutId = null;
+          
           if (refreshRes.ok) {
             const tokens = await refreshRes.json();
             if (tokens.accessToken) {
               await this.setToken(tokens.accessToken, tokens.refreshToken || this.refreshTokenValue);
               config.headers = this.getHeaders();
+              // Create new AbortController for retry request
+              const retryAbortController = new AbortController();
+              retryTimeoutId = setTimeout(() => {
+                retryAbortController.abort();
+              }, timeoutMs);
+              config.signal = retryAbortController.signal;
               response = await fetch(url, config);
+              clearTimeout(retryTimeoutId);
+              retryTimeoutId = null;
             }
           }
         } catch (refreshError) {
+          // Clear timeouts on error
+          if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
+          if (retryTimeoutId) clearTimeout(retryTimeoutId);
           console.warn('[ApiService] Token refresh failed', refreshError);
         }
       }
@@ -135,6 +188,17 @@ class ApiService {
 
       return await this.parseResponseBody(response);
     } catch (error) {
+      // Clear timeout on error
+      clearTimeout(timeoutId);
+      
+      // Check if error is due to abort (timeout)
+      if (error.name === 'AbortError') {
+        const timeoutError = new Error(`Request timeout after ${timeoutMs}ms`);
+        timeoutError.name = 'TimeoutError';
+        timeoutError.status = 408;
+        throw timeoutError;
+      }
+      
       console.error(`[ApiService] Request failed for ${url}:`, error.message);
       console.error('[ApiService] Error details:', error);
       throw error;

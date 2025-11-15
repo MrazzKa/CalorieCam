@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  metro: 0.80.8
-  metro-config: 0.80.8
-  metro-resolver: 0.80.8
   '@expo/config-plugins': 8.0.6
 
 importers:
@@ -62,6 +59,9 @@ importers:
       expo-apple-authentication:
         specifier: ~7.0.1
         version: 7.0.1(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.74.5(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(@types/react@18.2.79)(react@18.2.0))
+      expo-application:
+        specifier: ~6.0.2
+        version: 6.0.2(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.74.5(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
       expo-asset:
         specifier: ~10.0.10
         version: 10.0.10(expo@51.0.39(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(react-native@0.74.5(@babel/core@7.28.5)(@babel/preset-env@7.28.5(@babel/core@7.28.5))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
@@ -6397,6 +6397,10 @@ packages:
 
   metro-minify-terser@0.80.8:
     resolution: {integrity: sha512-y8sUFjVvdeUIINDuW1sejnIjkZfEF+7SmQo0EIpYbWmwh+kq/WMj74yVaBWuqNjirmUp1YNfi3alT67wlbBWBQ==}
+    engines: {node: '>=18'}
+
+  metro-resolver@0.80.12:
+    resolution: {integrity: sha512-PR24gYRZnYHM3xT9pg6BdbrGbM/Cu1TcyIFBVlAk7qDAuHkUNQ1nMzWumWs+kwSvtd9eZGzHoucGJpTUEeLZAw==}
     engines: {node: '>=18'}
 
   metro-resolver@0.80.8:
@@ -17358,7 +17362,7 @@ snapshots:
     dependencies:
       flow-enums-runtime: 0.0.6
       lodash.throttle: 4.1.1
-      metro-resolver: 0.80.8
+      metro-resolver: 0.80.12
 
   metro-core@0.80.8:
     dependencies:
@@ -17385,6 +17389,10 @@ snapshots:
   metro-minify-terser@0.80.8:
     dependencies:
       terser: 5.44.1
+
+  metro-resolver@0.80.12:
+    dependencies:
+      flow-enums-runtime: 0.0.6
 
   metro-resolver@0.80.8: {}
 

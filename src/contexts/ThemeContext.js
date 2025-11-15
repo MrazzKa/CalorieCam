@@ -8,7 +8,17 @@ const ThemeContext = createContext();
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
+    console.warn('[ThemeContext] useTheme called outside ThemeProvider, returning fallback');
+    // Return fallback theme instead of throwing
+    return {
+      isDark: false,
+      themeMode: 'light',
+      colors: palettes.light,
+      tokens: baseTokens,
+      toggleTheme: () => {},
+      reduceMotion: false,
+      getColor: (key) => palettes.light[key] ?? key,
+    };
   }
   return context;
 };
@@ -84,16 +94,24 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  const palette = isDark ? palettes.dark : palettes.light;
+  const palette = isDark ? (palettes?.dark || palettes?.light || {}) : (palettes?.light || {});
   const themeTokens = useMemo(() => {
-    const { states: stateTokens, ...restTokens } = baseTokens;
-    const resolvedStates = stateTokens ? (isDark ? stateTokens.dark : stateTokens.light) : {};
+    try {
+      const { states: stateTokens, ...restTokens } = baseTokens || {};
+      const resolvedStates = stateTokens ? (isDark ? stateTokens.dark : stateTokens.light) : {};
 
-    return {
-      ...restTokens,
-      colors: palette,
-      states: resolvedStates,
-    };
+      return {
+        ...restTokens,
+        colors: palette,
+        states: resolvedStates,
+      };
+    } catch (error) {
+      console.warn('[ThemeContext] Error creating theme tokens:', error);
+      return {
+        colors: palette,
+        states: {},
+      };
+    }
   }, [isDark, palette]);
 
   const getColor = (key) => palette[key] ?? key;

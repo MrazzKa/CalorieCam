@@ -27,11 +27,11 @@ function AppContent({ children }) {
 export function AppWrapper({ children }) {
   try {
     return (
-      <AuthProvider>
-        <ThemeProvider>
+      <ThemeProvider>
+        <AuthProvider>
           <AppContent>{children}</AppContent>
-        </ThemeProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     );
   } catch (error) {
     console.error('[AppWrapper] Error initializing providers:', error);

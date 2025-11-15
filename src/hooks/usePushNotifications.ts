@@ -55,10 +55,21 @@ export function usePushNotifications(): PushNotificationState {
       return null;
     }
 
+    // Check projectId before requesting token - required on iOS
     const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-    const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-    setExpoPushToken(token.data);
-    return token.data;
+    if (!projectId) {
+      console.warn('[PushNotifications] ProjectId not found, cannot get push token');
+      return null;
+    }
+
+    try {
+      const token = await Notifications.getExpoPushTokenAsync({ projectId });
+      setExpoPushToken(token.data);
+      return token.data;
+    } catch (error) {
+      console.error('[PushNotifications] Failed to get push token:', error);
+      return null;
+    }
   }, []);
 
   useEffect(() => {
@@ -82,9 +93,18 @@ export function usePushNotifications(): PushNotificationState {
     const status = await Notifications.requestPermissionsAsync();
     setPermissionStatus(status);
     if (status.status === Notifications.PermissionStatus.GRANTED) {
+      // Check projectId before requesting token - required on iOS
       const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-      const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-      setExpoPushToken(token.data);
+      if (!projectId) {
+        console.warn('[PushNotifications] ProjectId not found, cannot get push token');
+        return status;
+      }
+      try {
+        const token = await Notifications.getExpoPushTokenAsync({ projectId });
+        setExpoPushToken(token.data);
+      } catch (error) {
+        console.error('[PushNotifications] Failed to get push token:', error);
+      }
     }
     return status;
   }, []);

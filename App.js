@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -258,7 +258,7 @@ function AppContent() {
     });
   }, []);
 
-  const handleAuthSuccess = async () => {
+  const handleAuthSuccess = useCallback(async () => {
     setIsAuthenticated(true);
     
     // Check if user has completed onboarding
@@ -275,10 +275,15 @@ function AppContent() {
       // Default to showing onboarding if we can't check
       setHasCompletedOnboarding(false);
     }
-  };
+  }, []);
 
-  // Handle deep links (Magic Links)
+  // Handle deep links (Magic Links) - delayed until app is fully loaded
   useEffect(() => {
+    // Don't process deep links until app is fully initialized
+    if (isLoading) {
+      return;
+    }
+
     const handleDeepLink = async (event) => {
       const { url } = event;
       console.log('Deep link received:', url);
@@ -312,20 +317,23 @@ function AppContent() {
       }
     };
 
-    // Handle initial URL if app was opened via deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink({ url });
-      }
-    });
+    // Handle initial URL if app was opened via deep link - delayed
+    const timeoutId = setTimeout(() => {
+      Linking.getInitialURL().then((url) => {
+        if (url) {
+          handleDeepLink({ url });
+        }
+      });
+    }, 1000); // Wait 1 second after app loads
 
     // Listen for deep links while app is running
     const subscription = Linking.addEventListener('url', handleDeepLink);
 
     return () => {
+      clearTimeout(timeoutId);
       subscription.remove();
     };
-  }, []);
+  }, [isLoading, handleAuthSuccess]);
 
   // Sync authentication state with AuthContext
   useEffect(() => {
@@ -384,34 +392,12 @@ function AppContent() {
 }
 
 export default function App() {
-  // Add global error handler for React Native
-  useEffect(() => {
-    // React Native global error handler
-    if (global.ErrorUtils) {
-      const originalHandler = global.ErrorUtils.getGlobalHandler();
-      global.ErrorUtils.setGlobalHandler((error, isFatal) => {
-        console.error('[App] Global error handler:', error, 'isFatal:', isFatal);
-        console.error('[App] Error stack:', error.stack);
-        // ErrorBoundary will handle React errors
-        // For fatal errors, we still let them through but log them
-        if (originalHandler) {
-          // Only call original handler for truly fatal errors
-          // For non-fatal, ErrorBoundary will catch them
-          if (isFatal && error.name !== 'Error') {
-            originalHandler(error, isFatal);
-          }
-        }
-      });
-    }
-
-    return () => {
-      // Cleanup if needed
-    };
-  }, []);
+  // Removed global error handler to avoid conflicts with ErrorBoundary
+  // ErrorBoundary will handle all React errors
 
   return (
     <ErrorBoundary>
-      <I18nProvider fallback={null}>
+      <I18nProvider fallback={<SplashLogo />}>
         <AppWrapper>
           <AppContent />
         </AppWrapper>

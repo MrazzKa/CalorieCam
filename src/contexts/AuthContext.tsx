@@ -52,13 +52,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  useEffect(() => {
-    // Wrap in try-catch to prevent crashes
-    refreshUser().catch((error) => {
-      console.warn('[AuthContext] Error in initial refreshUser:', error.message);
-      // Don't set user to null here, let refreshUser handle it
-    });
-  }, [refreshUser]);
+  // Removed automatic refreshUser call on mount to prevent crashes
+  // Components should call refreshUser() explicitly when needed
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, loading, refreshUser, setUser, signOut }),
