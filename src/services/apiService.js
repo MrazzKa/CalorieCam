@@ -131,7 +131,18 @@ class ApiService {
         hasAuth: !!(config.headers && config.headers['Authorization']),
       });
 
-      let response = await fetch(url, config);
+      let response;
+      try {
+        response = await fetch(url, config);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error(`[ApiService] Fetch error for ${url}:`, fetchError);
+        // Re-throw with more context
+        const error = new Error(fetchError.message || 'Network request failed');
+        error.name = fetchError.name || 'NetworkError';
+        error.cause = fetchError;
+        throw error;
+      }
       
       // Clear timeout on successful fetch
       clearTimeout(timeoutId);

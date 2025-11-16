@@ -27,7 +27,7 @@ export default {
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",
-      buildNumber: "7",
+      buildNumber: "11",
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -54,7 +54,11 @@ export default {
       intentFilters: [{
         action: "VIEW",
         autoVerify: true,
-        data: [{ scheme: "https", host: "eatsense.app", pathPrefix: "/v1/auth/magic/consume" }, { scheme: "eatsense" }],
+        data: [
+          { scheme: "https", host: "eatsense.app", pathPrefix: "/v1/auth/magic/consume" },
+          { scheme: "https", host: "eatsense.app", pathPrefix: "/auth/google/callback" },
+          { scheme: "eatsense" }
+        ],
         category: ["BROWSABLE","DEFAULT"]
       }]
     },
@@ -62,7 +66,8 @@ export default {
     web: { favicon: "./assets/favicon.png" },
     notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "EatSense" },
     plugins: [
-      "expo-application",
+      "expo-secure-store",
+      "expo-router",
       "expo-camera",
       "expo-image-picker",
       "expo-media-library",

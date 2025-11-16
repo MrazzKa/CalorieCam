@@ -153,10 +153,17 @@ export default function AuthScreen({ onAuthSuccess }) {
 
         if (response?.accessToken) {
           await ApiService.setToken(response.accessToken, response.refreshToken);
-          setStatusMessage(t('auth.messages.signedIn'));
+        setStatusMessage(t('auth.messages.signedIn'));
+        // Wait a bit before calling onAuthSuccess to ensure token is saved and state is updated
+        setTimeout(async () => {
           if (onAuthSuccess) {
-            onAuthSuccess();
+            console.log('[AuthScreen] Calling onAuthSuccess for Google Sign In');
+            await onAuthSuccess();
+            console.log('[AuthScreen] onAuthSuccess completed for Google Sign In');
           }
+        }, 500);
+        } else {
+          throw new Error('No access token received from server');
         }
       }
     } catch (error) {
@@ -175,14 +182,28 @@ export default function AuthScreen({ onAuthSuccess }) {
   const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId || process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const webClientId = Constants.expoConfig?.extra?.googleWebClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
   
+  // Create redirect URI for Google OAuth
+  // expo-auth-session uses WebBrowser which requires Web Client ID
+  // For mobile apps, expo-auth-session may add flowName parameter to redirect URI
+  // We need to use makeRedirectUri to get the exact URI that expo-auth-session will use
+  // Then add that exact URI (with flowName if present) to Google Console
+  const redirectUri = makeRedirectUri({
+    scheme: 'eatsense',
+    usePath: false,
+    useProxy: false,
+  });
+  
+  // Log the exact redirect URI that will be used
+  console.log('[AuthScreen] Google OAuth redirectUri:', redirectUri);
+  console.log('[AuthScreen] Google OAuth Client IDs:', { iosClientId, androidClientId, webClientId });
+  console.log('[AuthScreen] Note: Add this exact redirect URI to Google Console (may include flowName parameter)');
+  
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     iosClientId,
     androidClientId,
-    webClientId,
+    webClientId, // Required for mobile apps using WebBrowser
     scopes: ['openid', 'profile', 'email'],
-    redirectUri: makeRedirectUri({
-      scheme: 'eatsense',
-    }),
+    redirectUri,
   });
 
   // Handle Google OAuth response
@@ -190,7 +211,23 @@ export default function AuthScreen({ onAuthSuccess }) {
     if (googleResponse?.type === 'success') {
       handleGoogleSignInSuccess(googleResponse.authentication);
     } else if (googleResponse?.type === 'error') {
-      setErrorMessage(getErrorMessage({ message: googleResponse.error?.message }, 'auth.errors.verifyFailed'));
+      // Better error handling for Google OAuth errors
+      const errorMsg = googleResponse.error?.message || googleResponse.error?.code || 'Google sign in failed';
+      console.error('[AuthScreen] Google OAuth error:', googleResponse.error);
+      
+      // Handle specific OAuth errors
+      if (errorMsg.includes('invalid_request') || errorMsg.includes('redirect_uri')) {
+        setErrorMessage('OAuth configuration error. Please contact support.');
+      } else if (errorMsg.includes('access_denied') || errorMsg.includes('cancelled')) {
+        setErrorMessage('Sign in was cancelled.');
+      } else if (errorMsg.includes('blocked') || errorMsg.includes("doesn't comply")) {
+        setErrorMessage('This app needs to be verified by Google. Please contact support or try again later.');
+      } else {
+        setErrorMessage(getErrorMessage({ message: errorMsg }, 'auth.errors.verifyFailed'));
+      }
+      setIsSubmitting(false);
+    } else if (googleResponse?.type === 'cancel') {
+      // User cancelled, don't show error
       setIsSubmitting(false);
     }
   }, [googleResponse]);
@@ -223,9 +260,16 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (response?.accessToken) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
         setStatusMessage(t('auth.messages.signedIn'));
-        if (onAuthSuccess) {
-          onAuthSuccess();
-        }
+        // Wait a bit before calling onAuthSuccess to ensure token is saved and state is updated
+        setTimeout(async () => {
+          if (onAuthSuccess) {
+            console.log('[AuthScreen] Calling onAuthSuccess for Apple Sign In');
+            await onAuthSuccess();
+            console.log('[AuthScreen] onAuthSuccess completed for Apple Sign In');
+          }
+        }, 500);
+      } else {
+        throw new Error('No access token received from server');
       }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
@@ -261,7 +305,10 @@ export default function AuthScreen({ onAuthSuccess }) {
     resetFeedback();
 
     try {
+      console.log('[AuthScreen] Requesting OTP for email:', trimmedEmail);
+      console.log('[AuthScreen] API_BASE_URL from env:', process.env.EXPO_PUBLIC_API_BASE_URL);
       const response = await ApiService.requestOtp(trimmedEmail);
+      console.log('[AuthScreen] OTP request successful:', response);
       setStatusMessage(
         t(isResend ? 'auth.messages.codeResent' : 'auth.messages.codeSent', {
           email: maskEmail(trimmedEmail),
@@ -283,10 +330,22 @@ export default function AuthScreen({ onAuthSuccess }) {
         }, 50);
       }
     } catch (error) {
+      console.error('[AuthScreen] OTP request error:', error);
+      console.error('[AuthScreen] Error message:', error.message);
+      console.error('[AuthScreen] Error status:', error.status);
+      console.error('[AuthScreen] Error payload:', error.payload);
+      
       if (error?.payload?.retryAfter) {
         setResendCooldown(error.payload.retryAfter);
       }
-      setErrorMessage(getErrorMessage(error, isResend ? 'auth.errors.resendFailed' : 'auth.errors.sendFailed'));
+      // Better error handling for network errors
+      if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        const networkErrorMsg = t('auth.errors.networkError') || 'Network error. Please check your internet connection and try again.';
+        console.error('[AuthScreen] Network error detected, showing message:', networkErrorMsg);
+        setErrorMessage(networkErrorMsg);
+      } else {
+        setErrorMessage(getErrorMessage(error, isResend ? 'auth.errors.resendFailed' : 'auth.errors.sendFailed'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -306,10 +365,15 @@ export default function AuthScreen({ onAuthSuccess }) {
       const response = await ApiService.verifyOtp(email.trim().toLowerCase(), sanitizedCode);
       if (response?.accessToken) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
-      }
-      setStatusMessage(t('auth.messages.signedIn'));
-      if (onAuthSuccess) {
-        onAuthSuccess();
+        setStatusMessage(t('auth.messages.signedIn'));
+        // Wait a bit before calling onAuthSuccess to ensure token is saved
+        setTimeout(() => {
+          if (onAuthSuccess) {
+            onAuthSuccess();
+          }
+        }, 100);
+      } else {
+        throw new Error('No access token received from server');
       }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
@@ -377,7 +441,7 @@ export default function AuthScreen({ onAuthSuccess }) {
               <Text style={styles.googleG}>G</Text>
             </View>
           </View>
-          <Text style={styles.oauthButtonText}>{t('auth.continueWithGoogle')}</Text>
+          <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -604,6 +668,11 @@ function createStyles(tokens, colors, isDark) {
       fontSize: 16,
       fontWeight: '600',
       color: '#FFFFFF',
+    },
+    googleButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? colors.textPrimary : '#1F2937', // Dark text on white background
     },
     emailButtonText: {
       color: colors.textPrimary,

@@ -146,7 +146,8 @@ function AppContent() {
       ApiService.expoPushToken = expoPushToken;
       const deviceId = Device.osInternalBuildId || Device.osBuildId || Device.modelId || Device.modelName || 'unknown-device';
       const platform = Device.osName || Device.platformApiLevel?.toString() || Device.platformArchitecture || 'unknown';
-      const appVersion = Constants.expoConfig?.version || Constants.expoConfig?.runtimeVersion || Constants.nativeAppVersion || 'unknown';
+      // Use safe fallback to avoid ExpoApplication error
+      const appVersion = Constants.expoConfig?.version || Constants.expoConfig?.runtimeVersion || '1.0.0';
       ApiService.registerPushToken(expoPushToken, deviceId, platform, appVersion);
       console.log('[App] Registered Expo push token', expoPushToken);
     }
@@ -259,20 +260,24 @@ function AppContent() {
   }, []);
 
   const handleAuthSuccess = useCallback(async () => {
+    console.log('[App] handleAuthSuccess called');
     setIsAuthenticated(true);
     
     // Check if user has completed onboarding
+    // Use a shorter timeout and don't block navigation if it fails
     try {
       const profilePromise = ApiService.getUserProfile();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
       );
       const profile = await Promise.race([profilePromise, timeoutPromise]);
+      console.log('[App] Profile loaded, onboarding status:', profile?.isOnboardingCompleted);
       setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
     } catch (error) {
-      console.log('[App] Error checking onboarding status:', error);
+      console.log('[App] Error checking onboarding status (non-blocking):', error);
       console.log('[App] Error details:', error.message);
       // Default to showing onboarding if we can't check
+      // This ensures navigation still works even if API call fails
       setHasCompletedOnboarding(false);
     }
   }, []);
