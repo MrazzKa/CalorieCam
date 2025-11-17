@@ -70,7 +70,14 @@ export class AuthService {
       await this.mailerService.sendOtpEmail(normalizedEmail, otpCode);
     } catch (error) {
       this.logger.error(`[AuthService] Failed to dispatch OTP email for ${this.maskEmail(normalizedEmail)}`);
-      throw new ServiceUnavailableException('We could not send the verification email. Please try again later.');
+      // Check if we should ignore mail errors (for development/testing)
+      const ignoreMailErrors = (process.env.AUTH_DEV_IGNORE_MAIL_ERRORS || 'false').toLowerCase() === 'true';
+      if (ignoreMailErrors) {
+        this.logger.warn(`[AuthService] Ignoring OTP email error due to AUTH_DEV_IGNORE_MAIL_ERRORS=true. OTP code: ${otpCode}`);
+        // Continue without throwing - OTP is still saved and can be used
+      } else {
+        throw new ServiceUnavailableException('We could not send the verification email. Please try again later.');
+      }
     }
 
     const retryAfter = await this.redisService.ttl(this.cooldownKey(normalizedEmail));
@@ -86,22 +93,35 @@ export class AuthService {
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto) {
+    this.logger.log(`[AuthService] verifyOtp() called for email: ${this.maskEmail(verifyOtpDto.email)}`);
+    
     const normalizedEmail = this.normalizeEmail(verifyOtpDto.email);
+    this.logger.log(`[AuthService] verifyOtp() - normalized email: ${this.maskEmail(normalizedEmail)}`);
+    
+    this.logger.log(`[AuthService] verifyOtp() - verifying OTP code...`);
     const status = await this.otpService.verifyOtp(normalizedEmail, verifyOtpDto.code);
+    this.logger.log(`[AuthService] verifyOtp() - OTP verification status: ${status}`);
 
     if (status === 'expired') {
+      this.logger.warn(`[AuthService] verifyOtp() - OTP expired for ${this.maskEmail(normalizedEmail)}`);
       throw new BadRequestException({ message: 'Verification code expired. Request a new one.', code: 'OTP_EXPIRED' });
     }
     if (status === 'invalid') {
+      this.logger.warn(`[AuthService] verifyOtp() - OTP invalid for ${this.maskEmail(normalizedEmail)}`);
       throw new BadRequestException({ message: 'Incorrect verification code. Check the email and try again.', code: 'OTP_INVALID' });
     }
 
+    this.logger.log(`[AuthService] verifyOtp() - OTP valid, calling findOrCreateUser()...`);
     const user = await this.findOrCreateUser(normalizedEmail);
+    this.logger.log(`[AuthService] verifyOtp() - user found/created: id=${user.id}, email=${this.maskEmail(user.email)}`);
+    
+    this.logger.log(`[AuthService] verifyOtp() - calling generateTokens()...`);
     const tokens = await this.generateTokens(user.id, user.email);
+    this.logger.log(`[AuthService] verifyOtp() - tokens generated successfully, hasAccessToken=${!!tokens.accessToken}, hasRefreshToken=${!!tokens.refreshToken}`);
 
     this.logger.log(`[AuthService] OTP verified for ${this.maskEmail(normalizedEmail)}`);
 
-    return {
+    const response = {
       message: 'Signed in successfully.',
       user: {
         id: user.id,
@@ -109,6 +129,8 @@ export class AuthService {
       },
       ...tokens,
     };
+    this.logger.log(`[AuthService] verifyOtp() - returning response with tokens`);
+    return response;
   }
 
   async requestMagicLink(requestMagicLinkDto: RequestMagicLinkDto, clientIp?: string) {
@@ -378,17 +400,25 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, email: string) {
+    this.logger.log(`[AuthService] generateTokens() called for userId=${userId}, email=${this.maskEmail(email)}`);
+    
     const payload = { sub: userId, email };
+    this.logger.log(`[AuthService] generateTokens() - payload created`);
 
+    this.logger.log(`[AuthService] generateTokens() - signing access token...`);
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: '45m', // 30-60 minutes as requested, using 45m as middle ground
     });
+    this.logger.log(`[AuthService] generateTokens() - access token signed, length=${accessToken.length}`);
 
+    this.logger.log(`[AuthService] generateTokens() - signing refresh token...`);
     const refreshToken = this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
       expiresIn: '30d',
     });
+    this.logger.log(`[AuthService] generateTokens() - refresh token signed, length=${refreshToken.length}`);
 
+    this.logger.log(`[AuthService] generateTokens() - creating refresh token in database...`);
     await this.prisma.refreshToken.create({
       data: {
         token: refreshToken,
@@ -396,37 +426,54 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
+    this.logger.log(`[AuthService] generateTokens() - refresh token saved to database`);
 
-    return {
+    const result = {
       accessToken,
       refreshToken,
     };
+    this.logger.log(`[AuthService] generateTokens() - returning tokens successfully`);
+    return result;
   }
 
   private async findOrCreateUser(email: string) {
+    this.logger.log(`[AuthService] findOrCreateUser() called for email: ${this.maskEmail(email)}`);
+    
+    this.logger.log(`[AuthService] findOrCreateUser() - searching for user in database...`);
     let user = await this.prisma.user.findUnique({
       where: { email },
     });
+    this.logger.log(`[AuthService] findOrCreateUser() - user search completed, found=${!!user}, userId=${user?.id || 'N/A'}`);
 
     if (!user) {
+      this.logger.log(`[AuthService] findOrCreateUser() - user not found, creating new user...`);
       const password = await this.generateRandomPasswordHash();
+      this.logger.log(`[AuthService] findOrCreateUser() - password hash generated, creating user record...`);
       user = await this.prisma.user.create({
         data: {
           email,
           password,
         },
       });
+      this.logger.log(`[AuthService] findOrCreateUser() - new user created: id=${user.id}, email=${this.maskEmail(user.email)}`);
       return user;
     }
 
+    this.logger.log(`[AuthService] findOrCreateUser() - user found, checking password...`);
     if (!user.password || user.password.trim().length === 0) {
+      this.logger.log(`[AuthService] findOrCreateUser() - user has no password, generating and updating...`);
       const password = await this.generateRandomPasswordHash();
+      this.logger.log(`[AuthService] findOrCreateUser() - password hash generated, updating user...`);
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: { password },
       });
+      this.logger.log(`[AuthService] findOrCreateUser() - user password updated`);
+    } else {
+      this.logger.log(`[AuthService] findOrCreateUser() - user has password, no update needed`);
     }
 
+    this.logger.log(`[AuthService] findOrCreateUser() - returning user: id=${user.id}, email=${this.maskEmail(user.email)}`);
     return user;
   }
 

@@ -153,15 +153,13 @@ export default function AuthScreen({ onAuthSuccess }) {
 
         if (response?.accessToken) {
           await ApiService.setToken(response.accessToken, response.refreshToken);
-        setStatusMessage(t('auth.messages.signedIn'));
-        // Wait a bit before calling onAuthSuccess to ensure token is saved and state is updated
-        setTimeout(async () => {
+          setStatusMessage(t('auth.messages.signedIn'));
+          // Call onAuthSuccess immediately - no delay needed
           if (onAuthSuccess) {
-            console.log('[AuthScreen] Calling onAuthSuccess for Google Sign In');
+            console.log('[AuthScreen] Calling onAuthSuccess for Apple Sign In');
             await onAuthSuccess();
-            console.log('[AuthScreen] onAuthSuccess completed for Google Sign In');
+            console.log('[AuthScreen] onAuthSuccess completed for Apple Sign In');
           }
-        }, 500);
         } else {
           throw new Error('No access token received from server');
         }
@@ -178,33 +176,49 @@ export default function AuthScreen({ onAuthSuccess }) {
   };
 
   // Google OAuth configuration with separate Client IDs for iOS/Android/Web
+  // For mobile apps: use only iOS/Android Client IDs (no Web Client ID needed)
+  // Web Client ID is only for web platform
   const iosClientId = Constants.expoConfig?.extra?.googleIosClientId || process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
   const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId || process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-  const webClientId = Constants.expoConfig?.extra?.googleWebClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  const webClientId = Platform.OS === 'web' 
+    ? (Constants.expoConfig?.extra?.googleWebClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
+    : undefined; // Don't use Web Client ID on mobile - use iOS/Android Client IDs instead
   
   // Create redirect URI for Google OAuth
-  // expo-auth-session uses WebBrowser which requires Web Client ID
-  // For mobile apps, expo-auth-session may add flowName parameter to redirect URI
-  // We need to use makeRedirectUri to get the exact URI that expo-auth-session will use
-  // Then add that exact URI (with flowName if present) to Google Console
-  const redirectUri = makeRedirectUri({
-    scheme: 'eatsense',
-    usePath: false,
-    useProxy: false,
+  // For mobile: expo-auth-session will use iOS/Android Client IDs with their own redirect handling
+  // For web: use full domain URL
+  const redirectUri = Platform.select({
+    web: 'https://eatsense.app/auth/google/callback',
+    default: makeRedirectUri({
+      scheme: 'eatsense',
+      usePath: false,
+      useProxy: false,
+    }),
   });
   
   // Log the exact redirect URI that will be used
   console.log('[AuthScreen] Google OAuth redirectUri:', redirectUri);
   console.log('[AuthScreen] Google OAuth Client IDs:', { iosClientId, androidClientId, webClientId });
-  console.log('[AuthScreen] Note: Add this exact redirect URI to Google Console (may include flowName parameter)');
+  console.log('[AuthScreen] Platform:', Platform.OS);
+  console.log('[AuthScreen] Using webClientId on mobile:', !!webClientId && Platform.OS !== 'web');
   
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     iosClientId,
     androidClientId,
-    webClientId, // Required for mobile apps using WebBrowser
+    webClientId, // Only for web platform, undefined for mobile
     scopes: ['openid', 'profile', 'email'],
     redirectUri,
   });
+  
+  // Log Google request state
+  useEffect(() => {
+    if (googleRequest) {
+      console.log('[AuthScreen] Google OAuth request created:', {
+        url: googleRequest.url,
+        redirectUri: googleRequest.redirectUri,
+      });
+    }
+  }, [googleRequest]);
 
   // Handle Google OAuth response
   useEffect(() => {
@@ -260,14 +274,12 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (response?.accessToken) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
         setStatusMessage(t('auth.messages.signedIn'));
-        // Wait a bit before calling onAuthSuccess to ensure token is saved and state is updated
-        setTimeout(async () => {
-          if (onAuthSuccess) {
-            console.log('[AuthScreen] Calling onAuthSuccess for Apple Sign In');
-            await onAuthSuccess();
-            console.log('[AuthScreen] onAuthSuccess completed for Apple Sign In');
-          }
-        }, 500);
+        // Call onAuthSuccess immediately - no delay needed
+        if (onAuthSuccess) {
+          console.log('[AuthScreen] Calling onAuthSuccess for Google Sign In');
+          await onAuthSuccess();
+          console.log('[AuthScreen] onAuthSuccess completed for Google Sign In');
+        }
       } else {
         throw new Error('No access token received from server');
       }
@@ -284,11 +296,17 @@ export default function AuthScreen({ onAuthSuccess }) {
       resetFeedback();
 
       if (!googleRequest) {
+        console.error('[AuthScreen] Google OAuth request not available');
         throw new Error('Google OAuth not configured');
       }
 
+      console.log('[AuthScreen] Starting Google OAuth flow...');
+      console.log('[AuthScreen] Request URL:', googleRequest.url);
+      console.log('[AuthScreen] Redirect URI:', googleRequest.redirectUri);
+      
       await googlePromptAsync();
     } catch (error) {
+      console.error('[AuthScreen] Google OAuth prompt error:', error);
       setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
       setIsSubmitting(false);
     }
@@ -362,16 +380,21 @@ export default function AuthScreen({ onAuthSuccess }) {
     resetFeedback();
 
     try {
+      console.log('[AuthScreen] Verifying OTP code...');
       const response = await ApiService.verifyOtp(email.trim().toLowerCase(), sanitizedCode);
+      console.log('[AuthScreen] OTP verification response:', { hasToken: !!response?.accessToken });
+      
       if (response?.accessToken) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
+        console.log('[AuthScreen] Token saved, calling onAuthSuccess');
         setStatusMessage(t('auth.messages.signedIn'));
-        // Wait a bit before calling onAuthSuccess to ensure token is saved
-        setTimeout(() => {
-          if (onAuthSuccess) {
-            onAuthSuccess();
-          }
-        }, 100);
+        
+        // Call onAuthSuccess immediately - no delay needed
+        if (onAuthSuccess) {
+          console.log('[AuthScreen] Calling onAuthSuccess for Email OTP');
+          await onAuthSuccess();
+          console.log('[AuthScreen] onAuthSuccess completed for Email OTP');
+        }
       } else {
         throw new Error('No access token received from server');
       }

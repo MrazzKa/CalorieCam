@@ -263,23 +263,29 @@ function AppContent() {
     console.log('[App] handleAuthSuccess called');
     setIsAuthenticated(true);
     
-    // Check if user has completed onboarding
-    // Use a shorter timeout and don't block navigation if it fails
-    try {
-      const profilePromise = ApiService.getUserProfile();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 5000)
-      );
-      const profile = await Promise.race([profilePromise, timeoutPromise]);
-      console.log('[App] Profile loaded, onboarding status:', profile?.isOnboardingCompleted);
-      setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
-    } catch (error) {
-      console.log('[App] Error checking onboarding status (non-blocking):', error);
-      console.log('[App] Error details:', error.message);
-      // Default to showing onboarding if we can't check
-      // This ensures navigation still works even if API call fails
-      setHasCompletedOnboarding(false);
-    }
+    // Immediately set onboarding to false to show onboarding screen
+    // This ensures navigation works immediately without waiting for API
+    setHasCompletedOnboarding(false);
+    
+    // Check onboarding status in background (non-blocking)
+    // Add a small delay to ensure onboarding screen is shown first
+    // If user already completed onboarding, we'll update state after a delay
+    setTimeout(() => {
+      ApiService.getUserProfile()
+        .then((profile) => {
+          console.log('[App] Profile loaded in background, onboarding status:', profile?.isOnboardingCompleted);
+          if (profile?.isOnboardingCompleted) {
+            console.log('[App] User already completed onboarding, navigating to MainTabs');
+            setHasCompletedOnboarding(true);
+          } else {
+            console.log('[App] User needs onboarding, keeping onboarding screen');
+          }
+        })
+        .catch((error) => {
+          console.log('[App] Error checking onboarding status (non-blocking):', error.message);
+          // Keep onboarding screen shown if we can't check
+        });
+    }, 500); // Small delay to ensure onboarding screen renders first
   }, []);
 
   // Handle deep links (Magic Links) - delayed until app is fully loaded
@@ -373,7 +379,9 @@ function AppContent() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer
+        key={`${isAuthenticated}-${hasCompletedOnboarding}`}
+      >
         <Stack.Navigator
           initialRouteName={initialRouteName}
           screenOptions={{
