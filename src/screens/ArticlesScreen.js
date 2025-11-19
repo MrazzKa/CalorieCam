@@ -38,11 +38,7 @@ export default function ArticlesScreen() {
   const [isTagLoading, setIsTagLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadArticles();
-  }, []);
-
-  const loadArticles = async (showSpinner = true) => {
+  const loadArticles = useCallback(async (showSpinner = true) => {
     try {
       if (showSpinner) {
         setIsLoading(true);
@@ -61,16 +57,20 @@ export default function ArticlesScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [t]);
 
-  const handleRefresh = () => {
+  useEffect(() => {
+    loadArticles();
+  }, [loadArticles]);
+
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     setSearchQuery('');
     setSearchFeed(null);
     setSelectedTag('');
     setTagFeed(null);
     loadArticles(false);
-  };
+  }, [loadArticles]);
 
   const handleSearch = async (query) => {
     setSearchQuery(query);
@@ -139,10 +139,14 @@ export default function ArticlesScreen() {
   const tagOptions = useMemo(() => {
     const tags = new Set();
     (feed?.articles || []).forEach((article) => {
-      article.tags.forEach((tag) => tags.add(tag));
+      if (article?.tags && Array.isArray(article.tags)) {
+        article.tags.forEach((tag) => tags.add(tag));
+      }
     });
     (featured || []).forEach((article) => {
-      article.tags?.forEach((tag) => tags.add(tag));
+      if (article?.tags && Array.isArray(article.tags)) {
+        article.tags.forEach((tag) => tags.add(tag));
+      }
     });
     return Array.from(tags).sort((a, b) => a.localeCompare(b));
   }, [feed, featured]);
@@ -187,15 +191,17 @@ export default function ArticlesScreen() {
   };
 
   const handleArticlePress = (slug) => {
-    navigation.navigate('ArticleDetail', { slug });
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('ArticleDetail', { slug });
+    }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}> 
-        <TouchableOpacity onPress={() => navigation.goBack()}> 
-          <Ionicons name="arrow-back" size={24} color={colors.text} /> 
-        </TouchableOpacity> 
+        <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>{t('articles.title')}</Text> 
         <View style={styles.headerPlaceholder} /> 
       </View> 
@@ -250,7 +256,7 @@ export default function ArticlesScreen() {
         {featured.length > 0 && !searchQuery && !selectedTag && (
           <View style={styles.section}> 
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('articles.featured')}</Text> 
-            {featured.map((article) => (
+            {(featured || []).map((article) => (
               <ArticleCard
                 key={article.id}
                 article={article}
@@ -318,7 +324,7 @@ export default function ArticlesScreen() {
             {!searchQuery && !selectedTag && (
               <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('articles.allArticles')}</Text>
             )}
-            {articles.map((article) => (
+            {(articles || []).map((article) => (
               <ArticleCard
                 key={article.id}
                 article={article}

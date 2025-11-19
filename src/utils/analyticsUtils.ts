@@ -111,10 +111,10 @@ export class Analytics {
   importEvents(events: string): void {
     try {
       const parsedEvents = JSON.parse(events);
-      this.events = parsedEvents.map((event: any) => ({
+      this.events = Array.isArray(parsedEvents) ? parsedEvents.map((event: any) => ({
         ...event,
         timestamp: new Date(event.timestamp),
-      }));
+      })) : [];
     } catch (error) {
       console.error('Failed to import analytics events:', error);
     }

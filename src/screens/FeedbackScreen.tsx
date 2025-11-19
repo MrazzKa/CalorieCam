@@ -40,7 +40,7 @@ export const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ onClose }) => {
       Alert.alert(
         'Thank you!',
         'Your feedback has been submitted successfully',
-        [{ text: 'OK', onPress: onClose }]
+        [{ text: 'OK', onPress: () => onClose && typeof onClose === 'function' ? onClose() : null }]
       );
     } catch (error) {
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
@@ -86,7 +86,7 @@ export const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ onClose }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Category</Text>
           <View style={styles.categoriesContainer}>
-            {categories.map((cat) => (
+            {(categories || []).map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[

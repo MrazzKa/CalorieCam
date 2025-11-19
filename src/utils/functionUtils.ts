@@ -1,11 +1,15 @@
+type TimerHandle = ReturnType<typeof setTimeout>;
+
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
+  let timeout: TimerHandle | null = null;
   
   return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => func(...args), wait);
   };
 };
@@ -80,7 +84,7 @@ export const timeout = <T>(
   ms: number
 ): Promise<T> => {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const timer: TimerHandle = setTimeout(() => {
       reject(new Error('Operation timed out'));
     }, ms);
     

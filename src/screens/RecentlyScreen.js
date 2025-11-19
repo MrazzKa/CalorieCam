@@ -69,7 +69,7 @@ const formatDateLabel = (date, t, language) => {
 
 const normalizeMeal = (meal) => {
   if (!meal) return null;
-  const items = meal.items || [];
+  const items = Array.isArray(meal.items) ? meal.items : [];
   const toNumber = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -209,11 +209,13 @@ export default function RecentlyScreen() {
         <TouchableOpacity
           style={[styles.recentItem, { backgroundColor: colors.card, borderColor: colors.borderMuted }]}
           onPress={() => {
-            navigation.navigate('AnalysisResults', {
-              imageUri: item.imageUri,
-              analysisResult: item.analysisResult,
-              readOnly: true,
-            });
+            if (navigation && typeof navigation.navigate === 'function') {
+              navigation.navigate('AnalysisResults', {
+                imageUri: item.imageUri,
+                analysisResult: item.analysisResult,
+                readOnly: true,
+              });
+            }
           }}
         >
           {item.imageUri ? (
@@ -292,7 +294,11 @@ export default function RecentlyScreen() {
       </Text>
       <TouchableOpacity
         style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-        onPress={() => navigation.navigate('Camera')}
+        onPress={() => {
+          if (navigation && typeof navigation.navigate === 'function') {
+            navigation.navigate('Camera');
+          }
+        }}
       >
         <Text style={styles.emptyButtonText}>{t('recently.empty.cta')}</Text>
       </TouchableOpacity>

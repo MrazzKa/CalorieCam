@@ -15,16 +15,49 @@ export class UserProfilesService {
       throw new BadRequestException('Profile already exists');
     }
 
-    // Calculate daily calories if not provided
-    if (!profileData.dailyCalories && profileData.height && profileData.weight && profileData.age && profileData.gender && profileData.activityLevel) {
-      profileData.dailyCalories = this.calculateDailyCalories(profileData);
+    // Remove fields that don't exist in the schema - be very explicit
+    const {
+      selectedPlan,
+      planBillingCycle,
+      planId,
+      billingCycle,
+      preferences,
+      ...validProfileData
+    } = profileData;
+
+    // Ensure selectedPlan and planBillingCycle are completely removed
+    delete (validProfileData as any).selectedPlan;
+    delete (validProfileData as any).planBillingCycle;
+    delete (validProfileData as any).planId;
+    delete (validProfileData as any).billingCycle;
+
+    const mergedPreferences = this.mergePreferences(
+      preferences,
+      selectedPlan || planId,
+      planBillingCycle || billingCycle,
+    );
+
+    if (mergedPreferences) {
+      validProfileData.preferences = mergedPreferences;
     }
 
+    // Calculate daily calories if not provided
+    if (!validProfileData.dailyCalories && validProfileData.height && validProfileData.weight && validProfileData.age && validProfileData.gender && validProfileData.activityLevel) {
+      validProfileData.dailyCalories = this.calculateDailyCalories(validProfileData);
+    }
+
+    // Final safety check - remove any remaining invalid fields
+    const finalData: any = {
+      userId,
+      ...validProfileData,
+    };
+    delete finalData.selectedPlan;
+    delete finalData.planBillingCycle;
+    delete finalData.planId;
+    delete finalData.billingCycle;
+
     return this.prisma.userProfile.create({
-      data: {
-        userId,
-        ...profileData,
-      },
+      data: finalData,
     });
   }
 
@@ -52,12 +85,47 @@ export class UserProfilesService {
       profileData.dailyCalories = this.calculateDailyCalories(updatedData);
     }
 
-    // Remove fields that should not be updated directly
-    const { id, userId: _userId, createdAt, updatedAt, email, ...updateData } = profileData;
+    // Remove fields that should not be updated directly or don't exist in schema
+    const {
+      id,
+      userId: _userId,
+      createdAt,
+      updatedAt,
+      email,
+      selectedPlan,
+      planBillingCycle,
+      planId,
+      billingCycle,
+      preferences,
+      ...updateData
+    } = profileData;
+
+    // Ensure selectedPlan and planBillingCycle are completely removed
+    delete (updateData as any).selectedPlan;
+    delete (updateData as any).planBillingCycle;
+    delete (updateData as any).planId;
+    delete (updateData as any).billingCycle;
+
+    const mergedPreferences = this.mergePreferences(
+      preferences ?? existingProfile.preferences,
+      selectedPlan || planId,
+      planBillingCycle || billingCycle,
+    );
+
+    if (mergedPreferences) {
+      updateData.preferences = mergedPreferences;
+    }
+
+    // Final safety check - remove any remaining invalid fields
+    const finalData: any = { ...updateData };
+    delete finalData.selectedPlan;
+    delete finalData.planBillingCycle;
+    delete finalData.planId;
+    delete finalData.billingCycle;
 
     return this.prisma.userProfile.update({
       where: { userId },
-      data: updateData,
+      data: finalData,
     });
   }
 
@@ -94,5 +162,41 @@ export class UserProfilesService {
 
     const multiplier = activityMultipliers[activityLevel] || 1.2;
     return Math.round(bmr * multiplier);
+  }
+
+  private mergePreferences(
+    basePreferences: any,
+    selectedPlan?: string,
+    planBillingCycle?: string,
+  ) {
+    const hasPlanSelection = selectedPlan || planBillingCycle;
+    const preferencesClone = basePreferences
+      ? { ...basePreferences }
+      : hasPlanSelection
+        ? {}
+        : null;
+
+    if (!preferencesClone) {
+      return null;
+    }
+
+    if (hasPlanSelection) {
+      const subscription = {
+        ...(preferencesClone.subscription ?? {}),
+      };
+
+      if (selectedPlan) {
+        subscription.planId = selectedPlan;
+      }
+      if (planBillingCycle) {
+        subscription.billingCycle = planBillingCycle;
+      } else if (selectedPlan === 'free' && !subscription.billingCycle) {
+        subscription.billingCycle = 'lifetime';
+      }
+
+      preferencesClone.subscription = subscription;
+    }
+
+    return preferencesClone;
   }
 }

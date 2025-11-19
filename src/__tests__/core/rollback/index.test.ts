@@ -19,9 +19,9 @@ describe('RollbackManager', () => {
     const rollback2 = jest.fn();
     const rollback3 = jest.fn();
     
-    const id1 = rollbackManager.addAction('action1', { test: 'data1' }, rollback1);
+    rollbackManager.addAction('action1', { test: 'data1' }, rollback1);
     const id2 = rollbackManager.addAction('action2', { test: 'data2' }, rollback2);
-    const id3 = rollbackManager.addAction('action3', { test: 'data3' }, rollback3);
+    rollbackManager.addAction('action3', { test: 'data3' }, rollback3);
     
     await rollbackManager.rollbackTo(id2);
     

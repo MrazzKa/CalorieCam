@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useDebounce, useThrottle, usePrevious, useToggle, useCounter, useLocalStorage, useSessionStorage, useAsync, useInterval, useTimeout, useOnClickOutside, useKeyPress, useWindowSize } from '../../utils/hooks';
+import { useDebounce, useThrottle, usePrevious, useToggle, useCounter, useLocalStorage, useSessionStorage, useAsync, useInterval, useTimeout, useKeyPress, useWindowSize } from '../../utils/hooks';
 
 describe('hooks', () => {
   describe('useDebounce', () => {

@@ -1,15 +1,16 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
 
 const config = getDefaultConfig(__dirname);
 
+// For Metro 0.83+, use blockList directly as an array
+// All patterns must have the same flags (case-insensitive 'i' flag)
 config.resolver = {
   ...config.resolver,
-  blockList: exclusionList([
-    /apps\/api\/.*/,
+  blockList: [
+    /apps\/api\/.*/i,
     /.*\.(mp4|mov|mkv|zip|psd|7z|rar)$/i,
-    /logs\/.*/,
-  ]),
+    /logs\/.*/i,
+  ],
 };
 
 // Configure Metro to use specific host if needed

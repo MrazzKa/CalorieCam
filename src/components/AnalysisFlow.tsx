@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Animated, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { analyzeImage as analyzeImageAPI } from '../lib/api';
@@ -15,40 +15,9 @@ type AnalysisStep = 'select' | 'analyzing' | 'complete' | 'error';
 export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisComplete, source = 'camera' }) => {
   const [step, setStep] = useState<AnalysisStep>('analyzing');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  
-  const progressAnimation = new Animated.Value(0);
 
-  useEffect(() => {
-    if (source === 'camera') {
-      takePhoto();
-    } else if (source === 'gallery') {
-      selectFromLibrary();
-    }
-  }, [source]);
-
-  useEffect(() => {
-    if (step === 'analyzing') {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev + Math.random() * 10;
-          if (newProgress >= 90) {
-            clearInterval(interval);
-            return 90;
-          }
-          return newProgress;
-        });
-      }, 300);
-
-      return () => clearInterval(interval);
-    } else {
-      setProgress(0);
-    }
-  }, [step]);
-
-  const requestPermissions = async (): Promise<boolean> => {
+  const requestPermissions = useCallback(async (): Promise<boolean> => {
     const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
     const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
@@ -65,9 +34,24 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
     }
     
     return true;
-  };
+  }, []);
 
-  const takePhoto = async () => {
+  const startAnalysis = useCallback(async (imageUri: string) => {
+    setStep('analyzing');
+    setError(null);
+
+    try {
+      const result = await analyzeImageAPI(imageUri);
+      setStep('complete');
+      onAnalysisComplete(result, imageUri);
+    } catch (error: any) {
+      console.error('Analysis error:', error);
+      setError(error.message || 'Failed to analyze image');
+      setStep('error');
+    }
+  }, [onAnalysisComplete]);
+
+  const takePhoto = useCallback(async () => {
     if (!(await requestPermissions())) {
       onClose();
       return;
@@ -85,7 +69,7 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         setSelectedImage(asset.uri);
-        startAnalysis(asset.uri);
+        await startAnalysis(asset.uri);
       } else {
         onClose();
       }
@@ -94,9 +78,9 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
       setError('Failed to take photo');
       setStep('error');
     }
-  };
+  }, [requestPermissions, onClose, startAnalysis]);
 
-  const selectFromLibrary = async () => {
+  const selectFromLibrary = useCallback(async () => {
     if (!(await requestPermissions())) {
       onClose();
       return;
@@ -114,7 +98,7 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         setSelectedImage(asset.uri);
-        startAnalysis(asset.uri);
+        await startAnalysis(asset.uri);
       } else {
         onClose();
       }
@@ -123,25 +107,15 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
       setError('Failed to select image');
       setStep('error');
     }
-  };
+  }, [requestPermissions, onClose, startAnalysis]);
 
-  const startAnalysis = async (imageUri: string) => {
-    setStep('analyzing');
-    setProgress(0);
-    setError(null);
-
-    try {
-      const result = await analyzeImageAPI(imageUri);
-      setProgress(100);
-      setAnalysisResult(result);
-      setStep('complete');
-      onAnalysisComplete(result, imageUri);
-    } catch (error: any) {
-      console.error('Analysis error:', error);
-      setError(error.message || 'Failed to analyze image');
-      setStep('error');
+  useEffect(() => {
+    if (source === 'camera') {
+      void takePhoto();
+    } else if (source === 'gallery') {
+      void selectFromLibrary();
     }
-  };
+  }, [source, takePhoto, selectFromLibrary]);
 
   const getStepTitle = () => {
     switch (step) {
@@ -228,13 +202,16 @@ export const AnalysisFlow: React.FC<AnalysisFlowProps> = ({ onClose, onAnalysisC
         <Ionicons name="alert-circle" size={48} color="#E74C3C" />
         <Text style={styles.errorTitle}>Analysis error</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => {
-          if (source === 'camera') {
-            takePhoto();
-          } else {
-            selectFromLibrary();
-          }
-        }}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            if (source === 'camera') {
+              void takePhoto();
+            } else {
+              void selectFromLibrary();
+            }
+          }}
+        >
           <Text style={styles.retryButtonText}>Try again</Text>
         </TouchableOpacity>
       </View>

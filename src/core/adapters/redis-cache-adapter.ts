@@ -1,4 +1,4 @@
-import { CacheAdapter } from './cache-adapter';
+import type { CacheAdapter } from './cache-adapter';
 
 export interface RedisCacheConfig {
   baseUrl: string;

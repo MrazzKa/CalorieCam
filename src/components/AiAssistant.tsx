@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   TextInput,
   ScrollView,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -48,27 +46,13 @@ const AiAssistant = ({ visible, onClose }) => {
   const [currentFlow, setCurrentFlow] = useState<FlowId | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [step, setStep] = useState<any>(null);
-  const [collected, setCollected] = useState<Record<string, any>>({});
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      fetchFlows();
-      fetchHistory();
-      setCurrentFlow(null);
-      setSessionId(null);
-      setStep(null);
-      setSummary(null);
-      setComplete(false);
-      setCollected({});
-    }
-  }, [visible]);
-
-  const fetchFlows = async () => {
+  const fetchFlows = useCallback(async () => {
     try {
       const result = await ApiService.listAssistantFlows();
       if (Array.isArray(result)) {
@@ -84,9 +68,9 @@ const AiAssistant = ({ visible, onClose }) => {
     } catch (error) {
       console.warn('Failed to load assistant flows', error);
     }
-  };
+  }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!userId) return;
     try {
       const result = await ApiService.getConversationHistory(userId, 10);
@@ -94,7 +78,19 @@ const AiAssistant = ({ visible, onClose }) => {
     } catch (error) {
       console.warn('Failed to load assistant history', error);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (visible) {
+      void fetchFlows();
+      void fetchHistory();
+      setCurrentFlow(null);
+      setSessionId(null);
+      setStep(null);
+      setSummary(null);
+      setComplete(false);
+    }
+  }, [visible, fetchFlows, fetchHistory]);
 
   const startFlow = async (flowId: FlowId) => {
     if (!userId) return;
@@ -104,7 +100,6 @@ const AiAssistant = ({ visible, onClose }) => {
       setCurrentFlow(flowId);
       setSessionId(response.sessionId || null);
       setStep(response.step);
-      setCollected(response.collected || {});
       setSummary(response.summary || null);
       setComplete(response.complete);
       setInput('');
@@ -131,7 +126,6 @@ const AiAssistant = ({ visible, onClose }) => {
         activeSessionId = startResponse.sessionId;
         setSessionId(activeSessionId || null);
         setStep(startResponse.step);
-        setCollected(startResponse.collected || {});
         setSummary(startResponse.summary || null);
         setComplete(startResponse.complete);
         if (startResponse.complete) {
@@ -143,7 +137,6 @@ const AiAssistant = ({ visible, onClose }) => {
 
       const response = await ApiService.sendAssistantSessionStep(activeSessionId!, userId, message);
       setStep(response.step);
-      setCollected(response.collected || {});
       setSummary(response.summary || null);
       setComplete(response.complete);
       setSessionId(response.complete ? null : response.sessionId || activeSessionId);
@@ -163,7 +156,6 @@ const AiAssistant = ({ visible, onClose }) => {
       setCurrentFlow(null);
       setStep(null);
       setSummary(null);
-      setCollected({});
       return;
     }
     try {
@@ -177,7 +169,6 @@ const AiAssistant = ({ visible, onClose }) => {
       setSessionId(null);
       setStep(null);
       setSummary(null);
-      setCollected({});
     }
   };
 
@@ -187,7 +178,7 @@ const AiAssistant = ({ visible, onClose }) => {
     }
     return (
       <View style={styles.quickReplies}>
-        {suggestions.map((reply) => (
+        {(suggestions || []).map((reply) => (
           <TouchableOpacity
             key={reply}
             style={styles.quickReplyButton}
@@ -252,7 +243,7 @@ const AiAssistant = ({ visible, onClose }) => {
   const renderFlowPicker = () => (
     <View style={styles.flowList}>
       <Text style={styles.sectionTitle}>{t('assistant.chooseFlow')}</Text>
-      {flows.map((flow, index) => (
+      {(flows || []).map((flow, index) => (
         <MotiView
           key={flow.id}
           from={reduceMotion ? undefined : { opacity: 0, translateY: 12 }}
@@ -277,7 +268,7 @@ const AiAssistant = ({ visible, onClose }) => {
         {history.length === 0 ? (
           <Text style={styles.emptyHistory}>{t('assistant.historyEmpty')}</Text>
         ) : (
-          history.map((item) => (
+          (history || []).map((item) => (
             <View key={item.id} style={styles.historyItem}>
               <Text style={styles.historyAnswer}>{item.answer}</Text>
               <Text style={styles.historyDate}>{new Date(item.createdAt).toLocaleString()}</Text>
@@ -289,11 +280,11 @@ const AiAssistant = ({ visible, onClose }) => {
   );
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={() => onClose && typeof onClose === 'function' ? onClose() : null}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('assistant.title')}</Text>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={() => onClose && typeof onClose === 'function' ? onClose() : null}>
             <Ionicons name="close" size={24} color={tokens.colors.textSecondary} />
           </TouchableOpacity>
         </View>

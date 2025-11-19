@@ -29,7 +29,7 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [visible, slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {
@@ -70,7 +70,7 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
           
           <View style={styles.content}>
             <Text style={styles.title}>Describe Your Food</Text>
-            <Text style={styles.subtitle}>Tell us what you ate and we'll analyze it</Text>
+            <Text style={styles.subtitle}>Tell us what you ate and we&apos;ll analyze it</Text>
             
             <View style={styles.inputContainer}>
               <TextInput

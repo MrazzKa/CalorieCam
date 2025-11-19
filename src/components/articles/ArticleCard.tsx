@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ArticleSummary } from '../../types/articles';
+import type { ArticleSummary } from '../../types/articles';
 import { BORDER_RADIUS, PADDING, SPACING, SHADOW } from '../../utils/designConstants';
 
 interface ArticleCardProps {
@@ -22,13 +22,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   featuredLabel,
 }) => {
   const { colors } = useTheme();
-  const onPrimary = colors.onPrimary ?? '#FFFFFF';
   const shadowColor = colors.shadow ?? '#000000';
 
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, shadowColor }]}
-      onPress={() => onPress(article.slug)}
+      onPress={() => onPress && typeof onPress === 'function' ? onPress(article.slug) : null}
       activeOpacity={0.9}
     >
       {article.coverUrl ? (

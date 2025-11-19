@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Animated,
   Modal,
   ActivityIndicator,
@@ -19,8 +18,6 @@ import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { HealthScoreCard } from '../components/HealthScoreCard';
-
-const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -53,10 +50,17 @@ export default function DashboardScreen() {
       loadMonthlyStats();
       loadArticles();
       loadRecent();
-    }, [selectedDate])
+    }, [loadStats, loadMonthlyStats, loadArticles, loadRecent])
   );
 
-  const loadStats = async () => {
+  useEffect(() => {
+    loadStats();
+    loadMonthlyStats();
+    loadArticles();
+    loadRecent();
+  }, [selectedDate, loadStats, loadMonthlyStats, loadArticles, loadRecent]);
+
+  const loadStats = React.useCallback(async () => {
     try {
       const statsData = await ApiService.getStats('day');
       // Map API (/stats/dashboard) shape to UI state
@@ -88,9 +92,9 @@ export default function DashboardScreen() {
         goal: 2000,
       });
     }
-  };
+  }, []);
 
-  const loadMonthlyStats = async () => {
+  const loadMonthlyStats = React.useCallback(async () => {
     try {
       setMonthlyLoading(true);
       const response = await ApiService.getMonthlyStats();
@@ -101,9 +105,9 @@ export default function DashboardScreen() {
     } finally {
       setMonthlyLoading(false);
     }
-  };
+  }, []);
 
-  const loadArticles = async () => {
+  const loadArticles = React.useCallback(async () => {
     try {
       const [featured, feed] = await Promise.all([
         ApiService.getFeaturedArticles(),
@@ -115,9 +119,9 @@ export default function DashboardScreen() {
       setFeaturedArticles([]);
       setFeedArticles([]);
     }
-  };
+  }, []);
 
-  const loadRecent = async () => {
+  const loadRecent = React.useCallback(async () => {
     try {
       const meals = await ApiService.getMeals();
       const items = Array.isArray(meals) ? meals.slice(0, 5) : [];
@@ -136,7 +140,7 @@ export default function DashboardScreen() {
       setRecentItems([]);
       setHighlightMeal(null);
     }
-  };
+  }, [t]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString(language || 'en', {
@@ -214,13 +218,17 @@ export default function DashboardScreen() {
   const handleCameraPress = () => {
     console.log('Camera button pressed - navigating to Camera');
     setShowModal(false);
-    navigation.navigate('Camera');
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Camera');
+    }
   };
 
   const handleGalleryPress = () => {
     console.log('Gallery button pressed - navigating to Gallery');
     setShowModal(false);
-    navigation.navigate('Gallery');
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Gallery');
+    }
   };
 
   const handleAiAssistantPress = () => {
@@ -352,7 +360,7 @@ export default function DashboardScreen() {
             <>
               <View style={styles.topFoodsContainer}>
                 <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.topFoods')}</Text>
-                {monthlyStats.topFoods.slice(0, 5).map((food, index) => (
+                {(monthlyStats.topFoods || []).slice(0, 5).map((food, index) => (
                   <View key={`${food.label}-${index}`} style={styles.topFoodRow}>
                     <Text style={styles.topFoodRank}>{index + 1}</Text>
                     <View style={styles.topFoodContent}>
@@ -370,7 +378,7 @@ export default function DashboardScreen() {
 
               <View style={styles.mealDistributionContainer}>
                 <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.mealDistribution')}</Text>
-                {monthlyStats.mealTypeDistribution.map((entry) => (
+                {(monthlyStats.mealTypeDistribution || []).map((entry) => (
                   <View key={entry.mealType} style={styles.mealDistributionRow}>
                     <View style={styles.mealDistributionHeader}>
                       <Text style={styles.mealDistributionLabel}>{getMealTypeLabel(entry.mealType)}</Text>
@@ -411,18 +419,26 @@ export default function DashboardScreen() {
         >
           <View style={styles.articlesHeader}>
             <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Articles')}>
+            <TouchableOpacity onPress={() => {
+              if (navigation && typeof navigation.navigate === 'function') {
+                navigation.navigate('Articles');
+              }
+            }}>
               <Text style={styles.articlesViewAll}>{t('common.viewAll')}</Text>
             </TouchableOpacity>
           </View>
 
           {featuredArticles.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredList}>
-              {featuredArticles.map((a) => (
+              {(featuredArticles || []).map((a) => (
                 <TouchableOpacity
                   key={a.id}
                   style={styles.articleCardSmall}
-                  onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
+                  onPress={() => {
+                    if (navigation && typeof navigation.navigate === 'function') {
+                      navigation.navigate('ArticleDetail', { slug: a.slug });
+                    }
+                  }}
                 >
                   <View style={styles.featuredBadgeSmall}>
                     <Ionicons name="star" size={12} color={colors.inverseText} />
@@ -436,7 +452,7 @@ export default function DashboardScreen() {
             </ScrollView>
           )}
 
-          {feedArticles.map((a) => (
+          {(feedArticles || []).map((a) => (
             <TouchableOpacity
               key={a.id}
               style={styles.articleRow}
@@ -485,11 +501,15 @@ export default function DashboardScreen() {
         <View style={styles.recentContainer}>
           <Text style={styles.recentTitle}>{t('dashboard.recent')}</Text>
           {recentItems && recentItems.length > 0 ? (
-            recentItems.map((item) => (
+            (recentItems || []).map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.articleRow}
-                onPress={() => navigation.navigate('AnalysisResults', { analysisResult: item, readOnly: true })}
+                onPress={() => {
+                  if (navigation && typeof navigation.navigate === 'function') {
+                    navigation.navigate('AnalysisResults', { analysisResult: item, readOnly: true });
+                  }
+                }}
               >
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={styles.articleRowTitle}>{item.name || item.dishName || t('dashboard.mealFallback')}</Text>

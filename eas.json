@@ -4,12 +4,29 @@
     "appVersionSource": "local"
   },
   "build": {
+    "development": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "image": "macos-sequoia-15.3-xcode-16.2",
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "development",
+        "EXPO_PUBLIC_API_BASE_URL": "https://demi-pseudoaristocratical-claire.ngrok-free.dev",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "535303723114-95afjkjhsnns16s2kk3gh9ld435g8idl.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "535303723114-95afjkjhsnns16s2kk3gh9ld435g8idl.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "535303723114-gq2kis6u8hrle1q8miakbkpf2vjlmcf1.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "535303723114-r5qhobb5sklikci04oejhm6ai4pfeo84.apps.googleusercontent.com"
+      }
+    },
     "production": {
       "distribution": "store",
       "credentialsSource": "local",
       "ios": {
         "image": "macos-sequoia-15.3-xcode-16.2",
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "cocoapods": "1.15.2"
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
@@ -17,7 +34,8 @@
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "535303723114-95afjkjhsnns16s2kk3gh9ld435g8idl.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "535303723114-95afjkjhsnns16s2kk3gh9ld435g8idl.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "535303723114-gq2kis6u8hrle1q8miakbkpf2vjlmcf1.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "535303723114-r5qhobb5sklikci04oejhm6ai4pfeo84.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "535303723114-r5qhobb5sklikci04oejhm6ai4pfeo84.apps.googleusercontent.com",
+        "COCOAPODS_NO_REPO_UPDATE": "true"
       }
     }
   },

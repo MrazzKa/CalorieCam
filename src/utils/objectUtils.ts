@@ -16,6 +16,9 @@ export const omit = <T, K extends keyof T>(object: T, keys: K[]): Omit<T, K> => 
   return result;
 };
 
+const hasOwn = (obj: object, key: PropertyKey): boolean =>
+  Object.prototype.hasOwnProperty.call(obj, key);
+
 export const deepClone = <T>(object: T): T => {
   if (object === null || typeof object !== 'object') {
     return object;
@@ -29,24 +32,20 @@ export const deepClone = <T>(object: T): T => {
     return object.map(item => deepClone(item)) as T;
   }
   
-  if (typeof object === 'object') {
-    const cloned = {} as T;
-    for (const key in object) {
-      if (object.hasOwnProperty(key)) {
-        cloned[key] = deepClone(object[key]);
-      }
+  const cloned = Array.isArray(object) ? ([] as unknown as T) : ({} as T);
+  for (const key in object) {
+    if (hasOwn(object as object, key)) {
+      (cloned as any)[key] = deepClone((object as any)[key]);
     }
-    return cloned;
   }
-  
-  return object;
+  return cloned;
 };
 
 export const deepMerge = <T>(target: T, source: Partial<T>): T => {
   const result = { ...target };
   
   for (const key in source) {
-    if (source.hasOwnProperty(key)) {
+    if (hasOwn(source, key)) {
       const sourceValue = source[key];
       const targetValue = result[key];
       
@@ -115,10 +114,10 @@ export const get = (object: any, path: string, defaultValue?: any): any => {
 export const set = (object: any, path: string, value: any): any => {
   const keys = path.split('.');
   const lastKey = keys.pop()!;
-  let current = object;
+  let current = object ?? {};
   
   for (const key of keys) {
-    if (!(key in current) || typeof current[key] !== 'object') {
+    if (current[key] === undefined || typeof current[key] !== 'object') {
       current[key] = {};
     }
     current = current[key];
@@ -134,13 +133,13 @@ export const unset = (object: any, path: string): boolean => {
   let current = object;
   
   for (const key of keys) {
-    if (current === null || current === undefined || !(key in current)) {
+    if (current === null || current === undefined || !hasOwn(current, key)) {
       return false;
     }
     current = current[key];
   }
   
-  if (current && lastKey in current) {
+  if (current && hasOwn(current, lastKey)) {
     delete current[lastKey];
     return true;
   }

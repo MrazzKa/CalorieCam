@@ -20,6 +20,9 @@ import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS } from '../utils/designConstants';
 
 const fallbackMarkdown = (content, colors) => {
+  if (!content || typeof content !== 'string') {
+    return null;
+  }
   return content.split('\n').filter(Boolean).map((line, index) => (
     <Text key={`${line}-${index}`} style={[styles.markdownFallback, { color: colors.textSecondary }]}>
       {line}
@@ -30,7 +33,7 @@ const fallbackMarkdown = (content, colors) => {
 export default function ArticleDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { slug } = route.params;
+  const { slug } = route.params || {};
   const { colors } = useTheme();
   const { t, language } = useI18n();
   const { width } = useWindowDimensions();
@@ -39,11 +42,7 @@ export default function ArticleDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadArticle();
-  }, [slug]);
-
-  const loadArticle = async () => {
+  const loadArticle = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -55,7 +54,11 @@ export default function ArticleDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug, t]);
+
+  useEffect(() => {
+    loadArticle();
+  }, [loadArticle]);
 
   const handleOpenSource = useCallback(async () => {
     if (article?.sourceUrl) {
@@ -131,9 +134,9 @@ export default function ArticleDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}> 
-        <TouchableOpacity onPress={() => navigation.goBack()}> 
-          <Ionicons name="arrow-back" size={24} color={colors.text} /> 
-        </TouchableOpacity> 
+        <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}> 
           {t('articles.article')} 
         </Text> 
@@ -172,7 +175,7 @@ export default function ArticleDetailScreen() {
 
           {article.tags?.length ? (
             <View style={styles.tagsRow}>
-              {article.tags.map((tag) => (
+              {(article.tags || []).map((tag) => (
                 <View key={tag} style={[styles.tagPill, { backgroundColor: colors.inputBackground }]}> 
                   <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text> 
                 </View>

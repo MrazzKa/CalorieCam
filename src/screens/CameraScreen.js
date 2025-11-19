@@ -43,10 +43,12 @@ export default function CameraScreen() {
           { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
         );
 
-        navigation.navigate('AnalysisResults', {
-          imageUri: compressedImage.uri,
-          source: 'camera',
-        });
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('AnalysisResults', {
+            imageUri: compressedImage.uri,
+            source: 'camera',
+          });
+        }
       } catch (error) {
         console.error('Error taking picture:', error);
         Alert.alert(t('common.error'), t('camera.captureError'));
@@ -79,7 +81,9 @@ export default function CameraScreen() {
   }));
 
   const handleClose = () => {
-    navigation.goBack();
+    if (navigation && typeof navigation.goBack === 'function') {
+      navigation.goBack();
+    }
   };
 
   if (!permission) {

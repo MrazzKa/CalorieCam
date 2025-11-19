@@ -99,10 +99,10 @@ export class Logger {
   importLogs(logs: string): void {
     try {
       const parsedLogs = JSON.parse(logs);
-      this.logs = parsedLogs.map((log: any) => ({
+      this.logs = Array.isArray(parsedLogs) ? parsedLogs.map((log: any) => ({
         ...log,
         timestamp: new Date(log.timestamp),
-      }));
+      })) : [];
     } catch (error) {
       this.error('Failed to import logs', 'Logger', error);
     }

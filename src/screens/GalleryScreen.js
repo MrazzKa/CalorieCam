@@ -13,7 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING } from '../utils/designConstants';
 
 const STATE = {
@@ -29,12 +28,9 @@ const STATE = {
 
 export default function GalleryScreen() {
   const navigation = useNavigation();
-  const { t } = useI18n();
   const [state, setState] = useState(STATE.CHECKING);
   const [error, setError] = useState(null);
   const isOpeningRef = useRef(false);
-
-  console.log('GalleryScreen loaded');
 
   const ensurePermission = useCallback(async () => {
     setState(STATE.CHECKING);
@@ -193,17 +189,19 @@ export default function GalleryScreen() {
       isOpeningRef.current = false;
       
       // Navigate to analysis results with the image
-      navigation.navigate('AnalysisResults', {
-        imageUri: compressedImage.uri,
-        source: 'gallery',
-      });
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('AnalysisResults', {
+          imageUri: compressedImage.uri,
+          source: 'gallery',
+        });
+      }
     } catch (e) {
       console.error('[GalleryScreen] Error picking image:', e);
       setState(STATE.ERROR);
       setError(String(e?.message ?? e));
       isOpeningRef.current = false;
     }
-  }, [ensurePermission, navigation]);
+  }, [navigation]);
 
   // One-time permission check on first mount
   useEffect(() => {
@@ -212,7 +210,9 @@ export default function GalleryScreen() {
   }, [ensurePermission]);
 
   const handleClose = () => {
-    navigation.goBack();
+    if (navigation && typeof navigation.goBack === 'function') {
+      navigation.goBack();
+    }
   };
 
   const renderContent = () => {

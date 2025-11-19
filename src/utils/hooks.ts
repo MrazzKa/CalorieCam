@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { RefObject } from 'react';
+
+const hasWindow = typeof window !== 'undefined';
+const hasDocument = typeof document !== 'undefined';
+const getLocalStorage = (): Storage | null =>
+  hasWindow && 'localStorage' in window ? window.localStorage : null;
+const getSessionStorage = (): Storage | null =>
+  hasWindow && 'sessionStorage' in window ? window.sessionStorage : null;
 
 export const useDebounce = <T>(value: T, delay: number): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -20,26 +28,34 @@ export const useThrottle = <T extends (...args: any[]) => any>(
   callback: T,
   delay: number
 ): T => {
-  const lastRun = useRef(Date.now());
+  const lastRun = useRef(0);
+  const savedCallback = useRef(callback);
 
-  return useCallback(
-    ((...args: any[]) => {
-      if (Date.now() - lastRun.current >= delay) {
-        callback(...args);
-        lastRun.current = Date.now();
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  const throttled = useCallback(
+    (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastRun.current >= delay) {
+        lastRun.current = now;
+        savedCallback.current(...args);
       }
-    }) as T,
-    [callback, delay]
+    },
+    [delay]
   );
+
+  return throttled as unknown as T;
 };
 
 export const usePrevious = <T>(value: T): T | undefined => {
   const ref = useRef<T>();
-  
+
   useEffect(() => {
     ref.current = value;
-  });
-  
+  }, [value]);
+
   return ref.current;
 };
 
@@ -71,48 +87,56 @@ export const useCounter = (initialValue: number = 0): [number, () => void, () =>
   return [count, increment, decrement, reset];
 };
 
-export const useLocalStorage = <T>(key: string, initialValue: T): [T, (value: T) => void] => {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
+const readStorageValue = <T>(storage: Storage | null, key: string, initialValue: T): T => {
+  if (!storage) {
+    return initialValue;
+  }
+  try {
+    const item = storage.getItem(key);
+    return item ? (JSON.parse(item) as T) : initialValue;
+  } catch (error) {
+    console.error(`Error reading storage key "${key}":`, error);
+    return initialValue;
+  }
+};
 
-  const setValue = useCallback((value: T) => {
-    try {
+const writeStorageValue = <T>(storage: Storage | null, key: string, value: T) => {
+  if (!storage) {
+    return;
+  }
+  try {
+    storage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error setting storage key "${key}":`, error);
+  }
+};
+
+export const useLocalStorage = <T>(key: string, initialValue: T): [T, (value: T) => void] => {
+  const storage = getLocalStorage();
+  const [storedValue, setStoredValue] = useState<T>(() => readStorageValue(storage, key, initialValue));
+
+  const setValue = useCallback(
+    (value: T) => {
       setStoredValue(value);
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  }, [key]);
+      writeStorageValue(storage, key, value);
+    },
+    [key, storage]
+  );
 
   return [storedValue, setValue];
 };
 
 export const useSessionStorage = <T>(key: string, initialValue: T): [T, (value: T) => void] => {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      const item = window.sessionStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(`Error reading sessionStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
+  const storage = getSessionStorage();
+  const [storedValue, setStoredValue] = useState<T>(() => readStorageValue(storage, key, initialValue));
 
-  const setValue = useCallback((value: T) => {
-    try {
+  const setValue = useCallback(
+    (value: T) => {
       setStoredValue(value);
-      window.sessionStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Error setting sessionStorage key "${key}":`, error);
-    }
-  }, [key]);
+      writeStorageValue(storage, key, value);
+    },
+    [key, storage]
+  );
 
   return [storedValue, setValue];
 };
@@ -145,7 +169,7 @@ export const useAsync = <T, E = string>(
 
   useEffect(() => {
     if (immediate) {
-      execute();
+      void execute();
     }
   }, [execute, immediate]);
 
@@ -187,10 +211,14 @@ export const useTimeout = (callback: () => void, delay: number | null) => {
 };
 
 export const useOnClickOutside = <T extends HTMLElement>(
-  ref: React.RefObject<T>,
+  ref: RefObject<T>,
   handler: (event: MouseEvent | TouchEvent) => void
 ) => {
   useEffect(() => {
+    if (!hasDocument) {
+      return undefined;
+    }
+
     const listener = (event: MouseEvent | TouchEvent) => {
       if (!ref.current || ref.current.contains(event.target as Node)) {
         return;
@@ -210,6 +238,9 @@ export const useOnClickOutside = <T extends HTMLElement>(
 
 export const useKeyPress = (targetKey: string, callback: () => void) => {
   useEffect(() => {
+    if (!hasWindow) {
+      return undefined;
+    }
     const handler = (event: KeyboardEvent) => {
       if (event.key === targetKey) {
         callback();
@@ -222,12 +253,17 @@ export const useKeyPress = (targetKey: string, callback: () => void) => {
 };
 
 export const useWindowSize = () => {
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
+  const getSize = () => ({
+    width: hasWindow ? window.innerWidth : 0,
+    height: hasWindow ? window.innerHeight : 0,
   });
 
+  const [windowSize, setWindowSize] = useState(getSize);
+
   useEffect(() => {
+    if (!hasWindow) {
+      return undefined;
+    }
     const handleResize = () => {
       setWindowSize({
         width: window.innerWidth,

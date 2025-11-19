@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -20,6 +20,20 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
   onRemove,
 }) => {
   const [animatedValues] = useState<Map<string, Animated.Value>>(new Map());
+
+  const removeNotification = useCallback((id: string) => {
+    const animatedValue = animatedValues.get(id);
+    if (animatedValue) {
+      Animated.timing(animatedValue, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        onRemove(id);
+        animatedValues.delete(id);
+      });
+    }
+  }, [animatedValues, onRemove]);
 
   useEffect(() => {
     notifications.forEach(notification => {
@@ -46,21 +60,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
         }
       }
     });
-  }, [notifications, animatedValues]);
-
-  const removeNotification = (id: string) => {
-    const animatedValue = animatedValues.get(id);
-    if (animatedValue) {
-      Animated.timing(animatedValue, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        onRemove(id);
-        animatedValues.delete(id);
-      });
-    }
-  };
+  }, [notifications, animatedValues, removeNotification]);
 
   const getNotificationStyle = (type: Notification['type']) => {
     switch (type) {
@@ -79,7 +79,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
 
   return (
     <View style={styles.container}>
-      {notifications.map(notification => {
+      {(notifications || []).map(notification => {
         const animatedValue = animatedValues.get(notification.id);
         const style = getNotificationStyle(notification.type);
         

@@ -17,7 +17,7 @@ import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstant
 
 export default function HelpSupportScreen() {
   const navigation = useNavigation();
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
 
   const faqItems = [
     {
@@ -72,7 +72,7 @@ export default function HelpSupportScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Help & Support</Text>
@@ -88,7 +88,7 @@ export default function HelpSupportScreen() {
         >
             <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Часто задаваемые вопросы</Text>
-            {faqItems.map((item, index) => (
+            {(faqItems || []).map((item, index) => (
               <MotiView
                 key={item.id}
                 from={{ opacity: 0, translateX: -20 }}
@@ -112,7 +112,7 @@ export default function HelpSupportScreen() {
         >
             <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Свяжитесь с нами</Text>
-            {contactOptions.map((option, index) => (
+            {(contactOptions || []).map((option, index) => (
               <MotiView
                 key={option.id}
                 from={{ opacity: 0, scale: 0.9 }}
@@ -121,7 +121,7 @@ export default function HelpSupportScreen() {
               >
                 <TouchableOpacity
                   style={[styles.contactCard, { backgroundColor: colors.card }]}
-                  onPress={option.onPress}
+                  onPress={() => option.onPress && typeof option.onPress === 'function' ? option.onPress() : null}
                 >
                   <View style={[styles.contactIcon, { backgroundColor: `${option.color}15` }]}>
                     <Ionicons name={option.icon} size={24} color={option.color} />

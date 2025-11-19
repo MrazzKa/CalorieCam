@@ -34,9 +34,20 @@ export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
+  const loadThemePreference = React.useCallback(async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('themeMode');
+      if (savedTheme) {
+        setThemeMode(savedTheme);
+      }
+    } catch (error) {
+      console.error('Error loading theme preference:', error);
+    }
+  }, []);
+
   useEffect(() => {
     loadThemePreference();
-  }, []);
+  }, [loadThemePreference]);
 
   useEffect(() => {
     if (themeMode === 'system') {
@@ -74,17 +85,6 @@ export const ThemeProvider = ({ children }) => {
     };
   }, []);
 
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem('themeMode');
-      if (savedTheme) {
-        setThemeMode(savedTheme);
-      }
-    } catch (error) {
-      console.error('Error loading theme preference:', error);
-    }
-  };
-
   const toggleTheme = async (mode) => {
     try {
       setThemeMode(mode);
@@ -94,7 +94,10 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  const palette = isDark ? (palettes?.dark || palettes?.light || {}) : (palettes?.light || {});
+  const palette = useMemo(
+    () => (isDark ? palettes?.dark || palettes?.light || {} : palettes?.light || {}),
+    [isDark],
+  );
   const themeTokens = useMemo(() => {
     try {
       const { states: stateTokens, ...restTokens } = baseTokens || {};

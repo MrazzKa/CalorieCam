@@ -63,7 +63,7 @@ export const sendMagicLink = async (email: string): Promise<void> => {
   console.log(`Magic link sent to ${email}`);
 };
 
-export const refreshTokens = async (refreshToken: string): Promise<AuthTokens> => {
+export const refreshTokens = async (_refreshToken: string): Promise<AuthTokens> => {
   // Mock implementation
   return {
     accessToken: 'new-mock-access-token',

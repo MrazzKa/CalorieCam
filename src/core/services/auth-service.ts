@@ -1,4 +1,4 @@
-import { User, UserPreferences } from '../domain';
+import type { User } from '../domain';
 import { securityManager } from '../security';
 
 export interface AuthTokens {
@@ -85,7 +85,7 @@ export class AuthService {
     console.log(`Magic link sent to ${email}`);
   }
 
-  async refreshTokens(refreshToken: string): Promise<AuthTokens> {
+  async refreshTokens(_refreshToken: string): Promise<AuthTokens> {
     // Mock implementation
     return {
       accessToken: securityManager.generateSecureToken(32),
@@ -99,7 +99,7 @@ export class AuthService {
     console.log('User logged out');
   }
 
-  async verifyEmail(token: string): Promise<boolean> {
+  async verifyEmail(_token: string): Promise<boolean> {
     // Mock implementation
     return true;
   }
@@ -109,7 +109,7 @@ export class AuthService {
     console.log(`Password reset email sent to ${email}`);
   }
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+  async changePassword(_currentPassword: string, _newPassword: string): Promise<boolean> {
     // Mock implementation
     return true;
   }

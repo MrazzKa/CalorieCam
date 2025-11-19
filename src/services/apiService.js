@@ -1,7 +1,7 @@
 import { API_BASE_URL, DEV_TOKEN, DEV_REFRESH_TOKEN } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { ArticleFeed, ArticleDetail, ArticleSummary } from '../types/articles';
+// Article types are used in JSDoc comments only
 
 class ApiService {
   constructor() {
@@ -183,13 +183,22 @@ class ApiService {
               response = await fetch(url, config);
               clearTimeout(retryTimeoutId);
               retryTimeoutId = null;
+            } else {
+              // Clear retry timeout if tokens are invalid
+              if (retryTimeoutId) clearTimeout(retryTimeoutId);
             }
+          } else {
+            // Clear refresh timeout if refresh failed
+            if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
           }
         } catch (refreshError) {
           // Clear timeouts on error
           if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
           if (retryTimeoutId) clearTimeout(retryTimeoutId);
           console.warn('[ApiService] Token refresh failed', refreshError);
+          // If refresh fails, clear tokens and re-throw original 401
+          await this.setToken(null, null);
+          throw await this.buildHttpError(response);
         }
       }
 
@@ -271,10 +280,18 @@ class ApiService {
   }
 
   async verifyOtp(email, otp) {
-    return this.request('/auth/verify-otp', {
+    console.log('[ApiService] verifyOtp called with email:', email);
+    const response = await this.request('/auth/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, code: otp }),
     });
+    console.log('[ApiService] verifyOtp response:', {
+      hasAccessToken: !!response?.accessToken,
+      hasRefreshToken: !!response?.refreshToken,
+      keys: response ? Object.keys(response) : [],
+      fullResponse: response,
+    });
+    return response;
   }
 
   async requestMagicLink(email) {
@@ -401,7 +418,7 @@ class ApiService {
   }
 
   // Statistics
-  async getStats(period = 'week') {
+  async getStats() {
     // align with backend routes
     return this.request(`/stats/dashboard`);
   }

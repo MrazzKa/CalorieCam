@@ -1,4 +1,4 @@
-import { JournalEntry, Meal, MealItem } from '../domain';
+import type { JournalEntry, Meal, MealItem } from '../domain';
 
 export interface CreateMealRequest {
   name: string;
@@ -12,7 +12,7 @@ export interface UpdateMealRequest {
 }
 
 export class JournalService {
-  async getJournalEntries(userId: string, dateRange: { start: Date; end: Date }): Promise<JournalEntry[]> {
+  async getJournalEntries(userId: string, _dateRange: { start: Date; end: Date }): Promise<JournalEntry[]> {
     // Mock implementation
     return [
       {
@@ -59,14 +59,14 @@ export class JournalService {
       id: Math.random().toString(36).substr(2, 9),
       name: mealData.name,
       type: mealData.type,
-      items: mealData.items.map(item => ({
+      items: (mealData.items || []).map(item => ({
         id: Math.random().toString(36).substr(2, 9),
         ...item,
       })),
-      totalCalories: mealData.items.reduce((sum, item) => sum + item.calories, 0),
-      totalProtein: mealData.items.reduce((sum, item) => sum + item.protein, 0),
-      totalFat: mealData.items.reduce((sum, item) => sum + item.fat, 0),
-      totalCarbs: mealData.items.reduce((sum, item) => sum + item.carbs, 0),
+      totalCalories: (mealData.items || []).reduce((sum, item) => sum + (item.calories || 0), 0),
+      totalProtein: (mealData.items || []).reduce((sum, item) => sum + (item.protein || 0), 0),
+      totalFat: (mealData.items || []).reduce((sum, item) => sum + (item.fat || 0), 0),
+      totalCarbs: (mealData.items || []).reduce((sum, item) => sum + (item.carbs || 0), 0),
       timestamp: new Date(),
     };
     
@@ -79,7 +79,7 @@ export class JournalService {
       id: mealId,
       name: updates.name || 'Updated Meal',
       type: 'breakfast',
-      items: updates.items?.map(item => ({
+      items: (updates.items || []).map(item => ({
         id: Math.random().toString(36).substr(2, 9),
         ...item,
       })) || [],

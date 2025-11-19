@@ -36,7 +36,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [visible, slideAnim]);
 
   const handleClose = () => {
     Animated.timing(slideAnim, {

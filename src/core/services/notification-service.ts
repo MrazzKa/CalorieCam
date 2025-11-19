@@ -19,7 +19,7 @@ export interface NotificationPreferences {
 }
 
 export class NotificationService {
-  async getNotifications(userId: string, limit: number = 20): Promise<Notification[]> {
+  async getNotifications(userId: string, _limit: number = 20): Promise<Notification[]> {
     // Mock implementation
     return [
       {
@@ -69,7 +69,7 @@ export class NotificationService {
     };
   }
 
-  async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
+  async getNotificationPreferences(_userId: string): Promise<NotificationPreferences> {
     // Mock implementation
     return {
       email: true,
@@ -81,7 +81,7 @@ export class NotificationService {
     };
   }
 
-  async updateNotificationPreferences(userId: string, preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+  async updateNotificationPreferences(_userId: string, preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
     // Mock implementation
     return {
       email: true,
@@ -96,12 +96,12 @@ export class NotificationService {
 
   async sendPushNotification(userId: string, title: string, message: string, data?: any): Promise<void> {
     // Mock implementation
-    console.log(`Push notification sent to user ${userId}: ${title} - ${message}`);
+    console.log(`Push notification sent to user ${userId}: ${title} - ${message}`, data);
   }
 
   async sendEmailNotification(userId: string, subject: string, body: string): Promise<void> {
     // Mock implementation
-    console.log(`Email notification sent to user ${userId}: ${subject}`);
+    console.log(`Email notification sent to user ${userId}: ${subject}`, body);
   }
 }
 

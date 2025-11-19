@@ -2,10 +2,9 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
-  ReactNode,
+  type ReactNode,
 } from 'react';
 import ApiService from '../services/apiService';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AccessibilityInfo } from 'react-native';
-import { LANGUAGE_OPTIONS, LanguageOption } from '../../app/i18n/languages';
+import { LANGUAGE_OPTIONS, type LanguageOption } from '../../app/i18n/languages';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface LanguageSelectorProps {
@@ -23,8 +23,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     if (code === selectedLanguage) {
       return;
     }
-    await onLanguageChange(code);
-    AccessibilityInfo.announceForAccessibility?.(code);
+    if (onLanguageChange && typeof onLanguageChange === 'function') {
+      await onLanguageChange(code);
+    }
+    if (AccessibilityInfo.announceForAccessibility && typeof AccessibilityInfo.announceForAccessibility === 'function') {
+      AccessibilityInfo.announceForAccessibility(code);
+    }
   };
 
   return (
@@ -37,7 +41,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         </View>
       </View>
       <View style={styles.optionsRow}>
-        {languages.map((language) => {
+        {(languages || []).map((language) => {
           const isActive = language.code === selectedLanguage;
           return (
             <TouchableOpacity

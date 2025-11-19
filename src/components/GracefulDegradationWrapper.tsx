@@ -17,12 +17,6 @@ export const GracefulDegradationWrapper: React.FC<GracefulDegradationWrapperProp
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const handleError = (error: Error) => {
-      setHasError(true);
-      setError(error);
-      onError?.(error);
-    };
-
     // Add error boundary logic here
     return () => {
       // Cleanup if needed

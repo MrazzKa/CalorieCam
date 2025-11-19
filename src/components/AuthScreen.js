@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -100,7 +99,7 @@ export default function AuthScreen({ onAuthSuccess }) {
     setStatusMessage('');
   };
 
-  const getErrorMessage = (error, fallbackKey) => {
+  const getErrorMessage = useCallback((error, fallbackKey) => {
     if (!error) {
       return t(fallbackKey);
     }
@@ -125,7 +124,7 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
 
     return t(fallbackKey);
-  };
+  }, [t, resendCooldown]);
 
   const handleAppleSignIn = async () => {
     try {
@@ -154,12 +153,12 @@ export default function AuthScreen({ onAuthSuccess }) {
         if (response?.accessToken) {
           await ApiService.setToken(response.accessToken, response.refreshToken);
           setStatusMessage(t('auth.messages.signedIn'));
-          // Call onAuthSuccess immediately - no delay needed
-          if (onAuthSuccess) {
-            console.log('[AuthScreen] Calling onAuthSuccess for Apple Sign In');
-            await onAuthSuccess();
-            console.log('[AuthScreen] onAuthSuccess completed for Apple Sign In');
-          }
+        // Call onAuthSuccess immediately - no delay needed
+        if (onAuthSuccess && typeof onAuthSuccess === 'function') {
+          console.log('[AuthScreen] Calling onAuthSuccess for Apple Sign In');
+          await onAuthSuccess();
+          console.log('[AuthScreen] onAuthSuccess completed for Apple Sign In');
+        }
         } else {
           throw new Error('No access token received from server');
         }
@@ -244,9 +243,9 @@ export default function AuthScreen({ onAuthSuccess }) {
       // User cancelled, don't show error
       setIsSubmitting(false);
     }
-  }, [googleResponse]);
+  }, [googleResponse, handleGoogleSignInSuccess, getErrorMessage]);
 
-  const handleGoogleSignInSuccess = async (authentication) => {
+  const handleGoogleSignInSuccess = useCallback(async (authentication) => {
     try {
       if (!authentication?.accessToken) {
         throw new Error('No access token from Google');
@@ -256,6 +255,11 @@ export default function AuthScreen({ onAuthSuccess }) {
       const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
         headers: { Authorization: `Bearer ${authentication.accessToken}` },
       });
+      
+      if (!userInfoResponse.ok) {
+        throw new Error(`Failed to fetch user info: ${userInfoResponse.status}`);
+      }
+      
       const userInfo = await userInfoResponse.json();
 
       if (!userInfo.email) {
@@ -275,7 +279,7 @@ export default function AuthScreen({ onAuthSuccess }) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
         setStatusMessage(t('auth.messages.signedIn'));
         // Call onAuthSuccess immediately - no delay needed
-        if (onAuthSuccess) {
+        if (onAuthSuccess && typeof onAuthSuccess === 'function') {
           console.log('[AuthScreen] Calling onAuthSuccess for Google Sign In');
           await onAuthSuccess();
           console.log('[AuthScreen] onAuthSuccess completed for Google Sign In');
@@ -288,7 +292,7 @@ export default function AuthScreen({ onAuthSuccess }) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [t, onAuthSuccess, getErrorMessage]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -382,20 +386,29 @@ export default function AuthScreen({ onAuthSuccess }) {
     try {
       console.log('[AuthScreen] Verifying OTP code...');
       const response = await ApiService.verifyOtp(email.trim().toLowerCase(), sanitizedCode);
-      console.log('[AuthScreen] OTP verification response:', { hasToken: !!response?.accessToken });
+      console.log('[AuthScreen] OTP verification response:', { 
+        hasToken: !!response?.accessToken,
+        hasRefreshToken: !!response?.refreshToken,
+        responseKeys: response ? Object.keys(response) : [],
+        fullResponse: response,
+      });
       
       if (response?.accessToken) {
+        console.log('[AuthScreen] Access token found, saving tokens...');
         await ApiService.setToken(response.accessToken, response.refreshToken);
         console.log('[AuthScreen] Token saved, calling onAuthSuccess');
         setStatusMessage(t('auth.messages.signedIn'));
         
         // Call onAuthSuccess immediately - no delay needed
-        if (onAuthSuccess) {
+        if (onAuthSuccess && typeof onAuthSuccess === 'function') {
           console.log('[AuthScreen] Calling onAuthSuccess for Email OTP');
           await onAuthSuccess();
           console.log('[AuthScreen] onAuthSuccess completed for Email OTP');
+        } else {
+          console.error('[AuthScreen] onAuthSuccess is not defined or not a function!');
         }
       } else {
+        console.error('[AuthScreen] No access token in response:', response);
         throw new Error('No access token received from server');
       }
     } catch (error) {

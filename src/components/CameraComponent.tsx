@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Camera, CameraType } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,14 +17,14 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
   const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('auto');
   const cameraRef = useRef<Camera>(null);
 
-  useEffect(() => {
-    getCameraPermissions();
-  }, []);
-
-  const getCameraPermissions = async () => {
+  const getCameraPermissions = useCallback(async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();
     setHasPermission(status === 'granted');
-  };
+  }, []);
+
+  useEffect(() => {
+    void getCameraPermissions();
+  }, [getCameraPermissions]);
 
   const takePicture = async () => {
     if (cameraRef.current) {

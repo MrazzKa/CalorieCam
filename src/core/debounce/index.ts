@@ -2,7 +2,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
+  let timeout: ReturnType<typeof setTimeout>;
   
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
@@ -29,7 +29,7 @@ export const debounceAsync = <T extends (...args: any[]) => Promise<any>>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>) => {
-  let timeout: NodeJS.Timeout;
+  let timeout: ReturnType<typeof setTimeout>;
   let currentPromise: Promise<Awaited<ReturnType<T>>> | null = null;
   
   return (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {

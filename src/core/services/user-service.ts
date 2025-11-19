@@ -1,4 +1,4 @@
-import { User, UserPreferences } from '../domain';
+import type { User, UserPreferences } from '../domain';
 
 export interface UpdateUserRequest {
   name?: string;
@@ -56,6 +56,7 @@ export class UserService {
 
   async getUserStats(userId: string): Promise<any> {
     // Mock implementation
+    console.log('Fetching user stats for', userId);
     return {
       totalAnalyses: 45,
       totalCalories: 6750,

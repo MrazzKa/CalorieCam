@@ -51,6 +51,9 @@ export const map = async <T, U>(
   array: T[],
   fn: (item: T, index: number) => Promise<U>
 ): Promise<U[]> => {
+  if (!Array.isArray(array)) {
+    return [];
+  }
   return Promise.all(array.map(fn));
 };
 
@@ -138,7 +141,10 @@ export const forEach = async <T>(
 export const parallel = async <T>(
   functions: (() => Promise<T>)[]
 ): Promise<T[]> => {
-  return Promise.all(functions.map(fn => fn()));
+  if (!Array.isArray(functions)) {
+    return [];
+  }
+  return Promise.all(functions.map(fn => fn && typeof fn === 'function' ? fn() : Promise.resolve(null as T)));
 };
 
 export const series = async <T>(

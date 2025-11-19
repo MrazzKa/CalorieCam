@@ -142,7 +142,7 @@ export default function AnalysisResultsScreen() {
       const toMacro = (value) => Math.round(toNumber(value) * 10) / 10;
 
       const ingredientsSource = raw.ingredients || raw.items || [];
-      const normalizedIngredients = ingredientsSource.map((item) => ({
+      const normalizedIngredients = (Array.isArray(ingredientsSource) ? ingredientsSource : []).map((item) => ({
         name: item.name || item.label || 'Ingredient',
         calories: Math.max(0, Math.round(toNumber(item.calories ?? item.kcal))),
         protein: toMacro(item.protein),
@@ -221,8 +221,10 @@ export default function AnalysisResultsScreen() {
 
   useEffect(() => {
     if (initialAnalysisParam) {
-      applyResult(initialAnalysisParam, baseImageUri);
-      return;
+      const timeoutId = setTimeout(() => {
+        applyResult(initialAnalysisParam, baseImageUri);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
 
     if (!capturedImageUri) {
@@ -361,7 +363,7 @@ export default function AnalysisResultsScreen() {
       const mealData = {
         name: analysisResult.dishName,
         type: 'meal',
-        items: (analysisResult.ingredients || []).map((ingredient) => ({
+        items: (analysisResult.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient) => ({
           name: ingredient.name,
           calories: Number(ingredient.calories) || 0,
           protein: Number(ingredient.protein) || 0,
@@ -374,7 +376,9 @@ export default function AnalysisResultsScreen() {
 
       await ApiService.createMeal(mealData);
       Alert.alert(t('analysis.autoSavedTitle'), t('analysis.autoSavedDescription'));
-      navigation.navigate('Dashboard');
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Dashboard');
+      }
     } catch (error) {
       console.error('Save error:', error);
       Alert.alert(t('common.error'), t('common.retry'));
@@ -382,7 +386,9 @@ export default function AnalysisResultsScreen() {
   };
 
   const handleViewMeal = () => {
-    navigation.navigate('Recently');
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('Recently');
+    }
   };
 
   const renderImage = (uri, style, showBadge = false) => {
@@ -410,7 +416,7 @@ export default function AnalysisResultsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -476,7 +482,7 @@ export default function AnalysisResultsScreen() {
     <SafeAreaView style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('analysis.title')}</Text>
@@ -566,7 +572,7 @@ export default function AnalysisResultsScreen() {
           >
             <View style={styles.ingredientsContainer}>
               <Text style={styles.ingredientsTitle}>{t('analysis.ingredients')}</Text>
-            {analysisResult?.ingredients?.map((ingredient, index) => (
+            {(analysisResult?.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient, index) => (
               <MotiView
                 key={index}
                 from={{ opacity: 0, translateX: -20 }}

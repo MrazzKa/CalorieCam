@@ -25,20 +25,24 @@ export const RuntimeFeatureFlagTester: React.FC<RuntimeFeatureFlagTesterProps> =
 
   const handleToggle = (key: string, enabled: boolean) => {
     const flag = flags.find(f => f.key === key);
-    if (flag) {
+    if (flag && flag.onToggle && typeof flag.onToggle === 'function') {
       flag.onToggle(key, enabled);
       setHasChanges(true);
     }
   };
 
   const handleSave = () => {
-    onSave();
-    setHasChanges(false);
+    if (onSave && typeof onSave === 'function') {
+      onSave();
+      setHasChanges(false);
+    }
   };
 
   const handleReset = () => {
-    onReset();
-    setHasChanges(false);
+    if (onReset && typeof onReset === 'function') {
+      onReset();
+      setHasChanges(false);
+    }
   };
 
   return (
@@ -49,7 +53,7 @@ export const RuntimeFeatureFlagTester: React.FC<RuntimeFeatureFlagTesterProps> =
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {flags.map(flag => (
+        {(flags || []).map(flag => (
           <View key={flag.key} style={styles.flagContainer}>
             <View style={styles.flagHeader}>
               <Text style={styles.flagName}>{flag.name}</Text>

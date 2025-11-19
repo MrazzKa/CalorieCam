@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Alert } from 'react-native';
@@ -10,8 +9,6 @@ import { ping } from './src/lib/ping';
 import ApiService from './src/services/apiService';
 import { DEV_TOKEN, DEV_REFRESH_TOKEN, API_BASE_URL } from './src/config/env';
 import * as Linking from 'expo-linking';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { useTheme } from './src/contexts/ThemeContext';
 import { useI18n } from './app/i18n/hooks';
 import { I18nProvider } from './app/i18n/provider';
@@ -35,7 +32,7 @@ import ArticlesScreen from './src/screens/ArticlesScreen';
 import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
 import AuthScreen from './src/components/AuthScreen';
 import { AppWrapper } from './src/components/AppWrapper';
-import { SplashLogo } from './src/components/SplashLogo';
+import { EmptySplash } from './src/components/EmptySplash';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 const Tab = createBottomTabNavigator();
@@ -77,17 +74,19 @@ function MainTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
-          if (route.name === 'Dashboard') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Articles') {
-            iconName = focused ? 'book' : 'book-outline';
-          } else if (route.name === 'Recently') {
-            iconName = focused ? 'time' : 'time-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
+          if (route && route.name) {
+            if (route.name === 'Dashboard') {
+              iconName = focused ? 'home' : 'home-outline';
+            } else if (route.name === 'Articles') {
+              iconName = focused ? 'book' : 'book-outline';
+            } else if (route.name === 'Recently') {
+              iconName = focused ? 'time' : 'time-outline';
+            } else if (route.name === 'Profile') {
+              iconName = focused ? 'person' : 'person-outline';
+            }
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName || 'help-outline'} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
@@ -139,7 +138,7 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const { expoPushToken } = usePushNotifications();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   useEffect(() => {
     if (expoPushToken && isAuthenticated) {
@@ -198,44 +197,31 @@ function AppContent() {
             setIsAuthenticated(false);
           }
         } else {
-          // Check if we have a token loaded from storage
-          try {
-            const loadedToken = await AsyncStorage.getItem('auth.token');
-            if (loadedToken) {
-              ApiService.token = loadedToken;
-              // Check if token is valid by making a test request
-              try {
-                // Add timeout to prevent hanging if API is unavailable
-                const profilePromise = ApiService.getUserProfile();
-                const timeoutPromise = new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Request timeout')), 10000)
-                );
-                const profile = await Promise.race([profilePromise, timeoutPromise]);
-                setIsAuthenticated(true);
-                setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
-              } catch (error) {
-                console.log('[App] Token invalid or API unavailable, authentication required');
-                console.log('[App] Error details:', error.message);
-                setIsAuthenticated(false);
-                // Clear invalid token
-                try {
-                  await AsyncStorage.removeItem('auth.token');
-                } catch (e) {
-                  console.warn('[App] Error removing token from AsyncStorage:', e.message);
-                }
-                try {
-                  await SecureStore.deleteItemAsync('auth.refreshToken');
-                } catch (e) {
-                  // Ignore SecureStore errors
-                  console.warn('[App] Error removing refresh token from SecureStore:', e.message);
-                }
-              }
-            } else {
-              console.log('[App] No tokens found, authentication required');
+          // Check if we have a token loaded from storage (already loaded by loadTokens above)
+          if (ApiService.token) {
+            // Check if token is valid by making a test request
+            try {
+              // Add timeout to prevent hanging if API is unavailable
+              const profilePromise = ApiService.getUserProfile();
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), 10000)
+              );
+              const profile = await Promise.race([profilePromise, timeoutPromise]);
+              setIsAuthenticated(true);
+              setHasCompletedOnboarding(!!profile?.isOnboardingCompleted);
+            } catch (error) {
+              console.log('[App] Token invalid or API unavailable, authentication required');
+              console.log('[App] Error details:', error.message);
               setIsAuthenticated(false);
+              // Clear invalid token
+              try {
+                await ApiService.setToken(null, null);
+              } catch (e) {
+                console.warn('[App] Error clearing tokens:', e.message);
+              }
             }
-          } catch (storageError) {
-            console.warn('[App] Error reading from storage:', storageError.message);
+          } else {
+            console.log('[App] No tokens found, authentication required');
             setIsAuthenticated(false);
           }
         }
@@ -260,33 +246,61 @@ function AppContent() {
   }, []);
 
   const handleAuthSuccess = useCallback(async () => {
+    console.log('[App] ========================================');
     console.log('[App] handleAuthSuccess called');
+    console.log('[App] Current state - isAuthenticated:', isAuthenticated);
+    console.log('[App] Current state - hasCompletedOnboarding:', hasCompletedOnboarding);
+    console.log('[App] Current state - user from AuthContext:', user);
+    
+    // Set authentication state FIRST to trigger navigation
+    // This ensures navigation happens immediately
+    console.log('[App] Setting isAuthenticated to true...');
     setIsAuthenticated(true);
     
-    // Immediately set onboarding to false to show onboarding screen
-    // This ensures navigation works immediately without waiting for API
-    setHasCompletedOnboarding(false);
+    // Check onboarding status BEFORE setting it
+    // This prevents showing onboarding if user already completed it
+    console.log('[App] Checking onboarding status...');
+    try {
+      // Add timeout to prevent hanging
+      const profilePromise = ApiService.getUserProfile();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
+      );
+      const profile = await Promise.race([profilePromise, timeoutPromise]);
+      const isOnboardingCompleted = profile?.isOnboardingCompleted || false;
+      console.log('[App] Onboarding status from profile:', isOnboardingCompleted);
+      setHasCompletedOnboarding(isOnboardingCompleted);
+      
+      if (isOnboardingCompleted) {
+        console.log('[App] User already completed onboarding, navigating to MainTabs');
+      } else {
+        console.log('[App] User needs onboarding, showing onboarding screen');
+      }
+    } catch (error) {
+      console.log('[App] Error checking onboarding status, defaulting to onboarding:', error.message);
+      // If we can't check, show onboarding screen (safer default)
+      setHasCompletedOnboarding(false);
+    }
     
-    // Check onboarding status in background (non-blocking)
-    // Add a small delay to ensure onboarding screen is shown first
-    // If user already completed onboarding, we'll update state after a delay
-    setTimeout(() => {
-      ApiService.getUserProfile()
-        .then((profile) => {
-          console.log('[App] Profile loaded in background, onboarding status:', profile?.isOnboardingCompleted);
-          if (profile?.isOnboardingCompleted) {
-            console.log('[App] User already completed onboarding, navigating to MainTabs');
-            setHasCompletedOnboarding(true);
-          } else {
-            console.log('[App] User needs onboarding, keeping onboarding screen');
-          }
+    // Update AuthContext in background (non-blocking)
+    // This prevents useEffect from resetting isAuthenticated
+    console.log('[App] Refreshing user in AuthContext (background)...');
+    if (refreshUser && typeof refreshUser === 'function') {
+      refreshUser()
+        .then(() => {
+          console.log('[App] AuthContext refreshed successfully');
         })
         .catch((error) => {
-          console.log('[App] Error checking onboarding status (non-blocking):', error.message);
-          // Keep onboarding screen shown if we can't check
+          console.warn('[App] Error refreshing AuthContext (non-blocking):', error.message);
+          // Don't reset authentication if refresh fails - token is already saved
         });
-    }, 500); // Small delay to ensure onboarding screen renders first
-  }, []);
+    } else {
+      console.warn('[App] refreshUser is not available');
+    }
+    
+    console.log('[App] State updated, navigation should trigger now');
+    console.log('[App] ========================================');
+  }, [isAuthenticated, hasCompletedOnboarding, user, refreshUser]);
 
   // Handle deep links (Magic Links) - delayed until app is fully loaded
   useEffect(() => {
@@ -347,21 +361,31 @@ function AppContent() {
   }, [isLoading, handleAuthSuccess]);
 
   // Sync authentication state with AuthContext
+  // Only sync if user is explicitly signed out (not during initial auth flow)
   useEffect(() => {
-    if (user === null && isAuthenticated) {
-      // User was deleted or signed out via AuthContext, update state
+    // Don't sync during initial loading or if we just set isAuthenticated
+    if (isLoading) {
+      return;
+    }
+    
+    // If user is null and we're authenticated, but we have a token, 
+    // it might be that AuthContext hasn't loaded yet - don't reset
+    if (user === null && isAuthenticated && !ApiService.token) {
+      // User was explicitly deleted or signed out via AuthContext, update state
+      console.log('[App] User signed out, resetting authentication state');
       setIsAuthenticated(false);
       setHasCompletedOnboarding(false);
     } else if (user !== null && ApiService.token && !isAuthenticated) {
-      // User authenticated via AuthContext, sync state
+      // User authenticated via AuthContext (e.g., from token on app start), sync state
+      console.log('[App] User found in AuthContext, syncing authentication state');
       setIsAuthenticated(true);
     }
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (
       <SafeAreaProvider>
-        <SplashLogo />
+        <EmptySplash />
       </SafeAreaProvider>
     );
   }
@@ -379,9 +403,7 @@ function AppContent() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer
-        key={`${isAuthenticated}-${hasCompletedOnboarding}`}
-      >
+      <NavigationContainer>
         <Stack.Navigator
           initialRouteName={initialRouteName}
           screenOptions={{
@@ -410,7 +432,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <I18nProvider fallback={<SplashLogo />}>
+      <I18nProvider fallback={<EmptySplash />}>
         <AppWrapper>
           <AppContent />
         </AppWrapper>

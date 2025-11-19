@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent, screen } from '@testing-library/react-native';
 import { AnalysisComponent } from '../../components/AnalysisComponent';
 
 // Mock analyzeImage function

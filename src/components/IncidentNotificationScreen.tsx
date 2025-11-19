@@ -28,7 +28,7 @@ export const IncidentNotificationScreen: React.FC<IncidentNotificationScreenProp
 
         <Text style={styles.mainTitle}>Security Incident Detected</Text>
         <Text style={styles.description}>
-          We've detected unusual activity in your account. For your security, we've temporarily restricted access.
+          We&apos;ve detected unusual activity in your account. For your security, we&apos;ve temporarily restricted access.
         </Text>
 
         <View style={styles.incidentDetails}>

@@ -1,4 +1,4 @@
-import { validateEmail, validatePassword, validatePhone, validateUrl, validateDate, validateAge, validateWeight, validateHeight, validateCalories, validateMacros, validatePortion, validateImageFile, validateForm } from '../../utils/validationUtils';
+import { validateEmail, validatePassword, validatePhone, validateUrl, validateDate, validateAge, validateWeight, validateHeight, validateCalories, validateMacros, validatePortion, validateForm } from '../../utils/validationUtils';
 
 describe('validationUtils', () => {
   describe('validateEmail', () => {

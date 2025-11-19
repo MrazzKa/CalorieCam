@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const { width } = Dimensions.get('window');
 
 interface MainDashboardProps {
   onAnalyzePress: () => void;
@@ -69,7 +67,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ onAnalyzePress, on
         </View>
         
         <View style={styles.dateSelector}>
-          {getDaysInWeek().map((date, index) => (
+          {(getDaysInWeek() || []).map((date, index) => (
             <TouchableOpacity
               key={index}
               style={[
@@ -183,8 +181,8 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({ onAnalyzePress, on
         <View style={styles.recentSection}>
           <Text style={styles.recentTitle}>Recently</Text>
           
-          {recentAnalyses.length > 0 ? (
-            recentAnalyses.map((analysis, index) => (
+          {recentAnalyses && recentAnalyses.length > 0 ? (
+            (recentAnalyses || []).map((analysis) => (
               <View key={analysis.id} style={styles.recentCard}>
                 <View style={styles.recentItem}>
                   <View style={styles.recentImage}>

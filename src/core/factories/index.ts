@@ -1,4 +1,4 @@
-import { User, Analysis, AnalysisResult, JournalEntry, Meal, MealItem } from '../domain';
+import type { User, Analysis, JournalEntry, Meal, MealItem } from '../domain';
 
 export class UserFactory {
   static create(data: Partial<User>): User {

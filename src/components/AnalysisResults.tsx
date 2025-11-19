@@ -69,7 +69,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             <View style={styles.nutritionItem}>
               <Text style={styles.nutritionValue}>{Math.round(totalKcal)}</Text>
               <Text style={styles.nutritionLabel}>Calories</Text>
-              <TouchableOpacity style={styles.editButton}>
+              <TouchableOpacity style={styles.miniEditButton}>
                 <Ionicons name="create-outline" size={16} color="#7F8C8D" />
               </TouchableOpacity>
             </View>
@@ -94,7 +94,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                 <Text style={styles.macroIconText}>P</Text>
               </View>
               <Text style={styles.macroValue}>{Math.round(totalProtein)}g</Text>
-              <TouchableOpacity style={styles.editButton}>
+              <TouchableOpacity style={styles.miniEditButton}>
                 <Ionicons name="create-outline" size={16} color="#7F8C8D" />
               </TouchableOpacity>
             </View>
@@ -104,7 +104,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                 <Text style={styles.macroIconText}>F</Text>
               </View>
               <Text style={styles.macroValue}>{Math.round(totalFat)}g</Text>
-              <TouchableOpacity style={styles.editButton}>
+              <TouchableOpacity style={styles.miniEditButton}>
                 <Ionicons name="create-outline" size={16} color="#7F8C8D" />
               </TouchableOpacity>
             </View>
@@ -114,7 +114,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                 <Text style={styles.macroIconText}>C</Text>
               </View>
               <Text style={styles.macroValue}>{Math.round(totalCarbs)}g</Text>
-              <TouchableOpacity style={styles.editButton}>
+              <TouchableOpacity style={styles.miniEditButton}>
                 <Ionicons name="create-outline" size={16} color="#7F8C8D" />
               </TouchableOpacity>
             </View>
@@ -142,7 +142,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({
         <View style={styles.ingredientsCard}>
           <Text style={styles.ingredientsTitle}>Ingredients</Text>
           
-          {result?.items.map((item: any, index: number) => (
+          {(result?.items && Array.isArray(result.items) ? result.items : []).map((item: any, index: number) => (
             <View key={index} style={styles.ingredientItem}>
               <View style={styles.ingredientInfo}>
                 <Text style={styles.ingredientName}>{item.label}</Text>
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     marginBottom: 8,
   },
-  editButton: {
+  miniEditButton: {
     padding: 4,
   },
   portionContainer: {

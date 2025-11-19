@@ -17,4 +17,7 @@ node_modules/.cache
 **/*.xcarchive
 **/*.xcworkspace
 **/Pods
-
+ios/Pods
+ios/build
+ios/*.xcworkspace
+ios/*.xcuserdata

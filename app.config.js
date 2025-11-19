@@ -3,7 +3,7 @@ export default {
     name: "EatSense",
     slug: "eatsense",
     owner: "eatsense",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     // Use Logo.jpeg for app icon (Expo will auto-generate required sizes)
     icon: "./assets/logo/Logo.jpeg",
@@ -27,9 +27,11 @@ export default {
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",
-      buildNumber: "15",
+      buildNumber: "21",
       supportsTablet: true,
       infoPlist: {
+        CFBundleDisplayName: "EatSense",
+        CFBundleName: "EatSense",
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription:
           "EatSense needs access to your camera to take photos of food for nutrition analysis.",
@@ -49,6 +51,7 @@ export default {
 
     android: {
       package: "ch.eatsense.app",
+      versionCode: 21,
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
       permissions: ["CAMERA","READ_MEDIA_IMAGES","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","POST_NOTIFICATIONS"],
       intentFilters: [{

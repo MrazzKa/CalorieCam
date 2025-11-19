@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView, useReducedMotion } from 'moti';
-import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/apiService';
 import { useTheme, useDesignTokens } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
@@ -14,9 +13,8 @@ import PrimaryButton from '../components/common/PrimaryButton';
 
 const ProfileScreen = () => {
   const { t, language, changeLanguage, availableLanguages } = useI18n();
-  const { tokens, isDark, themeMode, toggleTheme } = useTheme();
+  const { tokens, colors, isDark, themeMode, toggleTheme } = useTheme();
   const { signOut } = useAuth();
-  const navigation = useNavigation();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const reduceMotion = useReducedMotion();
 
@@ -28,7 +26,15 @@ const ProfileScreen = () => {
     weight: 0,
     age: 0,
     dailyCalories: 0,
+    preferences: null,
   });
+  const [subscription, setSubscription] = useState({
+    planId: 'free',
+    billingCycle: 'lifetime',
+  });
+  const [planModalVisible, setPlanModalVisible] = useState(false);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState('free');
   const deviceTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
   const [notificationPreferences, setNotificationPreferences] = useState({
     dailyPushEnabled: false,
@@ -53,17 +59,17 @@ const ProfileScreen = () => {
       .slice(0, 2);
   }, [profile.firstName, profile.lastName, profile.email]);
 
-  useEffect(() => {
-    loadProfile();
-    loadNotificationPreferences();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const result = await ApiService.getUserProfile();
       if (result) {
-        // Extract data from userProfile if available, otherwise use profile JSON field
         const userProfile = result.userProfile || result.profile || {};
+        const preferences =
+          userProfile.preferences ||
+          result.preferences ||
+          null;
+        const subscriptionPref =
+          preferences?.subscription || {};
         setProfile({
           firstName: userProfile.firstName || result.firstName || '',
           lastName: userProfile.lastName || result.lastName || '',
@@ -72,7 +78,15 @@ const ProfileScreen = () => {
           weight: userProfile.weight || result.weight || 0,
           age: userProfile.age || result.age || 0,
           dailyCalories: userProfile.dailyCalories || result.dailyCalories || 0,
+          preferences,
         });
+        setSubscription({
+          planId: subscriptionPref.planId || 'free',
+          billingCycle:
+            subscriptionPref.billingCycle ||
+            (subscriptionPref.planId === 'free' ? 'lifetime' : 'monthly'),
+        });
+        setPendingPlan(subscriptionPref.planId || 'free');
       }
     } catch (error) {
       console.warn('Unable to load profile, using demo data.', error);
@@ -84,11 +98,17 @@ const ProfileScreen = () => {
         weight: 70,
         age: 28,
         dailyCalories: 2000,
+        preferences: null,
       });
+      setSubscription({
+        planId: 'free',
+        billingCycle: 'lifetime',
+      });
+      setPendingPlan('free');
     }
-  };
+  }, []);
 
-  const loadNotificationPreferences = async () => {
+  const loadNotificationPreferences = useCallback(async () => {
     try {
       setNotificationLoading(true);
       const prefs = await ApiService.getNotificationPreferences();
@@ -105,7 +125,12 @@ const ProfileScreen = () => {
     } finally {
       setNotificationLoading(false);
     }
-  };
+  }, [deviceTimezone]);
+
+  useEffect(() => {
+    loadProfile();
+    loadNotificationPreferences();
+  }, [loadProfile, loadNotificationPreferences]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -122,6 +147,55 @@ const ProfileScreen = () => {
   };
 
   const reminderOptions = [6, 8, 12, 18, 20];
+  const planOptions = [
+    {
+      id: 'free',
+      name: 'EatSense Free',
+      price: '$0 forever',
+      billingCycle: 'lifetime',
+      description: 'Start tracking meals with essential features.',
+      features: ['3 AI analyses per day', 'Calorie tracking', 'Basic statistics'],
+      badge: 'Included',
+    },
+    {
+      id: 'pro_monthly',
+      name: 'EatSense Pro',
+      price: '$9.99 / month',
+      billingCycle: 'monthly',
+      description: 'Unlock unlimited AI tools with flexible billing.',
+      features: [
+        'Unlimited AI food analysis',
+        'Advanced nutrition insights',
+        'Personalized coaching tips',
+      ],
+      badge: 'Most Popular',
+    },
+    {
+      id: 'pro_annual',
+      name: 'EatSense Pro',
+      price: '$79.99 / year',
+      billingCycle: 'annual',
+      description: 'Best value — save 33% vs monthly billing.',
+      features: [
+        'Everything in Pro Monthly',
+        'Exclusive annual webinars',
+        'Early access to new features',
+      ],
+      badge: 'Save 33%',
+    },
+  ];
+
+  const getPlanDetails = (planId) => {
+    const plan = planOptions.find((plan) => plan.id === planId) || planOptions[0];
+    // Ensure plan has features array
+    if (!plan || !plan.features || !Array.isArray(plan.features)) {
+      return {
+        ...plan,
+        features: plan?.features || [],
+      };
+    }
+    return plan;
+  };
 
   const formatReminderTime = (hour) => {
     const date = new Date();
@@ -173,6 +247,46 @@ const ProfileScreen = () => {
       Alert.alert(t('profile.notificationsErrorTitle'), t('profile.notificationsErrorMessage'));
     } finally {
       setNotificationSaving(false);
+    }
+  };
+
+  const handlePlanChange = async (planId) => {
+    const selectedPlan = planOptions.find((plan) => plan.id === planId);
+    if (!selectedPlan) {
+      return;
+    }
+    try {
+      setPlanSaving(true);
+      // Wrap plan selection in preferences.subscription (same as OnboardingScreen)
+      await ApiService.updateUserProfile({
+        preferences: {
+          ...(profile.preferences || {}),
+          subscription: {
+            ...(profile.preferences?.subscription || {}),
+            planId: selectedPlan.id,
+            billingCycle: selectedPlan.billingCycle,
+          },
+        },
+      });
+      setSubscription({
+        planId: selectedPlan.id,
+        billingCycle: selectedPlan.billingCycle,
+      });
+      setPendingPlan(selectedPlan.id);
+      setPlanModalVisible(false);
+      Alert.alert(
+        t('profile.planUpdatedTitle') || 'Plan updated',
+        t('profile.planUpdatedMessage') ||
+          'Your subscription preference has been saved.'
+      );
+    } catch (error) {
+      console.error('Failed to update plan', error);
+      Alert.alert(
+        t('profile.errorTitle'),
+        t('profile.planUpdateError') || 'Unable to update plan right now.'
+      );
+    } finally {
+      setPlanSaving(false);
     }
   };
 
@@ -247,7 +361,7 @@ const ProfileScreen = () => {
               </View>
             </View>
             <View style={styles.metricsRow}>
-              {metrics.map((metric, index) => (
+              {(metrics || []).map((metric, index) => (
                 <MotiView
                   key={metric.label}
                   from={reduceMotion ? undefined : { opacity: 0, translateY: 8 }}
@@ -277,6 +391,52 @@ const ProfileScreen = () => {
             />
           </AppCard>
         </MotiView>
+
+        <AppCard style={styles.planCard}>
+          <Text style={styles.sectionTitle}>
+            {t('profile.subscriptionTitle') || 'Subscription'}
+          </Text>
+          <View style={styles.planSummary}>
+            <View style={styles.planSummaryText}>
+              <Text style={styles.planSummaryName}>
+                {getPlanDetails(subscription.planId).name}
+              </Text>
+              <Text style={styles.planSummaryPrice}>
+                {getPlanDetails(subscription.planId).price}
+              </Text>
+              <Text style={styles.planSummaryDescription}>
+                {getPlanDetails(subscription.planId).description}
+              </Text>
+            </View>
+            <PrimaryButton
+              title={t('profile.changePlan') || 'Change plan'}
+              onPress={() => {
+                setPendingPlan(subscription.planId);
+                setPlanModalVisible(true);
+              }}
+              style={styles.planChangeButton}
+            />
+          </View>
+          <View style={styles.planSummaryFeatures}>
+            {(getPlanDetails(subscription.planId).features || []).map((feature) => (
+              <View key={feature} style={styles.planFeatureRow}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={tokens.colors?.success ?? '#34C759'}
+                />
+                <Text style={styles.planFeatureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.planMeta}>
+            {subscription.billingCycle === 'annual'
+              ? t('profile.billingAnnual') || 'Billed annually'
+              : subscription.billingCycle === 'monthly'
+              ? t('profile.billingMonthly') || 'Billed monthly'
+              : t('profile.billingFree') || 'Free forever'}
+          </Text>
+        </AppCard>
 
         {editing ? (
           <AppCard style={styles.formCard}>
@@ -423,6 +583,94 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </AppCard>
       </ScrollView>
+
+      <Modal
+        visible={planModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !planSaving && setPlanModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {t('profile.choosePlan') || 'Choose a plan'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => !planSaving && setPlanModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color={tokens.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {(planOptions || []).map((plan) => {
+                const isSelected = pendingPlan === plan.id;
+                return (
+                  <TouchableOpacity
+                    key={plan.id}
+                    style={[
+                      styles.modalPlanCard,
+                      isSelected && styles.modalPlanCardSelected,
+                    ]}
+                    activeOpacity={0.9}
+                    onPress={() => !planSaving && setPendingPlan(plan.id)}
+                  >
+                    <View style={styles.modalPlanHeader}>
+                      <View>
+                        <Text style={styles.modalPlanName}>{plan.name}</Text>
+                        <Text style={styles.modalPlanPrice}>{plan.price}</Text>
+                      </View>
+                      {plan.badge && (
+                        <View style={styles.modalPlanBadge}>
+                          <Text style={styles.modalPlanBadgeText}>
+                            {plan.badge}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.modalPlanDescription}>
+                      {plan.description}
+                    </Text>
+                    <View style={styles.modalPlanFeatures}>
+                      {(plan.features || []).map((feature) => (
+                        <View key={feature} style={styles.planFeatureRow}>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color={
+                              isSelected ? tokens.states.primary.on : colors.primary
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.planFeatureText,
+                              isSelected && styles.planFeatureSelectedText,
+                            ]}
+                          >
+                            {feature}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <PrimaryButton
+              title={
+                planSaving
+                  ? t('profile.savingButton') || 'Saving...'
+                  : t('profile.applyPlan') || 'Apply plan'
+              }
+              onPress={() => handlePlanChange(pendingPlan)}
+              loading={planSaving}
+              style={styles.modalApplyButton}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -515,6 +763,126 @@ const createStyles = (tokens) =>
     heroButton: {
       marginTop: tokens.spacing.md,
       alignSelf: 'flex-start',
+    },
+    planCard: {
+      marginTop: tokens.spacing.xl,
+      gap: tokens.spacing.lg,
+    },
+    planSummary: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: tokens.spacing.lg,
+    },
+    planSummaryText: {
+      flex: 1,
+    },
+    planSummaryName: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: tokens.colors.textPrimary,
+    },
+    planSummaryPrice: {
+      fontSize: tokens.typography.headingL.fontSize,
+      fontWeight: tokens.typography.headingL.fontWeight,
+      color: tokens.colors.primary,
+      marginTop: tokens.spacing.xs,
+    },
+    planSummaryDescription: {
+      color: tokens.colors.textSecondary,
+      marginTop: tokens.spacing.xs,
+    },
+    planSummaryFeatures: {
+      gap: tokens.spacing.xs,
+    },
+    planFeatureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.xs,
+    },
+    planFeatureText: {
+      color: tokens.colors.textSecondary,
+    },
+    planFeatureSelectedText: {
+      color: tokens.states.primary.on,
+    },
+    planMeta: {
+      color: tokens.colors.textSecondary,
+      fontSize: tokens.typography.caption.fontSize,
+    },
+    planChangeButton: {
+      minWidth: 140,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      padding: tokens.spacing.xl,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: tokens.colors.surfacePrimary || tokens.colors.surface,
+      borderTopLeftRadius: tokens.radii.xl,
+      borderTopRightRadius: tokens.radii.xl,
+      maxHeight: '85%',
+      padding: tokens.spacing.xl,
+      gap: tokens.spacing.lg,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    modalTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      color: tokens.colors.textPrimary,
+    },
+    modalPlanCard: {
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.lg,
+      marginBottom: tokens.spacing.md,
+      gap: tokens.spacing.sm,
+    },
+    modalPlanCardSelected: {
+      borderColor: tokens.colors.primary,
+      backgroundColor: tokens.colors.primaryTint || tokens.colors.surfaceMuted,
+    },
+    modalPlanHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    modalPlanName: {
+      fontSize: tokens.typography.headingS.fontSize,
+      fontWeight: tokens.typography.headingS.fontWeight,
+      color: tokens.colors.textPrimary,
+    },
+    modalPlanPrice: {
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      color: tokens.colors.primary,
+      marginTop: tokens.spacing.xs,
+    },
+    modalPlanBadge: {
+      backgroundColor: tokens.colors.primary,
+      paddingHorizontal: tokens.spacing.sm,
+      paddingVertical: tokens.spacing.xs / 2,
+      borderRadius: tokens.radii.full,
+    },
+    modalPlanBadgeText: {
+      color: tokens.states.primary.on,
+      fontSize: tokens.typography.caption.fontSize,
+      fontWeight: '600',
+    },
+    modalPlanDescription: {
+      color: tokens.colors.textSecondary,
+    },
+    modalPlanFeatures: {
+      gap: tokens.spacing.xs,
+    },
+    modalApplyButton: {
+      marginTop: tokens.spacing.sm,
     },
     avatar: {
       width: 64,

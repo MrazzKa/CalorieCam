@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,15 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import PropTypes from 'prop-types';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const createStyles = (tokens, colors) => {
   const onPrimary = colors.onPrimary ?? tokens.colors?.onPrimary ?? '#FFFFFF';
@@ -288,6 +290,10 @@ const createStyles = (tokens, colors) => {
       color: colors.text,
       marginBottom: tokens.spacing?.sm ?? 8,
     },
+    planHeadline: {
+      fontSize: tokens.typography?.body?.fontSize ?? 14,
+      color: textSecondary,
+    },
     planPrice: {
       fontSize: tokens.typography?.headingL?.fontSize ?? 24,
       fontWeight: tokens.typography?.headingL?.fontWeight ?? '700',
@@ -299,6 +305,46 @@ const createStyles = (tokens, colors) => {
     },
     planFeature: {
       fontSize: tokens.typography?.body?.fontSize ?? 14,
+      color: textSecondary,
+    },
+    planFeatureSelected: {
+      color: onPrimary,
+    },
+    planFeatureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing?.xs ?? 8,
+    },
+    planButtonSelected: {
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    planHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    planToggle: {
+      paddingVertical: tokens.spacing?.sm ?? 8,
+    },
+    planToggleText: {
+      textAlign: 'center',
+      color: textSecondary,
+      fontSize: tokens.typography?.body?.fontSize ?? 14,
+      marginBottom: tokens.spacing?.md ?? 12,
+    },
+    planFinePrint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing?.xs ?? 6,
+      marginTop: tokens.spacing?.lg ?? 16,
+    },
+    planFinePrintText: {
+      fontSize: tokens.typography?.caption?.fontSize ?? 12,
       color: textSecondary,
     },
     footer: {
@@ -371,7 +417,8 @@ const createStyles = (tokens, colors) => {
   });
 };
 
-const OnboardingScreen = ({ navigation }) => {
+const OnboardingScreen = () => {
+  const navigation = useNavigation();
   const { colors, tokens } = useTheme();
   const styles = useMemo(() => createStyles(tokens, colors), [tokens, colors]);
   const onPrimaryColor = colors.onPrimary ?? tokens.colors?.onPrimary ?? '#FFFFFF';
@@ -386,15 +433,11 @@ const OnboardingScreen = ({ navigation }) => {
     activityLevel: '',
     goal: '',
     targetWeight: 70,
+    selectedPlan: 'free',
+    planBillingCycle: 'lifetime',
   });
 
   const scrollViewRef = useRef(null);
-  // Simplify animations to avoid blank-step issues on some devices
-  const slideAnimation = useRef(new Animated.Value(0)).current;
-  const fadeAnimation = useRef(new Animated.Value(1)).current;
-  const heightAnimation = useRef(new Animated.Value(170)).current;
-  const weightAnimation = useRef(new Animated.Value(70)).current;
-  const ageAnimation = useRef(new Animated.Value(25)).current;
 
   const steps = [
     { id: 'welcome', title: 'Welcome to EatSense' },
@@ -428,40 +471,44 @@ const OnboardingScreen = ({ navigation }) => {
   const plans = [
     {
       id: 'free',
-      name: 'Free Plan',
-      price: '$0',
-      features: ['Basic food analysis', 'Daily calorie tracking', 'Basic statistics'],
+      name: 'EatSense Free',
+      price: '$0 forever',
+      billingCycle: 'lifetime',
+      headline: 'Get started with the essentials',
+      features: ['AI food analysis (3/day)', 'Daily calorie tracking', 'Basic statistics'],
+      badge: 'Included',
       popular: false,
     },
     {
-      id: 'premium',
-      name: 'Premium Plan',
-      price: '$9.99/month',
-      features: ['Advanced AI analysis', 'Personalized recommendations', 'Health insights', 'Priority support'],
+      id: 'pro_monthly',
+      name: 'EatSense Pro',
+      price: '$9.99 / month',
+      billingCycle: 'monthly',
+      headline: 'Unlock everything with flexible billing',
+      features: [
+        'Unlimited AI analysis',
+        'Advanced nutrition insights',
+        'Personalized coaching tips',
+        'Priority support',
+      ],
+      badge: 'Most Popular',
+      popular: true,
+    },
+    {
+      id: 'pro_annual',
+      name: 'EatSense Pro',
+      price: '$79.99 / year',
+      billingCycle: 'annual',
+      headline: 'Best value — save 33%',
+      features: [
+        'Everything in Pro Monthly',
+        'Exclusive annual webinars',
+        'Early access to new features',
+      ],
+      badge: 'Save 33%',
       popular: true,
     },
   ];
-
-  // Synchronize animations with profile data
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heightAnimation, {
-        toValue: profileData.height,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-      Animated.timing(weightAnimation, {
-        toValue: profileData.weight,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-      Animated.timing(ageAnimation, {
-        toValue: profileData.age,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [profileData.height, profileData.weight, profileData.age]);
 
   const nextStep = () => {
     // Валидация для каждого шага
@@ -504,48 +551,98 @@ const OnboardingScreen = ({ navigation }) => {
 
   const handleComplete = async () => {
     try {
+      const {
+        selectedPlan,
+        planBillingCycle,
+        preferences: profilePreferences,
+        ...profileDataWithoutPlan
+      } = profileData;
+
+      const subscriptionPreference = {
+        planId: selectedPlan || 'free',
+        billingCycle:
+          planBillingCycle ||
+          (selectedPlan === 'free' ? 'lifetime' : 'monthly'),
+      };
+
+      const mergedPreferences = {
+        ...(profilePreferences ?? {}),
+        subscription: {
+          ...(profilePreferences?.subscription ?? {}),
+          ...subscriptionPreference,
+        },
+      };
+
+      profileDataWithoutPlan.preferences = mergedPreferences;
+      
       // Проверяем, есть ли уже профиль
       try {
         await ApiService.getUserProfile();
         // Если профиль существует, обновляем его
-        await ApiService.updateUserProfile(profileData);
+        await ApiService.updateUserProfile(profileDataWithoutPlan);
       } catch (error) {
         // Если профиля нет, создаем новый
-        await ApiService.createUserProfile(profileData);
+        await ApiService.createUserProfile(profileDataWithoutPlan);
       }
       
       await ApiService.completeOnboarding();
-      navigation.replace('MainTabs');
+      // Проверяем, что navigation доступен перед вызовом
+      if (navigation && typeof navigation.reset === 'function') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
+      } else {
+        console.error('[OnboardingScreen] Navigation not available');
+        Alert.alert('Error', 'Navigation not available. Please restart the app.');
+      }
     } catch (error) {
       console.error('Onboarding error:', error);
       // Показываем предупреждение, но все равно переходим к главному экрану
-      Alert.alert(
-        'Setup Complete', 
-        'Profile saved locally. You can complete setup later in settings.',
-        [{ text: 'OK', onPress: () => navigation.replace('MainTabs') }]
-      );
+      if (navigation && typeof navigation.reset === 'function') {
+        Alert.alert(
+          'Setup Complete', 
+          'Profile saved locally. You can complete setup later in settings.',
+          [{ 
+            text: 'OK', 
+            onPress: () => navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs' }],
+            })
+          }]
+        );
+      } else {
+        Alert.alert(
+          'Setup Complete', 
+          'Profile saved locally. Please restart the app to continue.'
+        );
+      }
     }
   };
 
   // Interactive Slider Component (native Slider only)
-  const InteractiveSlider = ({ 
-    value, 
-    minimumValue, 
-    maximumValue, 
-    onValueChange, 
-    unit, 
+  const InteractiveSlider = ({
+    value,
+    minimumValue,
+    maximumValue,
+    onValueChange,
+    unit,
     step = 1,
-    animatedValue 
   }) => {
     // Ensure value is within bounds
     const clampedValue = Math.max(minimumValue, Math.min(maximumValue, value));
     const [tempValue, setTempValue] = useState(clampedValue);
+    const [isSliding, setIsSliding] = useState(false);
+    
     useEffect(() => {
-      const newValue = Math.max(minimumValue, Math.min(maximumValue, value));
-      if (Math.abs(newValue - tempValue) > 0.1) { // Only update if significant change
-        setTempValue(newValue);
+      if (!isSliding) {
+        const newValue = Math.max(minimumValue, Math.min(maximumValue, value));
+        if (Math.abs(newValue - tempValue) > 0.1) { // Only update if significant change
+          setTempValue(newValue);
+        }
       }
-    }, [value, minimumValue, maximumValue]);
+    }, [value, minimumValue, maximumValue, isSliding, tempValue]);
+    
     return (
       <View style={styles.interactiveSliderContainer}>
         <Animated.Text style={styles.sliderValue}>
@@ -559,8 +656,17 @@ const OnboardingScreen = ({ navigation }) => {
             maximumValue={maximumValue}
             value={tempValue}
             step={step}
-            onValueChange={(v) => setTempValue(v)}
-            onSlidingComplete={(v) => onValueChange(v)}
+            onValueChange={(v) => {
+              setIsSliding(true);
+              setTempValue(v);
+            }}
+            onSlidingStart={() => setIsSliding(true)}
+            onSlidingComplete={(v) => {
+              setIsSliding(false);
+              if (onValueChange && typeof onValueChange === 'function') {
+                onValueChange(v);
+              }
+            }}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.borderMuted}
             thumbStyle={styles.sliderThumb}
@@ -575,6 +681,15 @@ const OnboardingScreen = ({ navigation }) => {
     );
   };
 
+  InteractiveSlider.propTypes = {
+    value: PropTypes.number.isRequired,
+    minimumValue: PropTypes.number.isRequired,
+    maximumValue: PropTypes.number.isRequired,
+    onValueChange: PropTypes.func.isRequired,
+    unit: PropTypes.string.isRequired,
+    step: PropTypes.number,
+  };
+
   const renderWelcomeStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.welcomeContent}>
@@ -583,7 +698,7 @@ const OnboardingScreen = ({ navigation }) => {
         </View>
         <Text style={styles.welcomeTitle}>Welcome to EatSense</Text>
         <Text style={styles.welcomeSubtitle}>
-          Your AI-powered nutrition companion. Let's personalize your experience!
+          Your AI-powered nutrition companion. Let&apos;s personalize your experience!
         </Text>
         <View style={styles.featuresList}>
           <View style={styles.featureItem}>
@@ -635,7 +750,6 @@ const OnboardingScreen = ({ navigation }) => {
               onValueChange={(value) => setProfileData({ ...profileData, age: Math.round(value) })}
               unit=" years"
               step={1}
-              animatedValue={ageAnimation}
             />
           </View>
     </View>
@@ -651,9 +765,8 @@ const OnboardingScreen = ({ navigation }) => {
           minimumValue={120}
           maximumValue={220}
           onValueChange={(value) => setProfileData({ ...profileData, height: Math.round(value) })}
-          unit=" cm"
+              unit=" cm"
           step={1}
-          animatedValue={heightAnimation}
         />
       </View>
       <View style={styles.inputGroup}>
@@ -663,15 +776,14 @@ const OnboardingScreen = ({ navigation }) => {
           minimumValue={30}
           maximumValue={200}
           onValueChange={(value) => setProfileData({ ...profileData, weight: Math.round(value) })}
-          unit=" kg"
+              unit=" kg"
           step={0.5}
-          animatedValue={weightAnimation}
         />
       </View>
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Gender</Text>
         <View style={styles.optionsContainer}>
-          {genders.map((gender) => {
+          {(genders || []).map((gender) => {
             const isSelected = profileData.gender === gender.id;
             return (
               <TouchableOpacity
@@ -707,7 +819,7 @@ const OnboardingScreen = ({ navigation }) => {
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>How active are you?</Text>
       <View style={styles.activityContainer}>
-        {activityLevels.map((level) => (
+        {(activityLevels || []).map((level) => (
           <TouchableOpacity
             key={level.id}
             style={[
@@ -740,9 +852,9 @@ const OnboardingScreen = ({ navigation }) => {
 
   const renderGoalsStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What's your goal?</Text>
+      <Text style={styles.stepTitle}>What&apos;s your goal?</Text>
       <View style={styles.goalsContainer}>
-        {goals.map((goal) => {
+        {(goals || []).map((goal) => {
           const isSelected = profileData.goal === goal.id;
           return (
             <TouchableOpacity
@@ -776,30 +888,76 @@ const OnboardingScreen = ({ navigation }) => {
   const renderPlanStep = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Choose your plan</Text>
+      <View style={styles.planToggle}>
+        <Text style={styles.planToggleText}>
+          Choose a plan to unlock EatSense
+        </Text>
+      </View>
       <View style={styles.plansContainer}>
-        {plans.map((plan) => (
-          <TouchableOpacity
-            key={plan.id}
-            style={[
-              styles.planButton,
-              plan.popular && styles.planButtonPopular,
-            ]}
-            onPress={() => setProfileData({ ...profileData, selectedPlan: plan.id })}
-          >
-            {plan.popular && (
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularText}>Most Popular</Text>
+        {(plans || []).map((plan) => {
+          const isSelected =
+            profileData.selectedPlan === plan.id ||
+            (plan.id === 'free' &&
+              profileData.selectedPlan === 'free' &&
+              profileData.planBillingCycle === 'lifetime');
+
+          return (
+            <TouchableOpacity
+              key={plan.id}
+              style={[
+                styles.planButton,
+                plan.popular && styles.planButtonPopular,
+                isSelected && styles.planButtonSelected,
+              ]}
+              activeOpacity={0.9}
+              onPress={() =>
+                setProfileData({
+                  ...profileData,
+                  selectedPlan: plan.id,
+                  planBillingCycle: plan.billingCycle,
+                })
+              }
+            >
+              <View style={styles.planHeader}>
+                <View>
+                  <Text style={styles.planName}>{plan.name}</Text>
+                  <Text style={styles.planHeadline}>{plan.headline}</Text>
+                </View>
+                {plan.badge && (
+                  <View style={styles.popularBadge}>
+                    <Text style={styles.popularText}>{plan.badge}</Text>
+                  </View>
+                )}
               </View>
-            )}
-            <Text style={styles.planName}>{plan.name}</Text>
-            <Text style={styles.planPrice}>{plan.price}</Text>
-            <View style={styles.planFeatures}>
-              {plan.features.map((feature, index) => (
-                <Text key={index} style={styles.planFeature}>• {feature}</Text>
-              ))}
-            </View>
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.planPrice}>{plan.price}</Text>
+              <View style={styles.planFeatures}>
+                {(plan.features || []).map((feature, index) => (
+                  <View key={feature + index} style={styles.planFeatureRow}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={isSelected ? onPrimaryColor : colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.planFeature,
+                        isSelected && styles.planFeatureSelected,
+                      ]}
+                    >
+                      {feature}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={styles.planFinePrint}>
+        <Ionicons name="information-circle" size={16} color={colors.textTertiary} />
+        <Text style={styles.planFinePrintText}>
+          You can change plans or cancel anytime from Settings.
+        </Text>
       </View>
     </View>
   );
@@ -849,11 +1007,14 @@ const OnboardingScreen = ({ navigation }) => {
         scrollEnabled={false}
         style={styles.scrollView}
       >
-        {steps.map((_, index) => (
-          <View key={index} style={styles.stepWrapper}>
-            {index === currentStep && renderStep()}
-          </View>
-        ))}
+        {(steps || []).map((_, index) => {
+          const shouldRender = index === currentStep;
+          return (
+            <View key={index} style={styles.stepWrapper}>
+              {shouldRender && typeof renderStep === 'function' ? renderStep() : null}
+            </View>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.footer}>

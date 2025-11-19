@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Camera from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';

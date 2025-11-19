@@ -1,4 +1,4 @@
-import { Analysis, AnalysisResult, AnalysisItem } from '../domain';
+import type { Analysis, AnalysisResult, AnalysisItem } from '../domain';
 
 export interface AnalysisRequest {
   imageUri: string;
@@ -28,7 +28,7 @@ export class AnalysisService {
     };
   }
 
-  private async processAnalysis(imageUri: string): Promise<AnalysisResult> {
+  private async processAnalysis(_imageUri: string): Promise<AnalysisResult> {
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -81,7 +81,7 @@ export class AnalysisService {
     };
   }
 
-  async getUserAnalyses(userId: string, limit: number = 10): Promise<Analysis[]> {
+  async getUserAnalyses(userId: string, _limit: number = 10): Promise<Analysis[]> {
     // Mock implementation
     return [];
   }

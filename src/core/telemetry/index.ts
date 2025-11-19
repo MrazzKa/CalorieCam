@@ -27,7 +27,7 @@ export class TelemetryManager {
   private events: TelemetryEvent[] = [];
   private sessionId: string;
   private userId?: string;
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: ReturnType<typeof setInterval>;
 
   constructor(config: TelemetryConfig = defaultTelemetryConfig) {
     this.config = config;
@@ -55,7 +55,7 @@ export class TelemetryManager {
     }
     
     if (this.events.length >= this.config.batchSize) {
-      this.flush();
+      void this.flush();
     }
   }
 
@@ -110,7 +110,7 @@ export class TelemetryManager {
 
   private startFlushTimer(): void {
     this.flushTimer = setInterval(() => {
-      this.flush();
+      void this.flush();
     }, this.config.flushInterval);
   }
 
@@ -143,7 +143,7 @@ export class TelemetryManager {
 
   destroy(): void {
     this.stopFlushTimer();
-    this.flush();
+    void this.flush();
   }
 }
 

@@ -73,7 +73,7 @@ export function usePushNotifications(): PushNotificationState {
   }, []);
 
   useEffect(() => {
-    registerForPushNotificationsAsync();
+    void registerForPushNotificationsAsync();
 
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
       console.log('[PushNotifications] Notification received', notification);

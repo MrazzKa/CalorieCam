@@ -33,6 +33,7 @@ export interface AnalysisItem {
 
 export const analyzeFoodImage = async (request: AnalysisRequest): Promise<AnalysisResult> => {
   // Mock implementation
+  console.log('Analyzing food image for user', request.userId, 'from', request.imageUri);
   return {
     id: Math.random().toString(36).substr(2, 9),
     items: [

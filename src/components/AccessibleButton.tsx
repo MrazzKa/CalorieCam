@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, type TouchableOpacityProps } from 'react-native';
 
 interface AccessibleButtonProps extends TouchableOpacityProps {
   title: string;

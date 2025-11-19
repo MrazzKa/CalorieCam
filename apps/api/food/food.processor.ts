@@ -84,7 +84,7 @@ export class FoodProcessor {
 
       // Transform to old format for compatibility
       const result: any = {
-        items: analysisResult.items.map(item => ({
+        items: (analysisResult.items && Array.isArray(analysisResult.items) ? analysisResult.items : []).map(item => ({
           label: item.name,
           kcal: item.nutrients.calories,
           protein: item.nutrients.protein,
@@ -105,32 +105,42 @@ export class FoodProcessor {
           const user = await this.prisma.user.findUnique({ where: { id: userId } });
           if (user) {
             const dishName = items[0]?.name || 'Analyzed Meal';
-            const meal = await this.mealsService.createMeal(userId, {
-              name: dishName,
-              type: 'MEAL',
-              items: items.map(item => ({
-                name: item.name,
-                calories: item.nutrients?.calories || 0,
-                protein: item.nutrients?.protein || 0,
-                fat: item.nutrients?.fat || 0,
-                carbs: item.nutrients?.carbs || 0,
-                weight: item.portion_g || 100,
-              })),
-              healthScore: analysisResult.healthScore,
-            });
-            console.log(`Automatically saved analysis ${analysisId} to meals`);
-            result.autoSave = {
-              mealId: meal.id,
-              savedAt: new Date().toISOString(),
-            };
+            // Фильтруем и валидируем items перед сохранением
+            const validItems = items
+              .map(item => ({
+                name: item.name || 'Unknown Food',
+                calories: item.nutrients?.calories ?? 0,
+                protein: item.nutrients?.protein ?? 0,
+                fat: item.nutrients?.fat ?? 0,
+                carbs: item.nutrients?.carbs ?? 0,
+                weight: item.portion_g ?? 100,
+              }))
+              .filter(item => (item.name && item.name !== 'Unknown Food') && item.calories > 0);
+            
+            if (validItems.length > 0) {
+              const meal = await this.mealsService.createMeal(userId, {
+                name: dishName,
+                type: 'MEAL',
+                items: validItems,
+                healthScore: analysisResult.healthScore,
+              });
+              console.log(`Automatically saved analysis ${analysisId} to meals (mealId: ${meal.id})`);
+              result.autoSave = {
+                mealId: meal.id,
+                savedAt: new Date().toISOString(),
+              };
+            } else {
+              console.log(`Skipping auto-save: no valid items to save for analysis ${analysisId}`);
+            }
           } else {
             console.log(`Skipping auto-save: user ${userId} not found`);
           }
         } else {
-          console.log(`Skipping auto-save: invalid userId (${userId})`);
+          console.log(`Skipping auto-save: invalid userId (${userId}) or no items`);
         }
       } catch (mealError: any) {
         console.error(`Failed to auto-save analysis ${analysisId} to meals:`, mealError.message);
+        console.error(`Error stack:`, mealError.stack);
         // Don't fail the analysis if meal save fails
       }
 
@@ -179,7 +189,7 @@ export class FoodProcessor {
 
       // Transform to old format for compatibility
       const result: any = {
-        items: analysisResult.items.map(item => ({
+        items: (analysisResult.items && Array.isArray(analysisResult.items) ? analysisResult.items : []).map(item => ({
           label: item.name,
           kcal: item.nutrients.calories,
           protein: item.nutrients.protein,
@@ -199,24 +209,31 @@ export class FoodProcessor {
           const user = await this.prisma.user.findUnique({ where: { id: userId } });
           if (user) {
             const dishName = items[0]?.name || 'Analyzed Meal';
-            const meal = await this.mealsService.createMeal(userId, {
-              name: dishName,
-              type: 'MEAL',
-              items: items.map(item => ({
-                name: item.name,
-                calories: item.nutrients?.calories || 0,
-                protein: item.nutrients?.protein || 0,
-                fat: item.nutrients?.fat || 0,
-                carbs: item.nutrients?.carbs || 0,
-                weight: item.portion_g || 100,
-              })),
-              healthScore: analysisResult.healthScore,
-            });
-            result.autoSave = {
-              mealId: meal.id,
-              savedAt: new Date().toISOString(),
-            };
-            console.log(`Automatically saved text analysis ${analysisId} to meals`);
+            // Фильтруем и валидируем items перед сохранением
+            const validItems = items
+              .map(item => ({
+                name: item.name || 'Unknown Food',
+                calories: item.nutrients?.calories ?? 0,
+                protein: item.nutrients?.protein ?? 0,
+                fat: item.nutrients?.fat ?? 0,
+                carbs: item.nutrients?.carbs ?? 0,
+                weight: item.portion_g ?? 100,
+              }))
+              .filter(item => (item.name && item.name !== 'Unknown Food') && item.calories > 0);
+            
+            if (validItems.length > 0) {
+              const meal = await this.mealsService.createMeal(userId, {
+                name: dishName,
+                type: 'MEAL',
+                items: validItems,
+                healthScore: analysisResult.healthScore,
+              });
+              result.autoSave = {
+                mealId: meal.id,
+                savedAt: new Date().toISOString(),
+              };
+              console.log(`Automatically saved text analysis ${analysisId} to meals`);
+            }
           }
         }
       } catch (mealError: any) {

@@ -117,6 +117,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
     const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
     return this.generateTokens(user);
   }
 }

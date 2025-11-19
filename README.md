@@ -72,9 +72,18 @@ The project is managed with **pnpm** workspaces (`pnpm-workspace.yaml`). Always 
    ```
 
 6. **Start the Expo client**
+
+   For local development on the same machine:
    ```bash
-   pnpm start
+   npm run start:lan
    ```
+
+   For development with a specific IP (if your IP changed):
+   ```bash
+   npm run start:dev
+   ```
+
+   **Note:** If you're using Expo Go and see SDK version mismatch, you'll need to use a Development Build instead. See deployment docs for details.
 
 ## Linting & Tests
 

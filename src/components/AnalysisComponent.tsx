@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { analyzeImage } from '../lib/api';
 
@@ -16,12 +16,26 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const startAnalysis = React.useCallback(async () => {
+    try {
+      const result = await analyzeImage(imageUri);
+      setProgress(100);
+      setIsAnalyzing(false);
+      if (typeof onAnalysisComplete === 'function') {
+        onAnalysisComplete(result);
+      }
+    } catch (error: any) {
+      console.error('Analysis error:', error);
+      setError(error.message || 'Failed to analyze image');
+      setIsAnalyzing(false);
+    }
+  }, [imageUri, onAnalysisComplete]);
+
   useEffect(() => {
-    startAnalysis();
-  }, []);
+    void startAnalysis();
+  }, [startAnalysis]);
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -40,25 +54,11 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
     }
   }, [isAnalyzing]);
 
-  const startAnalysis = async () => {
-    try {
-      const result = await analyzeImage(imageUri);
-      setProgress(100);
-      setAnalysisResult(result);
-      setIsAnalyzing(false);
-      onAnalysisComplete(result);
-    } catch (error: any) {
-      console.error('Analysis error:', error);
-      setError(error.message || 'Failed to analyze image');
-      setIsAnalyzing(false);
-    }
-  };
-
   const retryAnalysis = () => {
     setError(null);
     setIsAnalyzing(true);
     setProgress(0);
-    startAnalysis();
+    void startAnalysis();
   };
 
   const getAnalysisSteps = () => [
@@ -71,7 +71,7 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => onClose && typeof onClose === 'function' ? onClose() : null}>
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
           <Text style={styles.title}>Analysis Error</Text>
@@ -95,7 +95,7 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <TouchableOpacity style={styles.closeButton} onPress={() => onClose && typeof onClose === 'function' ? onClose() : null}>
           <Ionicons name="close" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.title}>
@@ -116,7 +116,7 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
         </View>
 
         <View style={styles.stepsContainer}>
-          {getAnalysisSteps().map((step, index) => (
+          {getAnalysisSteps().map((step, _index) => (
             <View key={step.id} style={styles.step}>
               <View style={[
                 styles.stepIcon,

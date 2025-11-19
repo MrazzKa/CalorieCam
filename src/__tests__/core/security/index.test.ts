@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { SecurityManager, defaultSecurityConfig } from '../../../core/security';
+import { SecurityManager } from '../../../core/security';
 
 describe('SecurityManager', () => {
   let securityManager: SecurityManager;

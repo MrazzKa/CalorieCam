@@ -36,7 +36,7 @@ export interface MealItem {
   analysisId?: string;
 }
 
-export const getJournalEntries = async (userId: string, dateRange: { start: Date; end: Date }): Promise<JournalEntry[]> => {
+export const getJournalEntries = async (userId: string, _dateRange: { start: Date; end: Date }): Promise<JournalEntry[]> => {
   // Mock implementation
   return [
     {

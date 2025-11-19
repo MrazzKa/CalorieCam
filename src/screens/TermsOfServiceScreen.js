@@ -71,7 +71,7 @@ export default function TermsOfServiceScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>{t('terms.title')}</Text>
@@ -87,7 +87,7 @@ export default function TermsOfServiceScreen() {
 
             <Text style={[styles.intro, { color: colors.text }]}>{t('terms.intro')}</Text>
 
-            {sections.map((section, index) => (
+            {(sections || []).map((section, index) => (
               <MotiView
                 key={section.id}
                 from={{ opacity: 0, translateY: 20 }}
