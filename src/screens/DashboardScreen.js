@@ -115,7 +115,7 @@ export default function DashboardScreen() {
       ]);
       setFeaturedArticles(Array.isArray(featured) ? featured.slice(0, 3) : []);
       setFeedArticles(Array.isArray(feed?.articles) ? feed.articles.slice(0, 5) : []);
-    } catch (e) {
+    } catch {
       setFeaturedArticles([]);
       setFeedArticles([]);
     }
@@ -136,7 +136,7 @@ export default function DashboardScreen() {
       } else {
         setHighlightMeal(null);
       }
-    } catch (e) {
+    } catch {
       setRecentItems([]);
       setHighlightMeal(null);
     }
@@ -172,7 +172,7 @@ export default function DashboardScreen() {
         month: 'short',
         day: 'numeric',
       })}`;
-    } catch (error) {
+    } catch {
       return null;
     }
   };

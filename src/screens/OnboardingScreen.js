@@ -580,7 +580,7 @@ const OnboardingScreen = () => {
         await ApiService.getUserProfile();
         // Если профиль существует, обновляем его
         await ApiService.updateUserProfile(profileDataWithoutPlan);
-      } catch (error) {
+      } catch {
         // Если профиля нет, создаем новый
         await ApiService.createUserProfile(profileDataWithoutPlan);
       }
@@ -596,8 +596,8 @@ const OnboardingScreen = () => {
         console.error('[OnboardingScreen] Navigation not available');
         Alert.alert('Error', 'Navigation not available. Please restart the app.');
       }
-    } catch (error) {
-      console.error('Onboarding error:', error);
+    } catch (err) {
+      console.error('Onboarding error:', err);
       // Показываем предупреждение, но все равно переходим к главному экрану
       if (navigation && typeof navigation.reset === 'function') {
         Alert.alert(

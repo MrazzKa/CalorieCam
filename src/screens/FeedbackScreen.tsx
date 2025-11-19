@@ -42,7 +42,7 @@ export const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ onClose }) => {
         'Your feedback has been submitted successfully',
         [{ text: 'OK', onPress: () => onClose && typeof onClose === 'function' ? onClose() : null }]
       );
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);

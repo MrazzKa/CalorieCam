@@ -3,7 +3,7 @@ export default {
     name: "EatSense",
     slug: "eatsense",
     owner: "eatsense",
-    version: "1.0.1",
+    version: "1.0.0",
     orientation: "portrait",
     // Use Logo.jpeg for app icon (Expo will auto-generate required sizes)
     icon: "./assets/logo/Logo.jpeg",
