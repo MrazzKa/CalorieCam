@@ -35,34 +35,16 @@ export default function DashboardScreen() {
   });
   const [monthlyStats, setMonthlyStats] = useState(null);
   const [monthlyLoading, setMonthlyLoading] = useState(true);
+  const [featuredArticles, setFeaturedArticles] = useState([]);
+  const [feedArticles, setFeedArticles] = useState([]);
+  const [recentItems, setRecentItems] = useState([]);
+  const [highlightMeal, setHighlightMeal] = useState(null);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadStats();
-      loadMonthlyStats();
-      loadArticles();
-      loadRecent();
-    }, [loadStats, loadMonthlyStats, loadArticles, loadRecent])
-  );
-
-  useEffect(() => {
-    loadStats();
-    loadMonthlyStats();
-    loadArticles();
-    loadRecent();
-  }, [selectedDate, loadStats, loadMonthlyStats, loadArticles, loadRecent]);
-
+  // Определяем функции ПЕРЕД их использованием в хуках
   const loadStats = React.useCallback(async () => {
     try {
-      const statsData = await ApiService.getStats('day');
+      // Используем selectedDate для загрузки статистики по выбранной дате
+      const statsData = await ApiService.getStats(selectedDate);
       // Map API (/stats/dashboard) shape to UI state
       if (statsData && statsData.today && statsData.goals) {
         setStats({
@@ -92,7 +74,7 @@ export default function DashboardScreen() {
         goal: 2000,
       });
     }
-  }, []);
+  }, [selectedDate]);
 
   const loadMonthlyStats = React.useCallback(async () => {
     try {
@@ -115,6 +97,12 @@ export default function DashboardScreen() {
       ]);
       setFeaturedArticles(Array.isArray(featured) ? featured.slice(0, 3) : []);
       setFeedArticles(Array.isArray(feed?.articles) ? feed.articles.slice(0, 5) : []);
+      
+      // Дополнительная проверка на случай, если feed не объект
+      if (!feed || typeof feed !== 'object' || !Array.isArray(feed.articles)) {
+        console.warn('[DashboardScreen] Invalid feed response:', feed);
+        setFeedArticles([]);
+      }
     } catch {
       setFeaturedArticles([]);
       setFeedArticles([]);
@@ -123,7 +111,8 @@ export default function DashboardScreen() {
 
   const loadRecent = React.useCallback(async () => {
     try {
-      const meals = await ApiService.getMeals();
+      // Используем selectedDate для загрузки meals по выбранной дате
+      const meals = await ApiService.getMeals(selectedDate);
       const items = Array.isArray(meals) ? meals.slice(0, 5) : [];
       setRecentItems(items);
       const withInsights = items.find(item => item.healthInsights);
@@ -140,7 +129,32 @@ export default function DashboardScreen() {
       setRecentItems([]);
       setHighlightMeal(null);
     }
-  }, [t]);
+  }, [t, selectedDate]);
+
+  // Теперь используем функции в хуках ПОСЛЕ их определения
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadStats();
+      loadMonthlyStats();
+      loadArticles();
+      loadRecent();
+    }, [loadStats, loadMonthlyStats, loadArticles, loadRecent])
+  );
+
+  useEffect(() => {
+    loadStats();
+    loadMonthlyStats();
+    loadArticles();
+    loadRecent();
+  }, [selectedDate, loadStats, loadMonthlyStats, loadArticles, loadRecent]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString(language || 'en', {
@@ -209,10 +223,6 @@ export default function DashboardScreen() {
 
   const [showModal, setShowModal] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
-  const [featuredArticles, setFeaturedArticles] = useState([]);
-  const [feedArticles, setFeedArticles] = useState([]);
-  const [recentItems, setRecentItems] = useState([]);
-  const [highlightMeal, setHighlightMeal] = useState(null);
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleCameraPress = () => {

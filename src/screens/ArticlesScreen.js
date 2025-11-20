@@ -49,7 +49,8 @@ export default function ArticlesScreen() {
         ApiService.getFeaturedArticles(),
       ]);
       setFeed(feedData);
-      setFeatured(featuredData.slice(0, FEATURED_LIMIT));
+      // Гарантируем, что featuredData это массив перед вызовом slice
+      setFeatured(Array.isArray(featuredData) ? featuredData.slice(0, FEATURED_LIMIT) : []);
     } catch (err) {
       console.error('Error loading articles:', err);
       setError(t('articles.errorLoading'));

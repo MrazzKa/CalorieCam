@@ -9,8 +9,9 @@ import {
   Animated,
   Alert,
   TextInput,
+  InteractionManager,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import PropTypes from 'prop-types';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -585,30 +586,75 @@ const OnboardingScreen = () => {
         await ApiService.createUserProfile(profileDataWithoutPlan);
       }
       
-      await ApiService.completeOnboarding();
-      // Проверяем, что navigation доступен перед вызовом
-      if (navigation && typeof navigation.reset === 'function') {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
-      } else {
-        console.error('[OnboardingScreen] Navigation not available');
-        Alert.alert('Error', 'Navigation not available. Please restart the app.');
-      }
+      const onboardingResult = await ApiService.completeOnboarding();
+      console.log('[OnboardingScreen] Onboarding completed, result:', onboardingResult);
+      
+      // Используем InteractionManager для безопасного вызова navigation после завершения всех анимаций
+      InteractionManager.runAfterInteractions(() => {
+        // Дополнительная задержка для гарантии готовности navigation
+        setTimeout(() => {
+          try {
+            if (navigation && navigation.isReady && navigation.isReady()) {
+              console.log('[OnboardingScreen] Navigation is ready, calling reset');
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs' }],
+                })
+              );
+            } else if (navigation && typeof navigation.reset === 'function') {
+              console.log('[OnboardingScreen] Navigation reset available, calling directly');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            } else {
+              console.error('[OnboardingScreen] Navigation not available or not ready');
+              console.error('[OnboardingScreen] Navigation object:', navigation);
+              Alert.alert('Error', 'Navigation not available. Please restart the app.');
+            }
+          } catch (navError) {
+            console.error('[OnboardingScreen] Navigation reset error:', navError);
+            Alert.alert('Error', `Navigation error: ${navError.message}. Please restart the app.`);
+          }
+        }, 100);
+      });
     } catch (err) {
       console.error('Onboarding error:', err);
       // Показываем предупреждение, но все равно переходим к главному экрану
-      if (navigation && typeof navigation.reset === 'function') {
+      const navigateToMain = () => {
+        InteractionManager.runAfterInteractions(() => {
+          setTimeout(() => {
+            try {
+              if (navigation && navigation.isReady && navigation.isReady()) {
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs' }],
+                  })
+                );
+              } else if (navigation && typeof navigation.reset === 'function') {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs' }],
+                });
+              } else {
+                console.error('[OnboardingScreen] Navigation not available in error handler');
+              }
+            } catch (navError) {
+              console.error('[OnboardingScreen] Navigation error in catch block:', navError);
+            }
+          }, 100);
+        });
+      };
+
+      if (navigation && (navigation.isReady || typeof navigation.reset === 'function')) {
         Alert.alert(
           'Setup Complete', 
           'Profile saved locally. You can complete setup later in settings.',
           [{ 
             text: 'OK', 
-            onPress: () => navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTabs' }],
-            })
+            onPress: navigateToMain
           }]
         );
       } else {

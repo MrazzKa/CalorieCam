@@ -1,3 +1,4 @@
+// Expo SDK 54 with RN 0.81.5 + React 19.1 - expo-dev-client is compatible
 export default {
   expo: {
     name: "EatSense",
@@ -13,6 +14,8 @@ export default {
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
       environment: process.env.EXPO_PUBLIC_ENV,
       // Google OAuth Client IDs (separate for iOS/Android/Web)
+      // IMPORTANT: iOS Client ID must be created in Google Cloud Console with bundle ID: ch.eatsense.app
+      // See: https://console.cloud.google.com/apis/credentials
       googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID, // Legacy fallback
       googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
       googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
@@ -27,7 +30,7 @@ export default {
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",
-      buildNumber: "21",
+      buildNumber: "22",
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "EatSense",
@@ -51,7 +54,7 @@ export default {
 
     android: {
       package: "ch.eatsense.app",
-      versionCode: 21,
+      versionCode: 22,
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
       permissions: ["CAMERA","READ_MEDIA_IMAGES","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","POST_NOTIFICATIONS"],
       intentFilters: [{
@@ -70,7 +73,6 @@ export default {
     notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "EatSense" },
     plugins: [
       "expo-secure-store",
-      "expo-router",
       "expo-camera",
       "expo-image-picker",
       "expo-media-library",
@@ -82,7 +84,8 @@ export default {
         {
           "appleTeamId": "73T7PB4F99"
         }
-      ]
+      ],
+      "expo-dev-client"
     ]
   }
 };

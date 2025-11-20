@@ -137,6 +137,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
   const { expoPushToken } = usePushNotifications();
   const { user, refreshUser } = useAuth();
 
@@ -257,7 +258,15 @@ function AppContent() {
     console.log('[App] Setting isAuthenticated to true...');
     setIsAuthenticated(true);
     
-    // Check onboarding status BEFORE setting it
+    // Add small delay to avoid race conditions before setting navigation ready
+    console.log('[App] Waiting for navigation to be ready...');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Set navigation ready after delay
+    console.log('[App] Setting isNavigationReady to true...');
+    setIsNavigationReady(true);
+    
+    // Check onboarding status AFTER navigation is ready
     // This prevents showing onboarding if user already completed it
     console.log('[App] Checking onboarding status...');
     try {
@@ -391,6 +400,7 @@ function AppContent() {
   }
 
   // Show AuthScreen if not authenticated
+  // Navigation ready state is handled inside handleAuthSuccess
   const initialRouteName = hasCompletedOnboarding ? 'MainTabs' : 'Onboarding';
 
   if (!isAuthenticated) {

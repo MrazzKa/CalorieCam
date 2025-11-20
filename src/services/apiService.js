@@ -364,8 +364,15 @@ class ApiService {
 
   // Meals
   async getMeals(date) {
-    const params = date ? `?date=${date.toISOString().split('T')[0]}` : '';
-    return this.request(`/meals${params}`);
+    try {
+      const params = date ? `?date=${date.toISOString().split('T')[0]}` : '';
+      const response = await this.request(`/meals${params}`);
+      // Гарантируем, что всегда возвращается массив
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('[ApiService] getMeals error:', error);
+      return [];
+    }
   }
 
   async createMeal(mealData) {
@@ -418,21 +425,54 @@ class ApiService {
   }
 
   // Statistics
-  async getStats() {
-    // align with backend routes
-    return this.request(`/stats/dashboard`);
+  async getStats(date) {
+    try {
+      // align with backend routes
+      // Если передана дата, используем /me/stats для получения статистики по дате
+      if (date) {
+        const dateStr = date.toISOString().split('T')[0];
+        const response = await this.request(`/me/stats?from=${dateStr}&to=${dateStr}`);
+        // Преобразуем формат ответа /me/stats в формат /stats/dashboard
+        if (response && response.totals) {
+          return {
+            today: {
+              calories: response.totals.calories || 0,
+              protein: response.totals.protein || 0,
+              carbs: response.totals.carbs || 0,
+              fat: response.totals.fat || 0,
+            },
+            goals: response.goals || {},
+          };
+        }
+      }
+      // По умолчанию используем /stats/dashboard для сегодня
+      const response = await this.request(`/stats/dashboard`);
+      // Гарантируем, что всегда возвращается объект
+      return response ?? { today: {}, goals: {} };
+    } catch (error) {
+      console.error('[ApiService] getStats error:', error);
+      return { today: {}, goals: {} };
+    }
   }
 
   async getMonthlyStats(from, to) {
-    const params = new URLSearchParams();
-    if (from) {
-      params.append('from', from);
+    try {
+      const params = new URLSearchParams();
+      if (from) {
+        params.append('from', from);
+      }
+      if (to) {
+        params.append('to', to);
+      }
+      const query = params.toString() ? `?${params.toString()}` : '';
+      // Используем правильный роут из бэкенда: /me/stats
+      const response = await this.request(`/me/stats${query}`);
+      // Гарантируем, что всегда возвращается объект или null
+      return response ?? null;
+    } catch (error) {
+      console.error('[ApiService] getMonthlyStats error:', error);
+      return null;
     }
-    if (to) {
-      params.append('to', to);
-    }
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/me/stats${query}`);
   }
 
   // Media
@@ -468,7 +508,14 @@ class ApiService {
   }
 
   async getUserProfile() {
-    return this.request('/user-profiles');
+    try {
+      const result = await this.request('/user-profiles');
+      // Гарантируем, что всегда возвращается объект или null, но не undefined
+      return result ?? null;
+    } catch (error) {
+      console.error('[ApiService] getUserProfile error:', error);
+      throw error;
+    }
   }
 
   async updateUserProfile(profileData) {
@@ -479,9 +526,17 @@ class ApiService {
   }
 
   async completeOnboarding() {
-    return this.request('/user-profiles/complete-onboarding', {
-      method: 'POST',
-    });
+    try {
+      const result = await this.request('/user-profiles/complete-onboarding', {
+        method: 'POST',
+      });
+      // Гарантируем, что всегда возвращается значение (не undefined)
+      return result ?? { success: true };
+    } catch (error) {
+      console.error('[ApiService] completeOnboarding error:', error);
+      // В случае ошибки все равно возвращаем объект, чтобы не сломать цепочку
+      throw error;
+    }
   }
 
   // AI Assistant
@@ -507,18 +562,39 @@ class ApiService {
   }
 
   async getConversationHistory(userId, limit = 10) {
-    return this.request(`/ai-assistant/conversation-history?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+    try {
+      const result = await this.request(`/ai-assistant/conversation-history?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+      // Гарантируем, что всегда возвращается массив
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error('[ApiService] getConversationHistory error:', error);
+      return [];
+    }
   }
 
   async listAssistantFlows() {
-    return this.request('/ai-assistant/flows');
+    try {
+      const result = await this.request('/ai-assistant/flows');
+      // Гарантируем, что всегда возвращается массив
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error('[ApiService] listAssistantFlows error:', error);
+      return [];
+    }
   }
 
   async startAssistantSession(flowId, userId, resume = true) {
-    return this.request('/ai-assistant/session', {
-      method: 'POST',
-      body: JSON.stringify({ flowId, userId, resume }),
-    });
+    try {
+      const result = await this.request('/ai-assistant/session', {
+        method: 'POST',
+        body: JSON.stringify({ flowId, userId, resume }),
+      });
+      // Гарантируем, что всегда возвращается объект
+      return result ?? { sessionId: null, step: null, summary: null, complete: false };
+    } catch (error) {
+      console.error('[ApiService] startAssistantSession error:', error);
+      throw error;
+    }
   }
 
   async resumeAssistantSession(sessionId) {
@@ -526,10 +602,17 @@ class ApiService {
   }
 
   async sendAssistantSessionStep(sessionId, userId, input) {
-    return this.request('/ai-assistant/step', {
-      method: 'POST',
-      body: JSON.stringify({ sessionId, userId, input }),
-    });
+    try {
+      const result = await this.request('/ai-assistant/step', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId, userId, input }),
+      });
+      // Гарантируем, что всегда возвращается объект
+      return result ?? { step: null, summary: null, complete: false, sessionId: null };
+    } catch (error) {
+      console.error('[ApiService] sendAssistantSessionStep error:', error);
+      throw error;
+    }
   }
 
   async cancelAssistantSession(sessionId, userId) {
@@ -555,33 +638,90 @@ class ApiService {
 
   // Articles
   async getArticlesFeed(page = 1, pageSize = 20) {
-    /** @type {import('../types/articles').ArticleFeed} */
-    const response = await this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
-    return response;
+    try {
+      /** @type {import('../types/articles').ArticleFeed} */
+      const response = await this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
+      // Гарантируем, что всегда возвращается объект с articles массивом
+      if (response && typeof response === 'object') {
+        return {
+          articles: Array.isArray(response.articles) ? response.articles : [],
+          total: response.total ?? 0,
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          ...response,
+        };
+      }
+      return { articles: [], total: 0, page, pageSize };
+    } catch (error) {
+      console.error('[ApiService] getArticlesFeed error:', error);
+      return { articles: [], total: 0, page, pageSize };
+    }
   }
 
   async getFeaturedArticles() {
-    /** @type {import('../types/articles').ArticleSummary[]} */
-    const response = await this.request('/articles/featured');
-    return response;
+    try {
+      /** @type {import('../types/articles').ArticleSummary[]} */
+      const response = await this.request('/articles/featured');
+      // Гарантируем, что всегда возвращается массив
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('[ApiService] getFeaturedArticles error:', error);
+      return [];
+    }
   }
 
   async getArticleBySlug(slug) {
-    /** @type {import('../types/articles').ArticleDetail} */
-    const response = await this.request(`/articles/slug/${slug}`);
-    return response;
+    try {
+      /** @type {import('../types/articles').ArticleDetail} */
+      const response = await this.request(`/articles/slug/${slug}`);
+      // Гарантируем, что всегда возвращается объект или null
+      return response ?? null;
+    } catch (error) {
+      console.error('[ApiService] getArticleBySlug error:', error);
+      throw error;
+    }
   }
 
   async searchArticles(query, page = 1, pageSize = 20) {
-    /** @type {import('../types/articles').ArticleFeed} */
-    const response = await this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
-    return response;
+    try {
+      /** @type {import('../types/articles').ArticleFeed} */
+      const response = await this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
+      // Гарантируем, что всегда возвращается объект с articles массивом
+      if (response && typeof response === 'object') {
+        return {
+          articles: Array.isArray(response.articles) ? response.articles : [],
+          total: response.total ?? 0,
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          ...response,
+        };
+      }
+      return { articles: [], total: 0, page, pageSize };
+    } catch (error) {
+      console.error('[ApiService] searchArticles error:', error);
+      return { articles: [], total: 0, page, pageSize };
+    }
   }
 
   async getArticlesByTag(tag, page = 1, pageSize = 20) {
-    /** @type {import('../types/articles').ArticleFeed} */
-    const response = await this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
-    return response;
+    try {
+      /** @type {import('../types/articles').ArticleFeed} */
+      const response = await this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
+      // Гарантируем, что всегда возвращается объект с articles массивом
+      if (response && typeof response === 'object') {
+        return {
+          articles: Array.isArray(response.articles) ? response.articles : [],
+          total: response.total ?? 0,
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          ...response,
+        };
+      }
+      return { articles: [], total: 0, page, pageSize };
+    } catch (error) {
+      console.error('[ApiService] getArticlesByTag error:', error);
+      return { articles: [], total: 0, page, pageSize };
+    }
   }
 
   async registerPushToken(token, deviceId, platform, appVersion) {

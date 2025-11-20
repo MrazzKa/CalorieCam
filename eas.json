@@ -26,7 +26,13 @@
       "ios": {
         "image": "macos-sequoia-15.3-xcode-16.2",
         "resourceClass": "m-medium",
-        "cocoapods": "1.15.2"
+        "cocoapods": "1.15.2",
+        "cache": {
+          "disabled": false
+        },
+        "env": {
+          "EXPO_NO_DOTENV": "1"
+        }
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
