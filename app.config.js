@@ -31,6 +31,7 @@ export default {
     ios: {
       bundleIdentifier: "ch.eatsense.app",
       buildNumber: "22",
+      developmentTeam: "73T7PB4F99",
       supportsTablet: true,
       infoPlist: {
         CFBundleDisplayName: "EatSense",
@@ -72,6 +73,7 @@ export default {
     web: { favicon: "./assets/favicon.png" },
     notification: { icon: "./assets/icon.png", color: "#FF6B6B", androidMode: "default", androidCollapsedTitle: "EatSense" },
     plugins: [
+      "expo-build-properties",
       "expo-secure-store",
       "expo-camera",
       "expo-image-picker",

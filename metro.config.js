@@ -23,16 +23,4 @@ config.server = {
   },
 };
 
-// Workaround for metro-core canonicalize export issue
-// Prevents error: Package subpath './src/canonicalize' is not defined
-const originalResolve = config.resolver.resolve;
-config.resolver.resolve = function(context, moduleName, platform) {
-  // If trying to resolve metro-core/src/canonicalize, use main export instead
-  if (moduleName && typeof moduleName === 'string' && moduleName.includes('metro-core/src/canonicalize')) {
-    // Redirect to metro-core main export
-    return originalResolve.call(this, context, 'metro-core', platform);
-  }
-  return originalResolve.call(this, context, moduleName, platform);
-};
-
 module.exports = config;
