@@ -137,7 +137,10 @@ export class RedisCacheAdapter implements CacheAdapter {
 
 // Factory function to create Redis cache adapter with environment config
 export const createRedisCacheAdapter = (): RedisCacheAdapter => {
-  const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://172.20.10.2:3000';
+  // Use safeEnv helper for normalized env values
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const safeEnv = require('../../utils/env').default;
+  const baseUrl = safeEnv.apiBaseUrl || 'http://172.20.10.2:3000';
   
   return new RedisCacheAdapter({
     baseUrl,

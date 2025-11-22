@@ -20,6 +20,8 @@ import Constants from 'expo-constants';
 import ApiService from '../services/apiService';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const safeEnv = require('../utils/env').default;
 
 // Complete web browser auth session for Google
 WebBrowser.maybeCompleteAuthSession();
@@ -175,12 +177,13 @@ export default function AuthScreen({ onAuthSuccess }) {
   };
 
   // Google OAuth configuration with separate Client IDs for iOS/Android/Web
+  // Use safeEnv helper to prevent "undefined is not a function" errors
   // For mobile apps: use only iOS/Android Client IDs (no Web Client ID needed)
   // Web Client ID is only for web platform
-  const iosClientId = Constants.expoConfig?.extra?.googleIosClientId || process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-  const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId || process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const iosClientId = Constants.expoConfig?.extra?.googleIosClientId || safeEnv.googleIosClientId;
+  const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId || safeEnv.googleAndroidClientId;
   const webClientId = Platform.OS === 'web' 
-    ? (Constants.expoConfig?.extra?.googleWebClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
+    ? (Constants.expoConfig?.extra?.googleWebClientId || safeEnv.googleWebClientId || safeEnv.googleClientId)
     : undefined; // Don't use Web Client ID on mobile - use iOS/Android Client IDs instead
   
   // Create redirect URI for Google OAuth
@@ -328,7 +331,6 @@ export default function AuthScreen({ onAuthSuccess }) {
 
     try {
       console.log('[AuthScreen] Requesting OTP for email:', trimmedEmail);
-      console.log('[AuthScreen] API_BASE_URL from env:', process.env.EXPO_PUBLIC_API_BASE_URL);
       const response = await ApiService.requestOtp(trimmedEmail);
       console.log('[AuthScreen] OTP request successful:', response);
       setStatusMessage(

@@ -1,9 +1,7 @@
-// Polyfills for React Native 0.81.5 / Hermes compatibility (if needed)
-// Note: RN 0.81.5 may have better native support, but keeping polyfills for safety
-import 'core-js/actual/array/to-sorted';
-import 'core-js/actual/array/to-reversed';
-import 'core-js/actual/array/to-spliced';
-import 'core-js/actual/promise/with-resolvers';
+// CRITICAL: These imports MUST be first for Reanimated and Gesture Handler to work correctly
+import 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import 'react-native-url-polyfill/auto';
 
 import { registerRootComponent } from 'expo';
 import React from 'react';

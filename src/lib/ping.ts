@@ -14,7 +14,6 @@ export const ping = async (): Promise<PingResult> => {
     console.log(`[Ping] ========================================`);
     console.log(`[Ping] Checking API at: ${url}`);
     console.log(`[Ping] URLS.API_BASE_URL: ${URLS.API_BASE_URL}`);
-    console.log(`[Ping] process.env.EXPO_PUBLIC_API_BASE_URL: ${process.env.EXPO_PUBLIC_API_BASE_URL}`);
     console.log(`[Ping] Full URL: ${url}`);
     console.log(`[Ping] ========================================`);
     

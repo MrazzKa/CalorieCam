@@ -11,9 +11,8 @@ class ApiService {
     /** @type {string | null} */
     this.expoPushToken = null;
     
-    // Log configuration on init
+    // Log configuration on init (using safe values)
     console.log('[ApiService] Initialized with baseURL:', this.baseURL);
-    console.log('[ApiService] EXPO_PUBLIC_API_BASE_URL from env:', process.env.EXPO_PUBLIC_API_BASE_URL);
     console.log('[ApiService] API_BASE_URL constant:', API_BASE_URL);
   }
 
