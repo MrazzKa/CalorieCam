@@ -247,69 +247,52 @@ function AppContent() {
   }, []);
 
   const handleAuthSuccess = useCallback(async () => {
-    console.log('[App] ========================================');
-    console.log('[App] handleAuthSuccess called');
-    console.log('[App] Current state - isAuthenticated:', isAuthenticated);
-    console.log('[App] Current state - hasCompletedOnboarding:', hasCompletedOnboarding);
-    console.log('[App] Current state - user from AuthContext:', user);
+    console.log('[AUTH] ========================================');
+    console.log('[AUTH] Login ok, tokens saved');
+    console.log('[AUTH] handleAuthSuccess called');
     
-    // Set authentication state FIRST to trigger navigation
-    // This ensures navigation happens immediately
-    console.log('[App] Setting isAuthenticated to true...');
+    // Set authentication state FIRST
+    console.log('[AUTH] Setting isAuthenticated to true...');
     setIsAuthenticated(true);
     
-    // Add small delay to avoid race conditions before setting navigation ready
-    console.log('[App] Waiting for navigation to be ready...');
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Reset navigation ready state initially
+    setIsNavigationReady(false);
     
-    // Set navigation ready after delay
-    console.log('[App] Setting isNavigationReady to true...');
-    setIsNavigationReady(true);
+    // Add delay to ensure navigation container is ready before rendering tabs
+    // This prevents "undefined is not a function" errors from Reanimated/Gesture Handler
+    setTimeout(() => {
+      console.log('[AUTH] nav gate open');
+      setIsNavigationReady(true);
+    }, 60); // 50-100ms is sufficient for navigation to initialize
     
     // Check onboarding status AFTER navigation is ready
-    // This prevents showing onboarding if user already completed it
-    console.log('[App] Checking onboarding status...');
     try {
-      // Add timeout to prevent hanging
       const profilePromise = ApiService.getUserProfile();
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), 5000)
       );
       const profile = await Promise.race([profilePromise, timeoutPromise]);
       const isOnboardingCompleted = profile?.isOnboardingCompleted || false;
-      console.log('[App] Onboarding status from profile:', isOnboardingCompleted);
+      console.log('[AUTH] Onboarding status from profile:', isOnboardingCompleted);
       setHasCompletedOnboarding(isOnboardingCompleted);
-      
-      if (isOnboardingCompleted) {
-        console.log('[App] User already completed onboarding, navigating to MainTabs');
-      } else {
-        console.log('[App] User needs onboarding, showing onboarding screen');
-      }
     } catch (error) {
-      console.log('[App] Error checking onboarding status, defaulting to onboarding:', error.message);
-      // If we can't check, show onboarding screen (safer default)
+      console.log('[AUTH] Error checking onboarding status, defaulting to onboarding:', error.message);
       setHasCompletedOnboarding(false);
     }
     
     // Update AuthContext in background (non-blocking)
-    // This prevents useEffect from resetting isAuthenticated
-    console.log('[App] Refreshing user in AuthContext (background)...');
     if (refreshUser && typeof refreshUser === 'function') {
       refreshUser()
         .then(() => {
-          console.log('[App] AuthContext refreshed successfully');
+          console.log('[AUTH] AuthContext refreshed successfully');
         })
         .catch((error) => {
-          console.warn('[App] Error refreshing AuthContext (non-blocking):', error.message);
-          // Don't reset authentication if refresh fails - token is already saved
+          console.warn('[AUTH] Error refreshing AuthContext (non-blocking):', error.message);
         });
-    } else {
-      console.warn('[App] refreshUser is not available');
     }
     
-    console.log('[App] State updated, navigation should trigger now');
-    console.log('[App] ========================================');
-  }, [isAuthenticated, hasCompletedOnboarding, user, refreshUser]);
+    console.log('[AUTH] ========================================');
+  }, [refreshUser]);
 
   // Handle deep links (Magic Links) - delayed until app is fully loaded
   useEffect(() => {
@@ -325,9 +308,11 @@ function AppContent() {
       try {
         // Parse the URL
         const parsed = Linking.parse(url);
+        // Normalize path (Linking sometimes returns path without leading '/')
+        const path = (parsed.path || '').replace(/^\//, '');
         
         // Handle magic link consumption
-        if (parsed.path === '/v1/auth/magic/consume' && parsed.queryParams?.token) {
+        if (path === 'v1/auth/magic/consume' && parsed.queryParams?.token) {
           const token = parsed.queryParams.token;
           
           // Call API to consume magic link
@@ -400,9 +385,6 @@ function AppContent() {
   }
 
   // Show AuthScreen if not authenticated
-  // Navigation ready state is handled inside handleAuthSuccess
-  const initialRouteName = hasCompletedOnboarding ? 'MainTabs' : 'Onboarding';
-
   if (!isAuthenticated) {
     return (
       <SafeAreaProvider>
@@ -411,34 +393,76 @@ function AppContent() {
     );
   }
 
+  // Only render navigation when authenticated AND navigation is ready
+  // This prevents race conditions and "undefined is not a function" errors
+  const initialRouteName = hasCompletedOnboarding ? 'MainTabs' : 'Onboarding';
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName={initialRouteName}
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Camera" component={CameraScreen} />
-          <Stack.Screen name="Gallery" component={GalleryScreen} />
-          <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
-          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-          <Stack.Screen name="Articles" component={ArticlesScreen} />
-          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
-        </Stack.Navigator>
+      <NavigationContainer
+        onReady={() => {
+          console.log('[NAV] Navigation container ready');
+          // Ensure navReady is set if navigation container becomes ready after auth
+          if (isAuthenticated && !isNavigationReady) {
+            setTimeout(() => setIsNavigationReady(true), 0);
+          }
+        }}
+      >
+        {isAuthenticated && isNavigationReady ? (
+          <Stack.Navigator
+            initialRouteName={initialRouteName}
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Camera" component={CameraScreen} />
+            <Stack.Screen name="Gallery" component={GalleryScreen} />
+            <Stack.Screen name="AnalysisResults" component={AnalysisResultsScreen} />
+            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+            <Stack.Screen name="Articles" component={ArticlesScreen} />
+            <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+          </Stack.Navigator>
+        ) : (
+          // Show empty splash while navigation is initializing
+          <EmptySplash />
+        )}
       </NavigationContainer>
     </SafeAreaProvider>
   );
 }
 
 export default function App() {
-  // Removed global error handler to avoid conflicts with ErrorBoundary
-  // ErrorBoundary will handle all React errors
+  // Global error handler for JS runtime errors (catches errors outside React tree)
+  React.useEffect(() => {
+    if (global.ErrorUtils?.setGlobalHandler) {
+      const previousHandler = global.ErrorUtils.getGlobalHandler?.();
+      
+      global.ErrorUtils.setGlobalHandler((error, isFatal) => {
+        console.error('[GLOBAL_ERROR]', {
+          message: error?.message,
+          stack: error?.stack,
+          isFatal,
+          error: error?.toString?.(),
+        });
+        
+        // Call previous handler if it exists
+        if (previousHandler && typeof previousHandler === 'function') {
+          previousHandler(error, isFatal);
+        }
+      });
+      
+      // Cleanup on unmount
+      return () => {
+        if (previousHandler && global.ErrorUtils?.setGlobalHandler) {
+          global.ErrorUtils.setGlobalHandler(previousHandler);
+        }
+      };
+    }
+  }, []);
 
   return (
     <ErrorBoundary>
