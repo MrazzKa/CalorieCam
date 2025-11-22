@@ -4,6 +4,17 @@
     "appVersionSource": "local"
   },
   "build": {
+    "simulator": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "image": "macos-sequoia-15.3-xcode-16.2",
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "simulator"
+      }
+    },
     "development": {
       "distribution": "internal",
       "ios": {
