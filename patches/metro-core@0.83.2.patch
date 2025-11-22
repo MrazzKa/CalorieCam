@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index e04870b04e1d8c452ce0019d09f6637cd1886791..9db416128b2085cc4d2e9bef1f6bdd2c01f93c37 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,8 @@
+   "exports": {
+     ".": "./src/index.js",
+     "./package.json": "./package.json",
+-    "./private/*": "./src/*.js"
++    "./private/*": "./src/*.js",
++    "./src/canonicalize": "./src/canonicalize.js"
+   },
+   "repository": {
+     "type": "git",

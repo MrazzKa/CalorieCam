@@ -2,6 +2,9 @@
   "pnpm": {
     "overrides": {
       "@expo/config-plugins": "8.0.6"
+    },
+    "patchedDependencies": {
+      "metro-core@0.83.2": "patches/metro-core@0.83.2.patch"
     }
   },
   "name": "eatsense-mobile",
