@@ -1,72 +1,80 @@
-// SMOKE TEST: Максимально простой App для диагностики
-// Это временная версия для проверки, работает ли базовый RN/Expo рантайм
-// После диагностики вернуть оригинальный App.js (из git history или App.js.backup если есть)
+// App.js с навигацией и SmokeTest
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { I18nProvider } from './app/i18n/provider';
+import { AppWrapper } from './src/components/AppWrapper';
+import { EmptySplash } from './src/components/EmptySplash';
 
-import React, { useEffect } from 'react';
-import { View, Text, Button, ScrollView, StyleSheet } from 'react-native';
+// Import screens
+import SmokeTestScreen from './src/screens/SmokeTestScreen';
+import AuthScreen from './src/components/AuthScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
 import { clientLog } from './src/utils/clientLog';
 
-export default function App() {
-  useEffect(() => {
-    clientLog('App:mounted').catch(() => {});
-  }, []);
+const Stack = createStackNavigator();
 
-  const handlePing = async () => {
-    await clientLog('App:pingButtonPressed').catch(() => {});
-    try {
-      const res = await fetch('https://caloriecam-production.up.railway.app/.well-known/health');
-      const text = await res.text();
-      await clientLog('App:pingSuccess', {
-        status: res.status,
-        body: text.slice(0, 200),
-      }).catch(() => {});
-    } catch (e) {
-      await clientLog('App:pingError', {
-        message: e?.message || String(e),
-      }).catch(() => {});
-    }
-  };
-
+// Простой MainTabs для начала (можно улучшить позже)
+function MainTabs() {
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-    >
-      <Text style={styles.title}>
-        EatSense Smoke Test
-      </Text>
-      <Text style={styles.subtitle}>
-        Если вы видите этот экран — JS дерево смонтировалось.
-      </Text>
-      <Button title="Ping API" onPress={handlePing} />
-      <Text style={styles.buildInfo}>
-        Build: {process.env.EXPO_PUBLIC_ENV || 'n/a'}
-      </Text>
-    </ScrollView>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+    </Stack.Navigator>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#444',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  buildInfo: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 16,
-  },
-});
+function AppContent() {
+  const handleAuthSuccess = async () => {
+    await clientLog('App:authSuccess').catch(() => {});
+    // Navigation будет обработан внутри AuthScreen через onAuthSuccess
+  };
+
+  return (
+    <SafeAreaProvider>
+      <NavigationContainer
+        onReady={() => {
+          clientLog('App:navigationReady').catch(() => {});
+        }}
+        onStateChange={(state) => {
+          const currentRoute = state?.routes?.[state.index]?.name;
+          if (currentRoute) {
+            clientLog('App:navigationStateChange', { route: currentRoute }).catch(() => {});
+          }
+        }}
+      >
+        <Stack.Navigator
+          initialRouteName="_SmokeTest"
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
+          <Stack.Screen name="Auth">
+            {(props) => <AuthScreen {...props} onAuthSuccess={handleAuthSuccess} />}
+          </Stack.Screen>
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  React.useEffect(() => {
+    clientLog('App:rootMounted').catch(() => {});
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <I18nProvider fallback={<EmptySplash />}>
+        <AppWrapper>
+          <AppContent />
+        </AppWrapper>
+      </I18nProvider>
+    </ErrorBoundary>
+  );
+}

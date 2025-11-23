@@ -13,9 +13,11 @@ import zh from './locales/zh.json';
 
 const STORAGE_KEY = '@eatsense:language';
 
-const DEFAULT_FALLBACK = (process.env.EXPO_PUBLIC_DEFAULT_LOCALE || 'en').trim();
+// Безопасная нормализация ENV переменных
+const DEFAULT_FALLBACK = String(process.env.EXPO_PUBLIC_DEFAULT_LOCALE || 'en').trim() || 'en';
 
-const SUPPORTED_LOCALES = (process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,es,de,fr,ko,ja,zh')
+const SUPPORTED_LOCALES_RAW = String(process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,es,de,fr,ko,ja,zh').trim();
+const SUPPORTED_LOCALES = SUPPORTED_LOCALES_RAW
   .split(',')
   .map(locale => locale.trim())
   .filter(Boolean);
