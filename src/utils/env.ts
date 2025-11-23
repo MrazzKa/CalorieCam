@@ -23,6 +23,9 @@ const safeEnv = {
   // Environment
   environment: String(process.env.EXPO_PUBLIC_ENV ?? '').trim() || 'development',
   
+  // Build number (from app.config.js, accessed via Constants in runtime)
+  buildNumber: String(process.env.EXPO_PUBLIC_BUILD_NUMBER ?? '').trim() || 'unknown',
+  
   // Feature flags
   disableUploads: String(process.env.EXPO_PUBLIC_DISABLE_UPLOADS ?? '').trim() === 'true',
   

@@ -3,69 +3,61 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import 'react-native-url-polyfill/auto';
 
-// Глобальный перехват JS-ошибок — покажем красный экран вместо «пустоты»
-if (global.ErrorUtils?.setGlobalHandler) {
-  const prev = global.ErrorUtils.getGlobalHandler?.();
-  
-  global.ErrorUtils.setGlobalHandler((err, isFatal) => {
-    console.error('[GLOBAL_ERROR]', String(err), err?.stack, { isFatal });
-    
-    try {
-      // Покажем простой фуллскрин, если React ещё не успел смонтироваться
-      const { AppRegistry } = require('react-native');
-      
-      const CrashScreen = () => {
-        const { View, Text } = require('react-native');
-        return (
-          <View style={{flex: 1, backgroundColor: '#0b0b0b', justifyContent: 'center', padding: 24}}>
-            <Text style={{color: '#ff5555', fontSize: 18, fontWeight: '700', marginBottom: 8}}>
-              App crashed
-            </Text>
-            <Text selectable style={{color: '#fff', marginBottom: 8}}>
-              {String(err)}
-            </Text>
-            <Text selectable style={{color: '#bbb', fontSize: 12}}>
-              {err?.stack || 'no stack'}
-            </Text>
-          </View>
-        );
-      };
-      
-      // Попытка зарегистрировать crash screen (не всегда сработает, но попробуем)
-      try {
-        AppRegistry.registerComponent('EatSenseCrash', () => CrashScreen);
-      } catch (e) {
-        // Игнорируем, если уже зарегистрирован
-      }
-    } catch (e) {
-      // Игнорируем ошибки в обработчике ошибок
-    }
-    
-    if (prev && typeof prev === 'function') {
-      prev(err, isFatal);
-    }
-  });
+// Early client logging - log as early as possible to track app startup
+let clientLog;
+try {
+  // Dynamic import to avoid blocking startup if clientLog fails
+  clientLog = require('./src/utils/clientLog').clientLog;
+  clientLog('index:start').catch(() => {});
+} catch (error) {
+  // If clientLog import fails, we can't log it, but app should continue
+  console.error('[index.js] Failed to import clientLog:', error);
 }
 
 import { registerRootComponent } from 'expo';
 import React from 'react';
 import { View, Text } from 'react-native';
 
-// Wrap App import in try-catch to handle import errors
 let App;
 try {
   App = require('./App').default;
+  if (clientLog) {
+    clientLog('index:AppImportedOK').catch(() => {});
+  }
 } catch (error) {
+  if (clientLog) {
+    clientLog('index:AppImportError', {
+      message: error?.message || 'Unknown error',
+      stack: String(error?.stack || '').substring(0, 500), // Limit stack trace length
+    }).catch(() => {});
+  }
+
   console.error('[index.js] Failed to import App:', error);
   console.error('[index.js] Error stack:', error.stack);
+
   // Fallback App that shows error
   App = () => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#FFFFFF' }}>
-      <Text style={{ fontSize: 16, color: '#E74C3C', textAlign: 'center' }}>
-        Error loading app. Please restart.
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: '#FFFFFF',
+      }}
+    >
+      <Text style={{ fontSize: 18, color: '#E74C3C', textAlign: 'center' }}>
+        Ошибка загрузки приложения
       </Text>
-      <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginTop: 10 }}>
-        {error.message}
+      <Text
+        style={{
+          fontSize: 12,
+          color: '#666',
+          textAlign: 'center',
+          marginTop: 10,
+        }}
+      >
+        {error?.message || 'Unknown error'}
       </Text>
     </View>
   );
