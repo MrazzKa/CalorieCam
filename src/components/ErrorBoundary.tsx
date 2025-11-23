@@ -1,6 +1,5 @@
 import React, { Component, type ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 interface Props {
   children: ReactNode;
@@ -10,27 +9,32 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: { componentStack?: string } | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary] Caught error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
-    console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
-    // Error logged to console for debugging
+    // Логируем в консоль и сохраняем для отображения
+    console.error('[EBOUNDARY]', error, errorInfo);
+    try {
+      // Опционально: отправить в API (можно раскомментировать)
+      // const { default: ApiService } = require('../services/apiService');
+      // ApiService.request('/logs/client', { method: 'POST', body: { error: String(error), stack: error?.stack, info: errorInfo }}).catch(() => {});
+    } catch {}
+    this.setState({ errorInfo });
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   render() {
@@ -39,18 +43,20 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const stack = this.state.error?.stack || this.state.errorInfo?.componentStack || 'no stack';
+      const errorMessage = String(this.state.error) || 'Unknown error';
+
       return (
-        <View style={styles.container}>
-          <View style={styles.content}>
-            <Ionicons name="alert-circle" size={64} color="#E74C3C" />
-            <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.message}>
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </Text>
-            <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-              <Text style={styles.buttonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.wrap}>
+          <Text style={styles.title}>App crashed</Text>
+          <ScrollView style={styles.box} contentContainerStyle={styles.boxContent}>
+            <Text selectable style={styles.msg}>{errorMessage}</Text>
+            <Text selectable style={styles.stack}>{stack}</Text>
+          </ScrollView>
+          <TouchableOpacity style={styles.button} onPress={this.handleReset}>
+            <Text style={styles.buttonText}>Try Again</Text>
+          </TouchableOpacity>
+          <Text style={styles.hint}>Это временный экран. Соберём стек — потом уберём.</Text>
         </View>
       );
     }
@@ -60,41 +66,54 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-  },
-  content: {
-    alignItems: 'center',
-    maxWidth: 300,
+    backgroundColor: '#0B0B0B',
+    paddingTop: 48,
+    paddingHorizontal: 12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1C1C1E',
-    marginTop: 16,
+    color: '#ff5555',
+    fontSize: 20,
+    fontWeight: '700',
     marginBottom: 8,
-    textAlign: 'center',
   },
-  message: {
-    fontSize: 16,
-    color: '#6E6E73',
-    marginBottom: 24,
-    textAlign: 'center',
+  box: {
+    backgroundColor: '#121212',
+    borderRadius: 12,
+    maxHeight: '80%',
+  },
+  boxContent: {
+    padding: 12,
+  },
+  msg: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  stack: {
+    color: '#bfbfbf',
+    fontSize: 12,
+    lineHeight: 16,
   },
   button: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
+    marginTop: 12,
+    alignSelf: 'center',
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  hint: {
+    color: '#888',
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
 

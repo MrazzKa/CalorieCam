@@ -15,11 +15,20 @@ function AppContent({ children }) {
 }
 
 export function AppWrapper({ children }) {
+  console.log('[BOOT:AppWrapper] Rendering AppWrapper');
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppContent>{children}</AppContent>
-      </AuthProvider>
+      {(() => {
+        console.log('[BOOT:AppWrapper] Inside ThemeProvider, rendering AuthProvider');
+        return (
+          <AuthProvider>
+            {(() => {
+              console.log('[BOOT:AppWrapper] Inside AuthProvider, rendering AppContent');
+              return <AppContent>{children}</AppContent>;
+            })()}
+          </AuthProvider>
+        );
+      })()}
     </ThemeProvider>
   );
 }

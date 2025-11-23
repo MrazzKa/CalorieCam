@@ -134,12 +134,18 @@ function MainTabs() {
 }
 
 function AppContent() {
+  console.log('[BOOT:1] AppContent starting');
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  
+  console.log('[BOOT:2] Hooks initialized, calling usePushNotifications');
   const { expoPushToken } = usePushNotifications();
+  
+  console.log('[BOOT:3] Calling useAuth');
   const { user, refreshUser } = useAuth();
+  console.log('[BOOT:4] All hooks called successfully');
 
   useEffect(() => {
     if (expoPushToken && isAuthenticated) {
@@ -377,6 +383,7 @@ function AppContent() {
   }, [user, isAuthenticated, isLoading]);
 
   if (isLoading) {
+    console.log('[BOOT:5] Rendering loading state');
     return (
       <SafeAreaProvider>
         <EmptySplash />
@@ -386,12 +393,15 @@ function AppContent() {
 
   // Show AuthScreen if not authenticated
   if (!isAuthenticated) {
+    console.log('[BOOT:6] Rendering auth screen');
     return (
       <SafeAreaProvider>
         <AuthScreen onAuthSuccess={handleAuthSuccess} />
       </SafeAreaProvider>
     );
   }
+  
+  console.log('[BOOT:7] User authenticated, preparing navigation');
 
   // Only render navigation when authenticated AND navigation is ready
   // This prevents race conditions and "undefined is not a function" errors
@@ -436,8 +446,11 @@ function AppContent() {
 }
 
 export default function App() {
+  console.log('[BOOT:0] App component rendering');
+  
   // Global error handler for JS runtime errors (catches errors outside React tree)
   React.useEffect(() => {
+    console.log('[BOOT:8] Setting up global error handler');
     if (global.ErrorUtils?.setGlobalHandler) {
       const previousHandler = global.ErrorUtils.getGlobalHandler?.();
       
@@ -464,12 +477,21 @@ export default function App() {
     }
   }, []);
 
+  console.log('[BOOT:9] Rendering App tree');
   return (
     <ErrorBoundary>
       <I18nProvider fallback={<EmptySplash />}>
-        <AppWrapper>
-          <AppContent />
-        </AppWrapper>
+        {(() => {
+          console.log('[BOOT:10] Inside I18nProvider, rendering AppWrapper');
+          return (
+            <AppWrapper>
+              {(() => {
+                console.log('[BOOT:11] Inside AppWrapper, rendering AppContent');
+                return <AppContent />;
+              })()}
+            </AppWrapper>
+          );
+        })()}
       </I18nProvider>
     </ErrorBoundary>
   );
