@@ -30,6 +30,7 @@ import { ArticlesModule } from './articles/articles.module';
 import { HealthController } from './health.controller';
 import { configSchema } from './src/config/config.schema';
 import { NotificationsModule } from './src/notifications/notifications.module';
+import { DebugModule } from './src/debug/debug.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { NotificationsModule } from './src/notifications/notifications.module';
     FdcSchedulerModule,
     ArticlesModule,
     NotificationsModule,
+    DebugModule,
   ],
   controllers: [HealthController],
 })
