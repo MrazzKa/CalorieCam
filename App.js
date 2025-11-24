@@ -1,5 +1,5 @@
 // App.js с навигацией и SmokeTest
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { I18nProvider } from './app/i18n/provider';
 import { AppWrapper } from './src/components/AppWrapper';
 import { EmptySplash } from './src/components/EmptySplash';
+import { useAuth } from './src/contexts/AuthContext';
 
 // Import screens
 import SmokeTestScreen from './src/screens/SmokeTestScreen';
@@ -27,9 +28,16 @@ function MainTabs() {
 }
 
 function AppContent() {
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
+
+  useEffect(() => {
+    clientLog('RootNav:render', { isAuthenticated }).catch(() => {});
+  }, [isAuthenticated]);
+
   const handleAuthSuccess = async () => {
     await clientLog('App:authSuccess').catch(() => {});
-    // Navigation будет обработан внутри AuthScreen через onAuthSuccess
+    // Navigation будет обработан внутри AuthScreen
   };
 
   return (
@@ -41,23 +49,34 @@ function AppContent() {
         onStateChange={(state) => {
           const currentRoute = state?.routes?.[state.index]?.name;
           if (currentRoute) {
-            clientLog('App:navigationStateChange', { route: currentRoute }).catch(() => {});
+            clientLog('App:navigationStateChange', { route: currentRoute, isAuthenticated }).catch(() => {});
           }
         }}
       >
-        <Stack.Navigator
-          initialRouteName="_SmokeTest"
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
-          <Stack.Screen name="Auth">
-            {(props) => <AuthScreen {...props} onAuthSuccess={handleAuthSuccess} />}
-          </Stack.Screen>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-        </Stack.Navigator>
+        {isAuthenticated ? (
+          <Stack.Navigator
+            initialRouteName="MainTabs"
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
+          </Stack.Navigator>
+        ) : (
+          <Stack.Navigator
+            initialRouteName="_SmokeTest"
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
+            <Stack.Screen name="Auth">
+              {(props) => <AuthScreen {...props} onAuthSuccess={handleAuthSuccess} />}
+            </Stack.Screen>
+          </Stack.Navigator>
+        )}
       </NavigationContainer>
     </SafeAreaProvider>
   );

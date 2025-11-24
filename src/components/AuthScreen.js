@@ -20,6 +20,9 @@ import Constants from 'expo-constants';
 import ApiService from '../services/apiService';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { clientLog } from '../utils/clientLog';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const safeEnv = require('../utils/env').default;
 
@@ -43,6 +46,8 @@ const OTP_LENGTH = 6;
 export default function AuthScreen({ onAuthSuccess }) {
   const { t } = useI18n();
   const { tokens, colors, isDark } = useTheme();
+  const { refreshUser, setUser } = useAuth();
+  const navigation = useNavigation();
   const styles = useMemo(() => createStyles(tokens, colors, isDark), [tokens, colors, isDark]);
 
   const [step, setStep] = useState('welcome'); // 'welcome' | 'email' | 'verify'
@@ -382,6 +387,10 @@ export default function AuthScreen({ onAuthSuccess }) {
       return;
     }
 
+    await clientLog('Auth:otpVerifyPressed', {
+      email: email ? email.substring(0, 10) + '***' : 'unknown',
+    }).catch(() => {});
+
     setIsSubmitting(true);
     resetFeedback();
 
@@ -396,24 +405,80 @@ export default function AuthScreen({ onAuthSuccess }) {
       });
       
       if (response?.accessToken) {
+        await clientLog('Auth:otpVerifySuccess', {
+          hasTokens: true,
+          hasAccessToken: !!response.accessToken,
+        }).catch(() => {});
+        
         console.log('[AuthScreen] Access token found, saving tokens...');
         await ApiService.setToken(response.accessToken, response.refreshToken);
-        console.log('[AuthScreen] Token saved, calling onAuthSuccess');
+        console.log('[AuthScreen] Token saved');
+        
+        // Update AuthContext - load user profile
+        let profile = null;
+        try {
+          await clientLog('Auth:authContextRefreshUser').catch(() => {});
+          profile = await ApiService.getUserProfile();
+          if (profile) {
+            setUser(profile);
+            await clientLog('Auth:authContextUserSet', {
+              userId: profile?.id || 'unknown',
+            }).catch(() => {});
+          }
+        } catch (profileError) {
+          console.warn('[AuthScreen] Error loading user profile:', profileError);
+          // Continue anyway - user is authenticated, will try again later
+        }
+        
         setStatusMessage(t('auth.messages.signedIn'));
         
-        // Call onAuthSuccess immediately - no delay needed
+        // Call onAuthSuccess if provided (for backward compatibility)
         if (onAuthSuccess && typeof onAuthSuccess === 'function') {
           console.log('[AuthScreen] Calling onAuthSuccess for Email OTP');
           await onAuthSuccess();
           console.log('[AuthScreen] onAuthSuccess completed for Email OTP');
-        } else {
-          console.error('[AuthScreen] onAuthSuccess is not defined or not a function!');
+        }
+        
+        // Navigate to MainTabs after successful login
+        await clientLog('Auth:navigateToMainTabs').catch(() => {});
+        try {
+          // Check if user needs onboarding (use profile from above or fetch again)
+          if (!profile) {
+            profile = await ApiService.getUserProfile();
+          }
+          const needsOnboarding = !profile?.isOnboardingCompleted;
+          
+          if (needsOnboarding) {
+            // Navigate to Onboarding first
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            });
+          } else {
+            // Navigate directly to MainTabs
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs' }],
+            });
+          }
+        } catch (navError) {
+          console.error('[AuthScreen] Navigation error:', navError);
+          await clientLog('Auth:navigationError', {
+            message: navError?.message || String(navError),
+            stack: String(navError?.stack || '').substring(0, 500),
+          }).catch(() => {});
         }
       } else {
         console.error('[AuthScreen] No access token in response:', response);
         throw new Error('No access token received from server');
       }
     } catch (error) {
+      await clientLog('Auth:otpVerifyError', {
+        message: error?.message || String(error),
+        code: error?.payload?.code || 'unknown',
+        stack: String(error?.stack || '').substring(0, 500),
+      }).catch(() => {});
+      
       setErrorMessage(getErrorMessage(error, 'auth.errors.verifyFailed'));
       if (error?.payload?.code === 'OTP_EXPIRED') {
         setStep('email');
