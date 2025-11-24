@@ -1,0 +1,82 @@
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../../app/i18n/hooks';
+
+// Import screens
+import DashboardScreen from '../screens/DashboardScreen';
+import ArticlesScreen from '../screens/ArticlesScreen';
+import RecentlyScreen from '../screens/RecentlyScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+
+const Tab = createBottomTabNavigator();
+
+export function MainTabsNavigator() {
+  const { colors, isDark } = useTheme();
+  const { t } = useI18n();
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary || '#007AFF',
+        tabBarInactiveTintColor: colors.textTertiary || '#8E8E93',
+        tabBarStyle: {
+          backgroundColor: colors.surface || '#FFFFFF',
+          borderTopColor: colors.border || '#E5E5EA',
+          borderTopWidth: 1,
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
+      }}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: t('tabs.dashboard') || 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size || 24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Articles"
+        component={ArticlesScreen}
+        options={{
+          tabBarLabel: t('tabs.articles') || 'Articles',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="newspaper" size={size || 24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Recently"
+        component={RecentlyScreen}
+        options={{
+          tabBarLabel: t('tabs.recently') || 'Recently',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size || 24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: t('tabs.profile') || 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size || 24} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+

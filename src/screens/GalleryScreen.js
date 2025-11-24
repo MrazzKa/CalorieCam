@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { PADDING, SPACING } from '../utils/designConstants';
+import { clientLog } from '../utils/clientLog';
 
 const STATE = {
   IDLE: 'idle',
@@ -190,6 +191,9 @@ export default function GalleryScreen() {
       
       // Navigate to analysis results with the image
       if (navigation && typeof navigation.navigate === 'function') {
+        await clientLog('Gallery:imageSelected', {
+          compressedSize: compressedImage.width + 'x' + compressedImage.height,
+        }).catch(() => {});
         navigation.navigate('AnalysisResults', {
           imageUri: compressedImage.uri,
           source: 'gallery',

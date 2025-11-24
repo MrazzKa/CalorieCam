@@ -18,6 +18,8 @@ import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { HealthScoreCard } from '../components/HealthScoreCard';
+import { clientLog } from '../utils/clientLog';
+import { CommonActions } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -225,7 +227,8 @@ export default function DashboardScreen() {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
-  const handleCameraPress = () => {
+  const handleCameraPress = async () => {
+    await clientLog('Dashboard:openCameraPressed').catch(() => {});
     console.log('Camera button pressed - navigating to Camera');
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
@@ -233,7 +236,8 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleGalleryPress = () => {
+  const handleGalleryPress = async () => {
+    await clientLog('Dashboard:openGalleryPressed').catch(() => {});
     console.log('Gallery button pressed - navigating to Gallery');
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
@@ -429,8 +433,19 @@ export default function DashboardScreen() {
         >
           <View style={styles.articlesHeader}>
             <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
-            <TouchableOpacity onPress={() => {
-              if (navigation && typeof navigation.navigate === 'function') {
+            <TouchableOpacity onPress={async () => {
+              await clientLog('Dashboard:viewAllArticlesPressed').catch(() => {});
+              // Navigate to Articles tab using parent navigator
+              try {
+                const parent = navigation.getParent();
+                if (parent) {
+                  parent.navigate('Articles');
+                } else {
+                  // Fallback: navigate via MainTabs
+                  navigation.navigate('MainTabs', { screen: 'Articles' });
+                }
+              } catch (e) {
+                // Final fallback: direct navigate
                 navigation.navigate('Articles');
               }
             }}>
@@ -438,13 +453,15 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {featuredArticles.length > 0 && (
+          {/* Show only first 3 featured articles */}
+          {featuredArticles.slice(0, 3).length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredList}>
-              {(featuredArticles || []).map((a) => (
+              {featuredArticles.slice(0, 3).map((a) => (
                 <TouchableOpacity
                   key={a.id}
                   style={styles.articleCardSmall}
-                  onPress={() => {
+                  onPress={async () => {
+                    await clientLog('Dashboard:articleCardPressed', { slug: a.slug }).catch(() => {});
                     if (navigation && typeof navigation.navigate === 'function') {
                       navigation.navigate('ArticleDetail', { slug: a.slug });
                     }
@@ -461,22 +478,6 @@ export default function DashboardScreen() {
               ))}
             </ScrollView>
           )}
-
-          {(feedArticles || []).map((a) => (
-            <TouchableOpacity
-              key={a.id}
-              style={styles.articleRow}
-              onPress={() => navigation.navigate('ArticleDetail', { slug: a.slug })}
-            >
-              <View style={styles.articleRowContent}>
-                <Text numberOfLines={2} style={styles.articleRowTitle}>{a.title}</Text>
-                {a.excerpt ? (
-                  <Text numberOfLines={2} style={styles.articleRowExcerpt}>{a.excerpt}</Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-            </TouchableOpacity>
-          ))}
         </MotiView>
 
         {/* AI Assistant Button */}

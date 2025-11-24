@@ -368,6 +368,8 @@
     "stop": "Arrêter",
     "typing": "L'assistant écrit...",
     "quickActions": "Actions rapides",
+    "unavailable": "Assistant IA temporairement indisponible",
+    "unavailableDescription": "Nous testons la première version de l'application. La section assistant est temporairement désactivée, mais tout le reste fonctionne.",
     "suggestions": {
       "mealIdeas": "Idées de repas sains",
       "dietPlan": "Planifier mon régime",

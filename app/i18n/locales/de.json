@@ -368,6 +368,8 @@
     "stop": "Stopp",
     "typing": "Assistent schreibt...",
     "quickActions": "Schnellaktionen",
+    "unavailable": "KI-Assistent vorübergehend nicht verfügbar",
+    "unavailableDescription": "Wir testen die erste Version der App. Der Assistent-Bereich ist vorübergehend deaktiviert, aber alles andere funktioniert.",
     "suggestions": {
       "mealIdeas": "Ideen für gesunde Mahlzeiten",
       "dietPlan": "Ernährungsplan erstellen",

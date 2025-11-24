@@ -9,9 +9,44 @@ export class MealsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getMeals(userId: string) {
+  async getMeals(userId: string, date?: string) {
+    const where: any = { userId };
+    
+    // Filter by date if provided (date should be in YYYY-MM-DD format)
+    if (date) {
+      try {
+        const dateObj = new Date(date);
+        if (!isNaN(dateObj.getTime())) {
+          const startOfDay = new Date(dateObj);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(dateObj);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          // Filter by consumedAt if available, otherwise by createdAt
+          where.OR = [
+            {
+              consumedAt: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+            },
+            {
+              consumedAt: null,
+              createdAt: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+            },
+          ];
+        }
+      } catch (error) {
+        this.logger.warn(`Invalid date parameter: ${date}`, error);
+        // Continue without date filter if date is invalid
+      }
+    }
+
     const meals = await this.prisma.meal.findMany({
-      where: { userId },
+      where,
       include: {
         items: true,
       },

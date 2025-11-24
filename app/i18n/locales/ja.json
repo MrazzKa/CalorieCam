@@ -368,6 +368,8 @@
     "stop": "停止",
     "typing": "アシスタントが入力しています...",
     "quickActions": "クイックアクション",
+    "unavailable": "AIアシスタントは一時的に利用できません",
+    "unavailableDescription": "アプリの最初のバージョンをテストしています。アシスタント機能は一時的に無効になっていますが、他のすべては機能しています。",
     "suggestions": {
       "mealIdeas": "健康的な食事アイデア",
       "dietPlan": "食事プランを立てる",

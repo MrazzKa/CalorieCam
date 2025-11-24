@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Put, Delete, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Put, Delete, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MealsService } from './meals.service';
@@ -14,8 +14,8 @@ export class MealsController {
   @Get()
   @ApiOperation({ summary: 'Get user meals' })
   @ApiResponse({ status: 200, description: 'Meals retrieved successfully' })
-  async getMeals(@Request() req: any) {
-    return this.mealsService.getMeals(req.user.id);
+  async getMeals(@Request() req: any, @Query('date') date?: string) {
+    return this.mealsService.getMeals(req.user.id, date);
   }
 
   @Post()

@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, useReducedMotion } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
+import { clientLog } from '../utils/clientLog';
 
 export default function CameraScreen() {
   const navigation = useNavigation();
@@ -44,6 +45,9 @@ export default function CameraScreen() {
         );
 
         if (navigation && typeof navigation.navigate === 'function') {
+          await clientLog('Camera:photoTaken', {
+            compressedSize: compressedImage.width + 'x' + compressedImage.height,
+          }).catch(() => {});
           navigation.navigate('AnalysisResults', {
             imageUri: compressedImage.uri,
             source: 'camera',
