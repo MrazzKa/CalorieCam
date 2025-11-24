@@ -108,8 +108,21 @@ export class AiAssistantController {
   }
 
   @Post('general-question')
-  getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string, @Body('language') language?: string) {
-    return this.assistantService.getGeneralQuestion(userId, question, language);
+  async getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string, @Body('language') language?: string) {
+    try {
+      return await this.assistantService.getGeneralQuestion(userId, question, language);
+    } catch (error: any) {
+      // Handle quota exceeded error
+      if (error?.message === 'AI_QUOTA_EXCEEDED' || error?.status === 429) {
+        throw new ServiceUnavailableException({
+          message: 'AI Assistant quota exceeded. Please try again later.',
+          code: 'AI_QUOTA_EXCEEDED',
+          statusCode: 503,
+        });
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   @Get('conversation-history')

@@ -636,10 +636,10 @@ class ApiService {
   }
 
   // Articles
-  async getArticlesFeed(page = 1, pageSize = 20) {
+  async getArticlesFeed(page = 1, pageSize = 20, locale = 'ru') {
     try {
       /** @type {import('../types/articles').ArticleFeed} */
-      const response = await this.request(`/articles/feed?page=${page}&pageSize=${pageSize}`);
+      const response = await this.request(`/articles/feed?page=${page}&pageSize=${pageSize}&locale=${locale}`);
       // Гарантируем, что всегда возвращается объект с articles массивом
       if (response && typeof response === 'object') {
         return {
@@ -657,10 +657,10 @@ class ApiService {
     }
   }
 
-  async getFeaturedArticles() {
+  async getFeaturedArticles(limit = 3, locale = 'ru') {
     try {
       /** @type {import('../types/articles').ArticleSummary[]} */
-      const response = await this.request('/articles/featured');
+      const response = await this.request(`/articles/featured?limit=${limit}&locale=${locale}`);
       // Гарантируем, что всегда возвращается массив
       return Array.isArray(response) ? response : [];
     } catch (error) {
@@ -669,10 +669,10 @@ class ApiService {
     }
   }
 
-  async getArticleBySlug(slug) {
+  async getArticleBySlug(slug, locale = 'ru') {
     try {
       /** @type {import('../types/articles').ArticleDetail} */
-      const response = await this.request(`/articles/slug/${slug}`);
+      const response = await this.request(`/articles/slug/${slug}?locale=${locale}`);
       // Гарантируем, что всегда возвращается объект или null
       return response ?? null;
     } catch (error) {
@@ -681,10 +681,10 @@ class ApiService {
     }
   }
 
-  async searchArticles(query, page = 1, pageSize = 20) {
+  async searchArticles(query, page = 1, pageSize = 20, locale = 'ru') {
     try {
       /** @type {import('../types/articles').ArticleFeed} */
-      const response = await this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`);
+      const response = await this.request(`/articles/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}&locale=${locale}`);
       // Гарантируем, что всегда возвращается объект с articles массивом
       if (response && typeof response === 'object') {
         return {
@@ -702,10 +702,10 @@ class ApiService {
     }
   }
 
-  async getArticlesByTag(tag, page = 1, pageSize = 20) {
+  async getArticlesByTag(tag, page = 1, pageSize = 20, locale = 'ru') {
     try {
       /** @type {import('../types/articles').ArticleFeed} */
-      const response = await this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}`);
+      const response = await this.request(`/articles/tag/${encodeURIComponent(tag)}?page=${page}&pageSize=${pageSize}&locale=${locale}`);
       // Гарантируем, что всегда возвращается объект с articles массивом
       if (response && typeof response === 'object') {
         return {

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import RenderHTML from 'react-native-render-html';
+import Markdown from 'react-native-markdown-display';
 import { useTheme } from '../contexts/ThemeContext';
 import ApiService from '../services/apiService';
 import { useI18n } from '../../app/i18n/hooks';
@@ -46,15 +47,16 @@ export default function ArticleDetailScreen() {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await ApiService.getArticleBySlug(slug);
+      const currentLocale = language || 'ru';
+      const data = await ApiService.getArticleBySlug(slug, currentLocale);
       setArticle(data);
     } catch (err) {
-      console.error('Error loading article:', err);
+      console.error('[ArticleDetailScreen] Error loading article:', err);
       setError(t('articles.errorLoading'));
     } finally {
       setIsLoading(false);
     }
-  }, [slug, t]);
+  }, [slug, language, t]);
 
   useEffect(() => {
     loadArticle();
@@ -102,6 +104,11 @@ export default function ArticleDetailScreen() {
     return null;
   }, [article?.contentHtml]);
 
+  const markdownContent = useMemo(() => {
+    // Use bodyMarkdown first, fallback to contentMd for backward compatibility
+    return article?.bodyMarkdown || article?.contentMd || '';
+  }, [article?.bodyMarkdown, article?.contentMd]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
@@ -144,19 +151,25 @@ export default function ArticleDetailScreen() {
       </View> 
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}> 
-        {article.coverUrl ? (
+        {article.heroImageUrl || article.coverUrl ? (
           <ImageBackground
-            source={{ uri: article.coverUrl }}
+            source={{ uri: article.heroImageUrl || article.coverUrl }}
             style={styles.hero}
             imageStyle={styles.heroImage}
           >
             <View style={[styles.heroOverlay, { backgroundColor: 'rgba(0,0,0,0.25)' }]}> 
-              <Text style={[styles.heroTitle, { color: '#fff' }]}>{article.title}</Text> 
+              <Text style={[styles.heroTitle, { color: '#fff' }]}>{article.title}</Text>
+              {article.subtitle ? (
+                <Text style={[styles.heroSubtitle, { color: 'rgba(255,255,255,0.9)' }]}>{article.subtitle}</Text>
+              ) : null}
             </View>
           </ImageBackground>
         ) : (
           <View style={[styles.heroPlaceholder, { backgroundColor: colors.surface }]}> 
-            <Text style={[styles.heroTitle, { color: colors.text }]}>{article.title}</Text> 
+            <Text style={[styles.heroTitle, { color: colors.text }]}>{article.title}</Text>
+            {article.subtitle ? (
+              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>{article.subtitle}</Text>
+            ) : null}
           </View>
         )}
 
@@ -207,8 +220,27 @@ export default function ArticleDetailScreen() {
                   li: { color: colors.textSecondary, marginBottom: SPACING.xs },
                 }}
               />
+            ) : markdownContent ? (
+              <Markdown
+                style={{
+                  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
+                  heading1: { color: colors.text, fontSize: 26, fontWeight: '700', marginVertical: SPACING.md },
+                  heading2: { color: colors.text, fontSize: 22, fontWeight: '600', marginTop: SPACING.md, marginBottom: SPACING.sm },
+                  heading3: { color: colors.text, fontSize: 18, fontWeight: '600', marginTop: SPACING.sm, marginBottom: SPACING.xs },
+                  paragraph: { color: colors.textSecondary, lineHeight: 24, marginBottom: SPACING.sm },
+                  listItem: { color: colors.textSecondary, marginBottom: SPACING.xs },
+                  bullet_list: { marginBottom: SPACING.sm },
+                  ordered_list: { marginBottom: SPACING.sm },
+                  strong: { color: colors.text, fontWeight: '600' },
+                  em: { fontStyle: 'italic' },
+                  link: { color: colors.primary },
+                  text: { color: colors.textSecondary },
+                }}
+              >
+                {markdownContent}
+              </Markdown>
             ) : (
-              fallbackMarkdown(article.contentMd, colors)
+              fallbackMarkdown(article?.contentMd || '', colors)
             )}
           </View>
         </View>
@@ -258,6 +290,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     lineHeight: 34,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 22,
+    marginTop: SPACING.xs,
+    opacity: 0.9,
   },
   contentContainer: {
     paddingHorizontal: PADDING.screen,

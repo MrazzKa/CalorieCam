@@ -270,27 +270,32 @@ model NotificationPreference {
 
 model Article {
   id             String    @id @default(cuid())
-  slug           String    @unique
+  slug           String
+  locale         String    @default("ru")
   title          String
-  contentMd      String    @map("content_md") // Markdown content
-  contentHtml    String?   @map("content_html")
-  excerpt        String?
-  coverUrl       String?   @map("cover_url")
+  subtitle       String?   @map("subtitle")
+  bodyMarkdown   String    @map("body_markdown") // Markdown content
+  contentHtml    String?   @map("content_html") // Generated HTML (optional, for backward compatibility)
+  excerpt        String?   @map("excerpt")
+  heroImageUrl   String?   @map("hero_image_url") // Main hero image
+  coverUrl       String?   @map("cover_url") // Legacy field (kept for backward compatibility)
   coverAlt       String?   @map("cover_alt")
   sourceName     String?   @map("source_name")
   sourceUrl      String?   @map("source_url")
   readingMinutes Int?      @map("reading_minutes")
-  tags           String[] // Array of tags
+  tags           String[]  // Array of tags
   isFeatured     Boolean   @default(false) @map("is_featured")
-  isPublished    Boolean   @default(true) @map("is_published")
-  authorId       String?
+  isActive       Boolean   @default(true) @map("is_active") // Active status
+  isPublished    Boolean   @default(true) @map("is_published") // Legacy field (kept for backward compatibility)
+  authorId       String?   @map("author_id")
   viewCount      Int       @default(0) @map("view_count")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   publishedAt    DateTime? @map("published_at")
 
-  @@index([slug])
-  @@index([isPublished, isFeatured])
+  @@unique([slug, locale])
+  @@index([locale, isActive])
+  @@index([isActive, isFeatured])
   @@index([tags])
   @@map("articles")
 }

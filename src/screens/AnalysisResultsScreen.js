@@ -258,13 +258,38 @@ export default function AnalysisResultsScreen() {
           analysisResponse = await ApiService.analyzeImage(capturedImageUri);
           await clientLog('Analysis:apiCalled', {
             hasAnalysisId: !!analysisResponse?.analysisId,
+            hasResult: !!analysisResponse?.items,
           }).catch(() => {});
         } catch (analysisError) {
-          console.log('Analysis API failed, using demo mode:', analysisError);
+          console.error('[AnalysisResultsScreen] Analysis API failed:', analysisError);
           await clientLog('Analysis:apiFailed', {
             message: analysisError?.message || String(analysisError),
-            usingDemo: true,
+            status: analysisError?.status,
+            timeout: analysisError?.message?.includes('timeout'),
           }).catch(() => {});
+          
+          // In production, don't use demo - show error instead
+          if (!__DEV__) {
+            cancelled = true;
+            setIsAnalyzing(false);
+            Alert.alert(
+              t('analysis.errorTitle') || 'Analysis unavailable',
+              t('analysis.errorMessage') || 'The analysis service is currently unavailable. Please try again later.',
+              [
+                {
+                  text: t('common.ok') || 'OK',
+                  onPress: () => {
+                    if (navigation && typeof navigation.goBack === 'function') {
+                      navigation.goBack();
+                    }
+                  },
+                },
+              ]
+            );
+            return;
+          }
+          
+          // Only in dev mode, use demo
           finish(createDemoResult());
           return;
         }
@@ -287,7 +312,26 @@ export default function AnalysisResultsScreen() {
                 finish(result);
               } else if (status.status === 'failed') {
                 await clientLog('Analysis:statusFailed').catch(() => {});
-                finish(createDemoResult());
+                if (__DEV__) {
+                  finish(createDemoResult());
+                } else {
+                  cancelled = true;
+                  setIsAnalyzing(false);
+                  Alert.alert(
+                    t('analysis.errorTitle') || 'Analysis failed',
+                    t('analysis.errorMessage') || 'Failed to analyze image. Please try again.',
+                    [
+                      {
+                        text: t('common.ok') || 'OK',
+                        onPress: () => {
+                          if (navigation && typeof navigation.goBack === 'function') {
+                            navigation.goBack();
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
               } else if (attempts < maxAttempts) {
                 attempts += 1;
                 setTimeout(() => {
@@ -296,7 +340,27 @@ export default function AnalysisResultsScreen() {
                   }
                 }, 1000);
               } else {
-                finish(createDemoResult());
+                await clientLog('Analysis:timeout', { attempts }).catch(() => {});
+                if (__DEV__) {
+                  finish(createDemoResult());
+                } else {
+                  cancelled = true;
+                  setIsAnalyzing(false);
+                  Alert.alert(
+                    t('analysis.timeoutTitle') || 'Analysis timeout',
+                    t('analysis.timeoutMessage') || 'The analysis is taking too long. Please try again later.',
+                    [
+                      {
+                        text: t('common.ok') || 'OK',
+                        onPress: () => {
+                          if (navigation && typeof navigation.goBack === 'function') {
+                            navigation.goBack();
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
               }
             } catch (error) {
               console.error('Polling error:', error);
@@ -374,37 +438,80 @@ export default function AnalysisResultsScreen() {
   };
 
   const handleSave = async () => {
-    if (!analysisResult) return;
+    if (!analysisResult) {
+      Alert.alert(t('common.error') || 'Error', t('analysis.noDataToSave') || 'No analysis data to save');
+      return;
+    }
 
     try {
       const mealData = {
-        name: analysisResult.dishName,
+        name: analysisResult.dishName || 'Meal',
         type: 'meal',
         items: (analysisResult.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient) => ({
-          name: ingredient.name,
+          name: ingredient.name || 'Unknown',
           calories: Number(ingredient.calories) || 0,
           protein: Number(ingredient.protein) || 0,
           fat: Number(ingredient.fat) || 0,
           carbs: Number(ingredient.carbs) || 0,
           weight: Number(ingredient.weight) || 0,
         })),
-        healthScore: analysisResult.healthScore,
+        healthScore: analysisResult.healthScore || null,
       };
 
-      await ApiService.createMeal(mealData);
-      Alert.alert(t('analysis.autoSavedTitle'), t('analysis.autoSavedDescription'));
-      if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Dashboard');
+      if (ApiService && typeof ApiService.createMeal === 'function') {
+        await ApiService.createMeal(mealData);
+        await clientLog('Analysis:mealSaved', { 
+          dishName: mealData.name,
+          itemsCount: mealData.items.length,
+        }).catch(() => {});
+        
+        Alert.alert(
+          t('analysis.savedTitle') || 'Saved',
+          t('analysis.savedMessage') || 'Meal saved to your journal',
+          [
+            {
+              text: t('common.ok') || 'OK',
+              onPress: () => {
+                // Navigate directly to MainTabs (Dashboard)
+                if (navigation && typeof navigation.navigate === 'function') {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+                  });
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        throw new Error('ApiService.createMeal not available');
       }
     } catch (error) {
-      console.error('Save error:', error);
-      Alert.alert(t('common.error'), t('common.retry'));
+      console.error('[AnalysisResultsScreen] Save error:', error);
+      await clientLog('Analysis:saveError', {
+        message: error?.message || String(error),
+      }).catch(() => {});
+      Alert.alert(
+        t('common.error') || 'Error',
+        t('analysis.saveError') || 'Failed to save meal. Please try again.'
+      );
     }
   };
 
   const handleViewMeal = () => {
-    if (navigation && typeof navigation.navigate === 'function') {
-      navigation.navigate('Recently');
+    if (hasAutoSave && autoSaveInfo?.mealId) {
+      // Navigate to Recently tab where the saved meal is
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs', params: { screen: 'Recently' } }],
+        });
+      }
+    } else {
+      // If no mealId, just navigate to Recently
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('MainTabs', { screen: 'Recently' });
+      }
     }
   };
 
@@ -433,7 +540,21 @@ export default function AnalysisResultsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
+          <TouchableOpacity 
+            onPress={() => {
+              // Navigate directly to MainTabs (Dashboard) instead of going back
+              if (navigation && typeof navigation.reset === 'function') {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+                });
+              } else if (navigation && typeof navigation.navigate === 'function') {
+                navigation.navigate('MainTabs', { screen: 'Dashboard' });
+              } else if (navigation && typeof navigation.goBack === 'function') {
+                navigation.goBack();
+              }
+            }}
+          >
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -632,25 +753,18 @@ export default function AnalysisResultsScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 300 }}
           >
-            <View style={[styles.actionButtons, !allowEditing && styles.actionButtonsSingle]}>
-              <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <View style={[styles.actionButtons, styles.actionButtonsSingle]}>
+              <TouchableOpacity 
+                style={styles.shareButton} 
+                onPress={() => {
+                  if (typeof handleShare === 'function') {
+                    handleShare();
+                  }
+                }}
+              >
                 <Ionicons name="share-outline" size={20} color={colors.primary} />
                 <Text style={styles.shareButtonText}>{t('analysis.share')}</Text>
               </TouchableOpacity>
-
-              {allowEditing && (
-                <TouchableOpacity
-                  style={styles.correctButton}
-                  onPress={() => {
-                    if (analysisResult?.ingredients?.length > 0) {
-                      handleCorrect(analysisResult.ingredients[0], 0);
-                    }
-                  }}
-                >
-                  <Ionicons name="create-outline" size={20} color={colors.warning} />
-                  <Text style={styles.correctButtonText}>{t('common.edit')}</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </MotiView>
 

@@ -44,19 +44,37 @@ export default function ArticlesScreen() {
         setIsLoading(true);
       }
       setError(null);
+      const currentLocale = language || 'ru';
       const [feedData, featuredData] = await Promise.all([
-        ApiService.getArticlesFeed(1, 50),
-        ApiService.getFeaturedArticles(),
+        ApiService.getArticlesFeed(1, 50, currentLocale),
+        ApiService.getFeaturedArticles(FEATURED_LIMIT, currentLocale),
       ]);
-      setFeed(feedData);
+      
+      // Remove duplicates by slug (unique per locale)
+      const uniqueArticles = Object.values(
+        feedData.articles.reduce((acc, article) => {
+          if (!article?.slug) return acc;
+          const key = `${article.locale || currentLocale}:${article.slug}`;
+          if (!acc[key]) {
+            acc[key] = article;
+          }
+          return acc;
+        }, {} as Record<string, any>)
+      );
+      
+      setFeed({
+        ...feedData,
+        articles: uniqueArticles,
+      });
       
       // Remove duplicates by slug and ensure featuredData is an array
       if (Array.isArray(featuredData)) {
         const seen = new Set();
         const unique = featuredData.filter((article) => {
           if (!article?.slug) return false;
-          if (seen.has(article.slug)) return false;
-          seen.add(article.slug);
+          const key = `${article.locale || currentLocale}:${article.slug}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
         setFeatured(unique.slice(0, FEATURED_LIMIT));
@@ -64,13 +82,13 @@ export default function ArticlesScreen() {
         setFeatured([]);
       }
     } catch (err) {
-      console.error('Error loading articles:', err);
+      console.error('[ArticlesScreen] Error loading articles:', err);
       setError(t('articles.errorLoading'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [t]);
+  }, [t, language]);
 
   useEffect(() => {
     loadArticles();
@@ -95,7 +113,25 @@ export default function ArticlesScreen() {
 
     try {
       setIsSearching(true);
-      const result = await ApiService.searchArticles(query.trim());
+      const currentLocale = language || 'ru';
+      const result = await ApiService.searchArticles(query.trim(), 1, 20, currentLocale);
+      
+      // Remove duplicates by slug
+      const uniqueArticles = Object.values(
+        result.articles.reduce((acc, article) => {
+          if (!article?.slug) return acc;
+          const key = `${article.locale || currentLocale}:${article.slug}`;
+          if (!acc[key]) {
+            acc[key] = article;
+          }
+          return acc;
+        }, {} as Record<string, any>)
+      );
+      
+      setSearchFeed({
+        ...result,
+        articles: uniqueArticles,
+      });
       setSearchFeed(result);
     } catch (err) {
       console.error('Error searching articles:', err);

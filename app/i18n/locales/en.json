@@ -381,6 +381,7 @@
     "welcome": "Hello! I'm your AI nutrition assistant. How can I help you today?",
     "emptyState": "Start a conversation with your AI assistant",
     "error": "Sorry, something went wrong. Please try again later.",
+    "quotaExceeded": "AI Assistant quota exceeded. The service is temporarily unavailable. Please try again later.",
     "quickActions": "Quick actions",
     "unavailable": "AI Assistant temporarily unavailable",
     "unavailableDescription": "We are testing the first version of the app. The assistant section is temporarily disabled, but everything else is working.",

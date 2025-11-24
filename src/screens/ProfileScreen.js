@@ -8,13 +8,45 @@ import { useTheme, useDesignTokens } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { LanguageSelector } from '../components/LanguageSelector';
-import AppCard from '../components/common/AppCard';
-import PrimaryButton from '../components/common/PrimaryButton';
+import { clientLog } from '../utils/clientLog';
+
+// Safe imports with fallbacks
+let AppCard;
+let PrimaryButton;
+
+try {
+  AppCard = require('../components/common/AppCard').default;
+} catch (e) {
+  console.warn('[ProfileScreen] AppCard not found, using fallback');
+  AppCard = ({ children, style, ...props }) => (
+    <View style={style}>{children}</View>
+  );
+}
+
+try {
+  PrimaryButton = require('../components/common/PrimaryButton').default;
+} catch (e) {
+  console.warn('[ProfileScreen] PrimaryButton not found, using fallback');
+  PrimaryButton = ({ title, onPress, loading, style, ...props }) => (
+    <TouchableOpacity style={style} onPress={onPress} disabled={loading}>
+      <Text>{loading ? 'Loading...' : title}</Text>
+    </TouchableOpacity>
+  );
+}
 
 const ProfileScreen = () => {
   const { t, language, changeLanguage, availableLanguages } = useI18n();
-  const { tokens, colors, isDark, themeMode, toggleTheme } = useTheme();
-  const { signOut } = useAuth();
+  const themeContext = useTheme();
+  const authContext = useAuth();
+  
+  // Safe destructuring with fallbacks
+  const tokens = themeContext?.tokens || {};
+  const colors = themeContext?.colors || {};
+  const isDark = themeContext?.isDark || false;
+  const themeMode = themeContext?.themeMode || 'light';
+  const toggleTheme = themeContext?.toggleTheme || (() => {});
+  const signOut = authContext?.signOut || (async () => {});
+  
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const reduceMotion = useReducedMotion();
 
@@ -292,26 +324,40 @@ const ProfileScreen = () => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      t('profile.deleteAccountTitle'),
-      t('profile.deleteAccountMessage'),
+      t('profile.deleteAccountTitle') || 'Delete Account',
+      t('profile.deleteAccountMessage') || 'Are you sure you want to delete your account? This action cannot be undone.',
       [
         {
-          text: t('profile.deleteAccountCancel'),
+          text: t('profile.deleteAccountCancel') || 'Cancel',
           style: 'cancel',
         },
         {
-          text: t('profile.deleteAccountConfirm'),
+          text: t('profile.deleteAccountConfirm') || 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
-              await ApiService.deleteAccount();
+              
+              if (ApiService && typeof ApiService.deleteAccount === 'function') {
+                await ApiService.deleteAccount();
+              } else {
+                await clientLog('Profile:deleteAccountNotAvailable').catch(() => {});
+              }
+              
               // Clear tokens
-              await ApiService.setToken(null, null);
-              // Sign out
-              await signOut();
+              if (ApiService && typeof ApiService.setToken === 'function') {
+                await ApiService.setToken(null, null);
+              }
+              
+              // Sign out - safe call
+              if (signOut && typeof signOut === 'function') {
+                await signOut();
+              } else {
+                await clientLog('Profile:signOutNotAvailable').catch(() => {});
+              }
+              
               // Show success message
-              Alert.alert(t('profile.deleteAccountSuccess'), '', [
+              Alert.alert(t('profile.deleteAccountSuccess') || 'Account deleted', '', [
                 {
                   text: 'OK',
                   onPress: () => {
@@ -320,8 +366,14 @@ const ProfileScreen = () => {
                 },
               ]);
             } catch (error) {
-              console.error('Failed to delete account', error);
-              Alert.alert(t('profile.errorTitle'), t('profile.deleteAccountError'));
+              console.error('[ProfileScreen] Failed to delete account:', error);
+              await clientLog('Profile:deleteAccountError', {
+                message: error?.message || String(error),
+              }).catch(() => {});
+              Alert.alert(
+                t('profile.errorTitle') || 'Error',
+                t('profile.deleteAccountError') || 'Failed to delete account'
+              );
             } finally {
               setLoading(false);
             }

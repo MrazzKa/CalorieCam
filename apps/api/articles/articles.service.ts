@@ -16,9 +16,12 @@ export class ArticlesService {
     return {
       id: true,
       slug: true,
+      locale: true,
       title: true,
+      subtitle: true,
       excerpt: true,
       tags: true,
+      heroImageUrl: true,
       coverUrl: true,
       coverAlt: true,
       sourceName: true,
@@ -29,8 +32,8 @@ export class ArticlesService {
     } as const;
   }
 
-  async getFeed(page = 1, pageSize = 20): Promise<ArticleFeedDto> {
-    const cacheKey = `feed:${page}:${pageSize}`;
+  async getFeed(page = 1, pageSize = 20, locale = 'ru'): Promise<ArticleFeedDto> {
+    const cacheKey = `feed:${locale}:${page}:${pageSize}`;
     const cached = await this.cache.get<ArticleFeedDto>(cacheKey, 'articles:list');
     if (cached) {
       return cached;
@@ -39,13 +42,29 @@ export class ArticlesService {
     const skip = (page - 1) * pageSize;
     const [articles, total] = await this.prisma.$transaction([
       this.prisma.article.findMany({
-        where: { isPublished: true },
+        where: {
+          locale,
+          isActive: true,
+          OR: [
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
+        },
         orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
         skip,
         take: pageSize,
         select: this.buildSummarySelect(),
       }),
-      this.prisma.article.count({ where: { isPublished: true } }),
+      this.prisma.article.count({
+        where: {
+          locale,
+          isActive: true,
+          OR: [
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
+        },
+      }),
     ]);
 
     const payload: ArticleFeedDto = {
@@ -58,17 +77,25 @@ export class ArticlesService {
     return payload;
   }
 
-  async getFeatured() {
-    const cacheKey = 'featured';
+  async getFeatured(limit = 10, locale = 'ru') {
+    const cacheKey = `featured:${locale}:${limit}`;
     const cached = await this.cache.get<ArticleFeedDto['articles']>(cacheKey, 'articles:list');
     if (cached) {
       return cached;
     }
 
     const articles = await this.prisma.article.findMany({
-      where: { isPublished: true, isFeatured: true },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+      where: {
+        locale,
+        isActive: true,
+        isFeatured: true,
+        OR: [
+          { isPublished: true }, // Backward compatibility
+          { isActive: true },
+        ],
+      },
+      orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
+      take: limit,
       select: this.buildSummarySelect(),
     });
 
@@ -77,21 +104,52 @@ export class ArticlesService {
     return summaries;
   }
 
-  async getBySlug(slug: string): Promise<ArticleDetailDto> {
-    const cacheKey = slug;
+  async getBySlug(slug: string, locale = 'ru'): Promise<ArticleDetailDto> {
+    const cacheKey = `${locale}:${slug}`;
     const cached = await this.cache.get<ArticleDetailDto>(cacheKey, 'articles:detail');
     if (cached) {
       return cached;
     }
 
     const article = await this.prisma.article.findUnique({
-      where: { slug },
+      where: {
+        slug_locale: {
+          slug,
+          locale,
+        },
+      },
     });
 
-    if (!article || !article.isPublished) {
-      throw new NotFoundException('Article not found');
+    if (!article || !article.isActive) {
+      // Fallback for backward compatibility: try to find by slug only (old unique constraint)
+      const legacyArticle = await this.prisma.article.findFirst({
+        where: {
+          slug,
+          OR: [
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
+        },
+      });
+
+      if (!legacyArticle) {
+        throw new NotFoundException('Article not found');
+      }
+
+      // Update view count for legacy article
+      this.prisma.article
+        .update({
+          where: { id: legacyArticle.id },
+          data: { viewCount: { increment: 1 } },
+        })
+        .catch((err) => console.error('Error incrementing view count:', err));
+
+      const detail = mapArticleToDetail(legacyArticle);
+      await this.cache.set(cacheKey, detail, 'articles:detail');
+      return detail;
     }
 
+    // Update view count
     this.prisma.article
       .update({
         where: { id: article.id },
@@ -104,8 +162,8 @@ export class ArticlesService {
     return detail;
   }
 
-  async search(query: string, page: number = 1, pageSize: number = 20): Promise<ArticleFeedDto> {
-    const cacheKey = this.buildSearchKey(query, page, pageSize);
+  async search(query: string, page: number = 1, pageSize: number = 20, locale = 'ru'): Promise<ArticleFeedDto> {
+    const cacheKey = this.buildSearchKey(query, page, pageSize, locale);
     const cached = await this.cache.get<ArticleFeedDto>(cacheKey, 'articles:list');
     if (cached) {
       return cached;
@@ -115,12 +173,23 @@ export class ArticlesService {
     const [articles, total] = await this.prisma.$transaction([
       this.prisma.article.findMany({
         where: {
-          isPublished: true,
+          locale,
+          isActive: true,
           OR: [
-            { title: { contains: query, mode: 'insensitive' } },
-            { excerpt: { contains: query, mode: 'insensitive' } },
-            { contentMd: { contains: query, mode: 'insensitive' } },
-            { tags: { has: query } },
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
+          AND: [
+            {
+              OR: [
+                { title: { contains: query, mode: 'insensitive' } },
+                { excerpt: { contains: query, mode: 'insensitive' } },
+                { subtitle: { contains: query, mode: 'insensitive' } },
+                { bodyMarkdown: { contains: query, mode: 'insensitive' } },
+                { contentMd: { contains: query, mode: 'insensitive' } }, // Legacy field
+                { tags: { has: query } },
+              ],
+            },
           ],
         },
         orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
@@ -130,12 +199,23 @@ export class ArticlesService {
       }),
       this.prisma.article.count({
         where: {
-          isPublished: true,
+          locale,
+          isActive: true,
           OR: [
-            { title: { contains: query, mode: 'insensitive' } },
-            { excerpt: { contains: query, mode: 'insensitive' } },
-            { contentMd: { contains: query, mode: 'insensitive' } },
-            { tags: { has: query } },
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
+          AND: [
+            {
+              OR: [
+                { title: { contains: query, mode: 'insensitive' } },
+                { excerpt: { contains: query, mode: 'insensitive' } },
+                { subtitle: { contains: query, mode: 'insensitive' } },
+                { bodyMarkdown: { contains: query, mode: 'insensitive' } },
+                { contentMd: { contains: query, mode: 'insensitive' } }, // Legacy field
+                { tags: { has: query } },
+              ],
+            },
           ],
         },
       }),
@@ -153,8 +233,8 @@ export class ArticlesService {
     return payload;
   }
 
-  async getByTag(tag: string, page: number = 1, pageSize: number = 20): Promise<ArticleFeedDto> {
-    const cacheKey = this.buildTagKey(tag, page, pageSize);
+  async getByTag(tag: string, page: number = 1, pageSize: number = 20, locale = 'ru'): Promise<ArticleFeedDto> {
+    const cacheKey = this.buildTagKey(tag, page, pageSize, locale);
     const cached = await this.cache.get<ArticleFeedDto>(cacheKey, 'articles:list');
     if (cached) {
       return cached;
@@ -164,8 +244,13 @@ export class ArticlesService {
     const [articles, total] = await this.prisma.$transaction([
       this.prisma.article.findMany({
         where: {
-          isPublished: true,
+          locale,
+          isActive: true,
           tags: { has: tag },
+          OR: [
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
         },
         orderBy: { publishedAt: { sort: 'desc', nulls: 'last' } },
         skip,
@@ -174,8 +259,13 @@ export class ArticlesService {
       }),
       this.prisma.article.count({
         where: {
-          isPublished: true,
+          locale,
+          isActive: true,
           tags: { has: tag },
+          OR: [
+            { isPublished: true }, // Backward compatibility
+            { isActive: true },
+          ],
         },
       }),
     ]);
@@ -192,13 +282,13 @@ export class ArticlesService {
     return payload;
   }
 
-  private buildSearchKey(query: string, page: number, pageSize: number) {
-    const hash = crypto.createHash('sha1').update(`${query}:${page}:${pageSize}`).digest('hex');
+  private buildSearchKey(query: string, page: number, pageSize: number, locale: string) {
+    const hash = crypto.createHash('sha1').update(`${locale}:${query}:${page}:${pageSize}`).digest('hex');
     return `search:${hash}`;
   }
 
-  private buildTagKey(tag: string, page: number, pageSize: number) {
-    const hash = crypto.createHash('sha1').update(`${tag}:${page}:${pageSize}`).digest('hex');
+  private buildTagKey(tag: string, page: number, pageSize: number, locale: string) {
+    const hash = crypto.createHash('sha1').update(`${locale}:${tag}:${page}:${pageSize}`).digest('hex');
     return `tag:${hash}`;
   }
 }

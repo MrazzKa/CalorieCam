@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { seedArticlesRu } from './seed-articles-ru';
 
 const prisma = new PrismaClient();
 const SOURCE_NAME = 'EatSense Editorial';
@@ -515,6 +516,13 @@ Food labels reveal nutrient density and ingredient quality. Knowing how to inter
 ];
 
 async function main() {
+  console.log('🌱 Starting articles seed...');
+  
+  // Run Russian articles seed first
+  await seedArticlesRu();
+  
+  console.log('🌱 Seeding legacy articles...');
+  
   const now = new Date();
 
   for (let index = 0; index < articles.length; index++) {
@@ -526,47 +534,79 @@ async function main() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') + `-${index + 1}`;
 
-    await prisma.article.upsert({
-      where: { slug },
-      update: {
-        title: base.title,
-        excerpt: base.excerpt,
-        tags: base.tags,
-        contentMd: base.contentMd.trim(),
-        contentHtml: null,
-        coverUrl: base.coverUrl,
-        coverAlt: base.coverAlt,
-        sourceName: base.sourceName,
-        readingMinutes: base.readingMinutes,
-        isFeatured: index < 5,
-        isPublished: true,
-        publishedAt: new Date(now.getTime() - index * 86400000),
-      },
-      create: {
-        slug,
-        title: base.title,
-        excerpt: base.excerpt,
-        tags: base.tags,
-        contentMd: base.contentMd.trim(),
-        contentHtml: null,
-        coverUrl: base.coverUrl,
-        coverAlt: base.coverAlt,
-        sourceName: base.sourceName,
-        readingMinutes: base.readingMinutes,
-        isFeatured: index < 5,
-        isPublished: true,
-        publishedAt: new Date(now.getTime() - index * 86400000),
+    // Try to find existing article by slug_locale or slug only
+    const existingArticle = await prisma.article.findFirst({
+      where: {
+        OR: [
+          { slug_locale: { slug, locale: 'en' } },
+          { slug, locale: 'en' },
+          { slug }, // Fallback for backward compatibility
+        ],
       },
     });
+
+    // Build where clause - prefer slug_locale if exists, otherwise fallback to slug
+    const whereClause = existingArticle && existingArticle.locale
+      ? { slug_locale: { slug: existingArticle.slug, locale: existingArticle.locale } }
+      : { slug }; // This will fail if unique constraint requires slug_locale, but that's expected after migration
+
+    try {
+      await prisma.article.upsert({
+        where: whereClause as any, // Type assertion needed because Prisma types may not match yet
+        update: {
+          locale: 'en', // Set locale for legacy articles
+          title: base.title,
+          excerpt: base.excerpt,
+          tags: base.tags,
+          bodyMarkdown: base.contentMd.trim(),
+          contentMd: base.contentMd.trim(), // Legacy field
+          contentHtml: null,
+          heroImageUrl: base.coverUrl,
+          coverUrl: base.coverUrl, // Legacy field
+          coverAlt: base.coverAlt,
+          sourceName: base.sourceName,
+          readingMinutes: base.readingMinutes,
+          isFeatured: index < 5,
+          isActive: true,
+          isPublished: true, // Legacy field
+          publishedAt: new Date(now.getTime() - index * 86400000),
+        },
+        create: {
+          slug,
+          locale: 'en', // Legacy articles are in English
+          title: base.title,
+          excerpt: base.excerpt,
+          tags: base.tags,
+          bodyMarkdown: base.contentMd.trim(),
+          contentMd: base.contentMd.trim(), // Legacy field
+          contentHtml: null,
+          heroImageUrl: base.coverUrl,
+          coverUrl: base.coverUrl, // Legacy field
+          coverAlt: base.coverAlt,
+          sourceName: base.sourceName,
+          readingMinutes: base.readingMinutes,
+          isFeatured: index < 5,
+          isActive: true,
+          isPublished: true, // Legacy field
+          publishedAt: new Date(now.getTime() - index * 86400000),
+        },
+      });
+      console.log(`✅ Seeded legacy article: ${slug} (en)`);
+    } catch (error) {
+      console.error(`❌ Error seeding legacy article ${slug}:`, error);
+      // Continue with next article instead of failing completely
+    }
   }
+  
+  console.log(`✅ Seeded ${articles.length} legacy articles`);
 }
 
 main()
   .then(() => {
-    console.log(`Seeded ${articles.length} articles`);
+    console.log('✅ All articles seeded successfully');
   })
   .catch((error) => {
-    console.error('Seed articles error', error);
+    console.error('❌ Seed articles error', error);
     process.exitCode = 1;
   })
   .finally(async () => {

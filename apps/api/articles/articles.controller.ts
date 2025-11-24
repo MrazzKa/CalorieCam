@@ -15,18 +15,26 @@ export class ArticlesController {
   getFeed(
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('locale') locale?: string,
   ): Promise<ArticleFeedDto> {
     return this.articlesService.getFeed(
       page ? parseInt(page) : 1,
       pageSize ? parseInt(pageSize) : 20,
+      locale || 'ru',
     );
   }
 
   @Get('featured')
   @ApiOperation({ summary: 'Get featured articles' })
   @ApiResponse({ status: 200, description: 'Featured articles retrieved' })
-  getFeatured() {
-    return this.articlesService.getFeatured();
+  getFeatured(
+    @Query('limit') limit?: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.articlesService.getFeatured(
+      limit ? parseInt(limit) : 10,
+      locale || 'ru',
+    );
   }
 
   @Get('search')
@@ -36,6 +44,7 @@ export class ArticlesController {
     @Query('q') query: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('locale') locale?: string,
   ): Promise<ArticleFeedDto> {
     if (!query) {
       return Promise.resolve({ articles: [], page: 1, pageSize: 20, total: 0 });
@@ -44,6 +53,7 @@ export class ArticlesController {
       query,
       page ? parseInt(page) : 1,
       pageSize ? parseInt(pageSize) : 20,
+      locale || 'ru',
     );
   }
 
@@ -54,11 +64,13 @@ export class ArticlesController {
     @Param('tag') tag: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('locale') locale?: string,
   ): Promise<ArticleFeedDto> {
     return this.articlesService.getByTag(
       tag,
       page ? parseInt(page) : 1,
       pageSize ? parseInt(pageSize) : 20,
+      locale || 'ru',
     );
   }
 
@@ -66,8 +78,11 @@ export class ArticlesController {
   @ApiOperation({ summary: 'Get article by slug' })
   @ApiResponse({ status: 200, description: 'Article retrieved' })
   @ApiResponse({ status: 404, description: 'Article not found' })
-  getBySlug(@Param('slug') slug: string) {
-    return this.articlesService.getBySlug(slug);
+  getBySlug(
+    @Param('slug') slug: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.articlesService.getBySlug(slug, locale || 'ru');
   }
 }
 
