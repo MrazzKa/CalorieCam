@@ -439,35 +439,12 @@ export default function AuthScreen({ onAuthSuccess }) {
           console.log('[AuthScreen] onAuthSuccess completed for Email OTP');
         }
         
-        // Navigate to MainTabs after successful login
-        await clientLog('Auth:navigateToMainTabs').catch(() => {});
-        try {
-          // Check if user needs onboarding (use profile from above or fetch again)
-          if (!profile) {
-            profile = await ApiService.getUserProfile();
-          }
-          const needsOnboarding = !profile?.isOnboardingCompleted;
-          
-          if (needsOnboarding) {
-            // Navigate to Onboarding first
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Onboarding' }],
-            });
-          } else {
-            // Navigate directly to MainTabs
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTabs' }],
-            });
-          }
-        } catch (navError) {
-          console.error('[AuthScreen] Navigation error:', navError);
-          await clientLog('Auth:navigationError', {
-            message: navError?.message || String(navError),
-            stack: String(navError?.stack || '').substring(0, 500),
-          }).catch(() => {});
-        }
+        // DO NOT navigate here - let RootNavigator handle navigation based on isAuthenticated state
+        // RootNavigator will automatically switch to MainTabs/Onboarding when user state changes
+        await clientLog('Auth:otpSuccessComplete', {
+          hasProfile: !!profile,
+          needsOnboarding: !profile?.isOnboardingCompleted,
+        }).catch(() => {});
       } else {
         console.error('[AuthScreen] No access token in response:', response);
         throw new Error('No access token received from server');

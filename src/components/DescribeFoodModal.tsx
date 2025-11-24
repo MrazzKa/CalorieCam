@@ -37,13 +37,17 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      onClose();
+      if (onClose && typeof onClose === 'function') {
+        onClose();
+      }
     });
   };
 
   const handleAnalyze = () => {
     if (description.trim()) {
-      onAnalyze(description.trim());
+      if (onAnalyze && typeof onAnalyze === 'function') {
+        onAnalyze(description.trim());
+      }
       setDescription('');
       handleClose();
     }

@@ -14,7 +14,14 @@ export const IncidentNotificationScreen: React.FC<IncidentNotificationScreenProp
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <TouchableOpacity 
+          style={styles.closeButton} 
+          onPress={() => {
+            if (onClose && typeof onClose === 'function') {
+              onClose();
+            }
+          }}
+        >
           <Ionicons name="close" size={24} color="#2C3E50" />
         </TouchableOpacity>
         <Text style={styles.title}>Report Incident</Text>
@@ -39,12 +46,26 @@ export const IncidentNotificationScreen: React.FC<IncidentNotificationScreenProp
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.reportButton} onPress={onReport}>
+          <TouchableOpacity 
+            style={styles.reportButton} 
+            onPress={() => {
+              if (onReport && typeof onReport === 'function') {
+                onReport();
+              }
+            }}
+          >
             <Ionicons name="shield" size={20} color="white" />
             <Text style={styles.reportButtonText}>Report Incident</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.contactButton} onPress={onClose}>
+          <TouchableOpacity 
+            style={styles.contactButton} 
+            onPress={() => {
+              if (onClose && typeof onClose === 'function') {
+                onClose();
+              }
+            }}
+          >
             <Ionicons name="mail" size={20} color="#3498DB" />
             <Text style={styles.contactButtonText}>Contact Support</Text>
           </TouchableOpacity>

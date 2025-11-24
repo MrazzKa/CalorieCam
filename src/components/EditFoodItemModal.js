@@ -52,8 +52,12 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
       fat: parseFloat(editedItem.fat) || 0,
       weight: parseFloat(editedItem.weight) || 0,
     };
-    onSave(updatedItem, index);
-    onClose();
+    if (onSave && typeof onSave === 'function') {
+      onSave(updatedItem, index);
+    }
+    if (onClose && typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   const handleNumberChange = (field, value) => {
@@ -78,11 +82,15 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
   const autoCalculatedCalories = calculateCalories();
 
   return (
-    <Modal
+      <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        }
+      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -91,7 +99,11 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
-          onPress={onClose}
+          onPress={() => {
+            if (onClose && typeof onClose === 'function') {
+              onClose();
+            }
+          }}
         >
           <MotiView
             from={{ translateY: 300, opacity: 0 }}
@@ -106,7 +118,14 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                 <Text style={[styles.title, { color: colors.text }]}>{t('editFood.title')}</Text>
                 <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('editFood.subtitle')}</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity 
+                onPress={() => {
+                  if (onClose && typeof onClose === 'function') {
+                    onClose();
+                  }
+                }} 
+                style={styles.closeButton}
+              >
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -225,7 +244,14 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
             </ScrollView>
 
             <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-              <TouchableOpacity style={[styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.surface }]} onPress={onClose}>
+              <TouchableOpacity 
+                style={[styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.surface }]} 
+                onPress={() => {
+                  if (onClose && typeof onClose === 'function') {
+                    onClose();
+                  }
+                }}
+              >
                 <Text style={[styles.cancelButtonText, { color: colors.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>

@@ -33,7 +33,9 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
           quality: 0.8,
           base64: false,
         });
-        onPhotoTaken(photo.uri);
+        if (onPhotoTaken && typeof onPhotoTaken === 'function') {
+          onPhotoTaken(photo.uri);
+        }
       } catch (error) {
         console.error('Error taking picture:', error);
         Alert.alert('Error', 'Failed to take picture');
@@ -65,7 +67,14 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
     return (
       <View style={styles.container}>
         <Text style={styles.message}>No access to camera</Text>
-        <TouchableOpacity style={styles.button} onPress={onClose}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={() => {
+            if (onClose && typeof onClose === 'function') {
+              onClose();
+            }
+          }}
+        >
           <Text style={styles.buttonText}>Close</Text>
         </TouchableOpacity>
       </View>

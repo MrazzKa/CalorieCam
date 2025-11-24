@@ -177,14 +177,12 @@ export default function RecentlyScreen() {
       const normalized = Array.isArray(meals)
         ? meals.map(normalizeMeal).filter(Boolean)
         : [];
-      if (normalized.length > 0) {
-        setRecentItems(normalized);
-      } else {
-        setRecentItems(createFallbackMeals());
-      }
+      // Always use real data - no fallback/demo meals
+      setRecentItems(normalized);
     } catch (error) {
       console.error('Error loading recent items:', error);
-      setRecentItems(createFallbackMeals());
+      // On error, show empty state - no demo data
+      setRecentItems([]);
     } finally {
       setLoading(false);
     }

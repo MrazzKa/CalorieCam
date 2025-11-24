@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 
@@ -15,6 +16,11 @@ const Tab = createBottomTabNavigator();
 export function MainTabsNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+
+  // Calculate safe tab bar height
+  const tabBarPaddingBottom = Math.max(insets.bottom, 8);
+  const tabBarHeight = 56 + tabBarPaddingBottom;
 
   return (
     <Tab.Navigator
@@ -26,13 +32,17 @@ export function MainTabsNavigator() {
           backgroundColor: colors.surface || '#FFFFFF',
           borderTopColor: colors.border || '#E5E5EA',
           borderTopWidth: 1,
-          paddingBottom: 5,
+          paddingBottom: tabBarPaddingBottom,
           paddingTop: 5,
-          height: 60,
+          height: tabBarHeight,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
+          marginBottom: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
       }}
     >

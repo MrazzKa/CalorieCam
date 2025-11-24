@@ -154,7 +154,7 @@ export default function GalleryScreen() {
 
       // Пробуем открыть пикер даже если разрешение denied (iOS может разрешить)
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
         quality: 1,
         selectionLimit: 1,
@@ -164,7 +164,10 @@ export default function GalleryScreen() {
       if (result.canceled) {
         setState(STATE.CANCELED);
         isOpeningRef.current = false;
-        // Не закрываем экран, показываем кнопку для повторной попытки
+        // User canceled - close the screen
+        if (navigation && typeof navigation.goBack === 'function') {
+          navigation.goBack();
+        }
         return;
       }
 
@@ -207,11 +210,115 @@ export default function GalleryScreen() {
     }
   }, [navigation]);
 
-  // One-time permission check on first mount
+  // On mount: request permission and immediately open gallery if granted
   useEffect(() => {
-    // Не запускаем пикер; только проверяем разрешение
-    ensurePermission();
-  }, [ensurePermission]);
+    let mounted = true;
+    
+    const initializeAndOpen = async () => {
+      try {
+        // Request permission first
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        console.log('[GalleryScreen] Permission requested:', JSON.stringify(permission, null, 2));
+        
+        if (!mounted) return;
+        
+        // Check if we can proceed (granted, limited, or iOS quirk)
+        const canProceed = permission.granted || 
+          (Platform.OS === 'ios' && permission.accessPrivileges === 'all') ||
+          permission.status === 'limited';
+        
+        if (canProceed) {
+          // Immediately open gallery
+          setState(STATE.OPENING);
+          
+          // Call pickImage directly
+          if (isOpeningRef.current) {
+            console.log('[GalleryScreen] Already opening, skipping...');
+            return;
+          }
+          
+          isOpeningRef.current = true;
+          setError(null);
+
+          try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: false,
+              quality: 1,
+              selectionLimit: 1,
+              exif: false,
+            });
+
+            if (!mounted) return;
+
+            if (result.canceled) {
+              setState(STATE.CANCELED);
+              isOpeningRef.current = false;
+              // User canceled - close the screen
+              if (navigation && typeof navigation.goBack === 'function') {
+                navigation.goBack();
+              }
+              return;
+            }
+
+            const asset = result.assets?.[0];
+            if (!asset) {
+              setState(STATE.ERROR);
+              setError('No asset returned');
+              isOpeningRef.current = false;
+              return;
+            }
+
+            console.log('[GalleryScreen] Image selected, compressing...');
+            
+            // Compress the image
+            const compressedImage = await ImageManipulator.manipulateAsync(
+              asset.uri,
+              [{ resize: { width: 1024 } }],
+              { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            console.log('[GalleryScreen] Image compressed, navigating...');
+            setState(STATE.READY);
+            isOpeningRef.current = false;
+            
+            // Navigate to analysis results with the image
+            if (navigation && typeof navigation.navigate === 'function') {
+              await clientLog('Gallery:imageSelected', {
+                compressedSize: compressedImage.width + 'x' + compressedImage.height,
+              }).catch(() => {});
+              navigation.navigate('AnalysisResults', {
+                imageUri: compressedImage.uri,
+                source: 'gallery',
+              });
+            }
+          } catch (e) {
+            if (!mounted) return;
+            console.error('[GalleryScreen] Error picking image:', e);
+            setState(STATE.ERROR);
+            setError(String(e?.message ?? e));
+            isOpeningRef.current = false;
+          }
+        } else {
+          // Permission denied - show permission screen
+          if (mounted) {
+            setState(STATE.DENIED);
+          }
+        }
+      } catch (error) {
+        if (!mounted) return;
+        console.error('[GalleryScreen] Error in initializeAndOpen:', error);
+        setState(STATE.ERROR);
+        setError(String(error?.message ?? error));
+      }
+    };
+
+    initializeAndOpen();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [navigation]);
 
   const handleClose = () => {
     if (navigation && typeof navigation.goBack === 'function') {
@@ -265,23 +372,13 @@ export default function GalleryScreen() {
       );
     }
 
-    // READY, CANCELED, LIMITED - показываем кнопку для открытия пикера
+    // READY, CANCELED, LIMITED states - should not be reached as gallery opens immediately
+    // If we reach here, it means permission was already granted on mount
+    // Just show loading state
     return (
       <View style={styles.content}>
-        {state === STATE.CANCELED && (
-          <View style={styles.messageContainer}>
-            <Text style={styles.messageText}>Selection canceled</Text>
-          </View>
-        )}
-        {state === STATE.LIMITED && (
-          <View style={styles.messageContainer}>
-            <Text style={styles.messageText}>Limited photo access. You can select photos from your library.</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.pickButton} onPress={pickImage}>
-          <Ionicons name="images" size={24} color="#FFFFFF" />
-          <Text style={styles.pickButtonText}>Pick from Library</Text>
-        </TouchableOpacity>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Opening gallery...</Text>
       </View>
     );
   };
