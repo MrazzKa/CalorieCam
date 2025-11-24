@@ -30,7 +30,7 @@ export default {
 
     ios: {
       bundleIdentifier: "ch.eatsense.app",
-      buildNumber: "28",
+      buildNumber: "29",
       developmentTeam: "73T7PB4F99",
       supportsTablet: true,
       infoPlist: {
