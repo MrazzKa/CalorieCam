@@ -97,11 +97,32 @@ export default function DashboardScreen() {
         ApiService.getFeaturedArticles(),
         ApiService.getArticlesFeed(1, 5),
       ]);
-      setFeaturedArticles(Array.isArray(featured) ? featured.slice(0, 3) : []);
-      setFeedArticles(Array.isArray(feed?.articles) ? feed.articles.slice(0, 5) : []);
       
-      // Дополнительная проверка на случай, если feed не объект
-      if (!feed || typeof feed !== 'object' || !Array.isArray(feed.articles)) {
+      // Deduplicate featured articles by slug
+      if (Array.isArray(featured)) {
+        const seen = new Set();
+        const unique = featured.filter((article) => {
+          if (!article?.slug) return false;
+          if (seen.has(article.slug)) return false;
+          seen.add(article.slug);
+          return true;
+        });
+        setFeaturedArticles(unique.slice(0, 3));
+      } else {
+        setFeaturedArticles([]);
+      }
+      
+      // Deduplicate feed articles by slug
+      if (feed && typeof feed === 'object' && Array.isArray(feed.articles)) {
+        const seen = new Set();
+        const unique = feed.articles.filter((article) => {
+          if (!article?.slug) return false;
+          if (seen.has(article.slug)) return false;
+          seen.add(article.slug);
+          return true;
+        });
+        setFeedArticles(unique.slice(0, 5));
+      } else {
         console.warn('[DashboardScreen] Invalid feed response:', feed);
         setFeedArticles([]);
       }
@@ -435,18 +456,18 @@ export default function DashboardScreen() {
             <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
             <TouchableOpacity onPress={async () => {
               await clientLog('Dashboard:viewAllArticlesPressed').catch(() => {});
-              // Navigate to Articles tab using parent navigator
-              try {
-                const parent = navigation.getParent();
-                if (parent) {
-                  parent.navigate('Articles');
-                } else {
-                  // Fallback: navigate via MainTabs
-                  navigation.navigate('MainTabs', { screen: 'Articles' });
+              // Navigate to Articles tab - use CommonActions to switch tabs
+              if (navigation && typeof navigation.navigate === 'function') {
+                try {
+                  navigation.navigate('Articles');
+                } catch (e) {
+                  console.warn('[DashboardScreen] Error navigating to Articles:', e);
+                  // Try alternative navigation method
+                  const parent = navigation.getParent();
+                  if (parent && typeof parent.navigate === 'function') {
+                    parent.navigate('Articles');
+                  }
                 }
-              } catch (e) {
-                // Final fallback: direct navigate
-                navigation.navigate('Articles');
               }
             }}>
               <Text style={styles.articlesViewAll}>{t('common.viewAll')}</Text>

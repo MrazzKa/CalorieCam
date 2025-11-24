@@ -49,8 +49,20 @@ export default function ArticlesScreen() {
         ApiService.getFeaturedArticles(),
       ]);
       setFeed(feedData);
-      // Гарантируем, что featuredData это массив перед вызовом slice
-      setFeatured(Array.isArray(featuredData) ? featuredData.slice(0, FEATURED_LIMIT) : []);
+      
+      // Remove duplicates by slug and ensure featuredData is an array
+      if (Array.isArray(featuredData)) {
+        const seen = new Set();
+        const unique = featuredData.filter((article) => {
+          if (!article?.slug) return false;
+          if (seen.has(article.slug)) return false;
+          seen.add(article.slug);
+          return true;
+        });
+        setFeatured(unique.slice(0, FEATURED_LIMIT));
+      } else {
+        setFeatured([]);
+      }
     } catch (err) {
       console.error('Error loading articles:', err);
       setError(t('articles.errorLoading'));
@@ -162,7 +174,17 @@ export default function ArticlesScreen() {
     return feed;
   }, [feed, searchFeed, tagFeed, searchQuery, selectedTag]);
 
-  const articles = activeFeed?.articles || [];
+  // Deduplicate articles by slug before rendering
+  const articles = useMemo(() => {
+    const articlesList = activeFeed?.articles || [];
+    const seen = new Set();
+    return articlesList.filter((article) => {
+      if (!article?.slug) return false;
+      if (seen.has(article.slug)) return false;
+      seen.add(article.slug);
+      return true;
+    });
+  }, [activeFeed?.articles]);
   const showEmptyState = !isLoading && !isSearching && !isTagLoading && articles.length === 0;
 
   const renderTagChip = ({ item }) => {

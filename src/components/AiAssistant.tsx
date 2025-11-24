@@ -9,6 +9,7 @@ import { clientLog } from '../utils/clientLog';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
+import { RealAiAssistant } from './RealAiAssistant';
 
 interface AiAssistantProps {
   visible: boolean;
@@ -109,8 +110,7 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
                 </Text>
               </View>
             }>
-              {/* Future: Real AI Assistant implementation will go here */}
-              <AiAssistantFallback onClose={handleClose} t={t} />
+              <RealAiAssistant onClose={handleClose} />
             </Suspense>
           )}
         </ErrorBoundary>
