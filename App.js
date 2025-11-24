@@ -1,4 +1,4 @@
-// App.js с навигацией и SmokeTest
+// App.js - Main navigation structure
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -13,27 +13,27 @@ import { useAuth } from './src/contexts/AuthContext';
 import SmokeTestScreen from './src/screens/SmokeTestScreen';
 import AuthScreen from './src/components/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import DashboardScreen from './src/screens/DashboardScreen';
+import CameraScreen from './src/screens/CameraScreen';
+import GalleryScreen from './src/screens/GalleryScreen';
+import AnalysisResultsScreen from './src/screens/AnalysisResultsScreen';
+import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
+import { MainTabsNavigator } from './src/navigation/MainTabsNavigator';
 import { clientLog } from './src/utils/clientLog';
 
 const Stack = createStackNavigator();
 
-// Простой MainTabs для начала (можно улучшить позже)
-function MainTabs() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Dashboard" component={DashboardScreen} />
-    </Stack.Navigator>
-  );
-}
-
 function AppContent() {
   const { user } = useAuth();
   const isAuthenticated = !!user;
+  const needsOnboarding = isAuthenticated && !user?.isOnboardingCompleted;
 
   useEffect(() => {
-    clientLog('RootNav:render', { isAuthenticated }).catch(() => {});
-  }, [isAuthenticated]);
+    clientLog('RootNav:render', { 
+      isAuthenticated, 
+      needsOnboarding,
+      userId: user?.id || 'none',
+    }).catch(() => {});
+  }, [isAuthenticated, needsOnboarding, user?.id]);
 
   const handleAuthSuccess = async () => {
     await clientLog('App:authSuccess').catch(() => {});
@@ -49,32 +49,94 @@ function AppContent() {
         onStateChange={(state) => {
           const currentRoute = state?.routes?.[state.index]?.name;
           if (currentRoute) {
-            clientLog('App:navigationStateChange', { route: currentRoute, isAuthenticated }).catch(() => {});
+            clientLog('App:navigationStateChange', { 
+              route: currentRoute, 
+              isAuthenticated,
+              needsOnboarding,
+            }).catch(() => {});
           }
         }}
       >
-        {isAuthenticated ? (
+        {!isAuthenticated ? (
+          // Not authenticated - show Auth screen
+          <Stack.Navigator
+            initialRouteName={__DEV__ ? "_SmokeTest" : "Auth"}
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            {__DEV__ && (
+              <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
+            )}
+            <Stack.Screen name="Auth">
+              {(props) => <AuthScreen {...props} onAuthSuccess={handleAuthSuccess} />}
+            </Stack.Screen>
+          </Stack.Navigator>
+        ) : needsOnboarding ? (
+          // Authenticated but needs onboarding
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          </Stack.Navigator>
+        ) : (
+          // Authenticated and onboarding complete - show main app
           <Stack.Navigator
             initialRouteName="MainTabs"
             screenOptions={{
               headerShown: false,
+              presentation: 'card',
             }}
           >
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
-          </Stack.Navigator>
-        ) : (
-          <Stack.Navigator
-            initialRouteName="_SmokeTest"
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="_SmokeTest" component={SmokeTestScreen} />
-            <Stack.Screen name="Auth">
-              {(props) => <AuthScreen {...props} onAuthSuccess={handleAuthSuccess} />}
-            </Stack.Screen>
+            {/* Main Bottom Tab Navigator */}
+            <Stack.Screen 
+              name="MainTabs" 
+              component={MainTabsNavigator}
+              options={{
+                headerShown: false,
+              }}
+            />
+
+            {/* Modal/Detail Screens */}
+            <Stack.Screen
+              name="Camera"
+              component={CameraScreen}
+              options={{
+                presentation: 'fullScreenModal',
+                animationTypeForReplace: 'push',
+              }}
+            />
+            <Stack.Screen
+              name="Gallery"
+              component={GalleryScreen}
+              options={{
+                presentation: 'fullScreenModal',
+                animationTypeForReplace: 'push',
+              }}
+            />
+            <Stack.Screen
+              name="AnalysisResults"
+              component={AnalysisResultsScreen}
+              options={{
+                presentation: 'card',
+              }}
+            />
+            <Stack.Screen
+              name="ArticleDetail"
+              component={ArticleDetailScreen}
+              options={{
+                presentation: 'card',
+              }}
+            />
+            <Stack.Screen
+              name="Onboarding"
+              component={OnboardingScreen}
+              options={{
+                presentation: 'modal',
+              }}
+            />
           </Stack.Navigator>
         )}
       </NavigationContainer>

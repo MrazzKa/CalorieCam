@@ -21,6 +21,7 @@ import { HealthScoreCard } from '../components/HealthScoreCard';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import AppCard from '../components/common/AppCard';
+import { clientLog } from '../utils/clientLog';
 
 const demoHealthScore = {
   score: 78,
@@ -242,17 +243,28 @@ export default function AnalysisResultsScreen() {
 
     const run = async () => {
       try {
+        await clientLog('Analysis:start', { source: routeParams.source || 'unknown' }).catch(() => {});
+        
         try {
           await ApiService.uploadImage(capturedImageUri);
+          await clientLog('Analysis:imageUploaded').catch(() => {});
         } catch (uploadError) {
           console.log('Upload failed, using demo mode:', uploadError);
+          await clientLog('Analysis:uploadFailed', { message: uploadError?.message || String(uploadError) }).catch(() => {});
         }
 
         let analysisResponse;
         try {
           analysisResponse = await ApiService.analyzeImage(capturedImageUri);
+          await clientLog('Analysis:apiCalled', {
+            hasAnalysisId: !!analysisResponse?.analysisId,
+          }).catch(() => {});
         } catch (analysisError) {
           console.log('Analysis API failed, using demo mode:', analysisError);
+          await clientLog('Analysis:apiFailed', {
+            message: analysisError?.message || String(analysisError),
+            usingDemo: true,
+          }).catch(() => {});
           finish(createDemoResult());
           return;
         }
@@ -268,8 +280,13 @@ export default function AnalysisResultsScreen() {
 
               if (status.status === 'completed') {
                 const result = await ApiService.getAnalysisResult(analysisResponse.analysisId);
+                await clientLog('Analysis:completed', {
+                  hasResult: !!result,
+                  dishName: result?.dishName || 'unknown',
+                }).catch(() => {});
                 finish(result);
               } else if (status.status === 'failed') {
+                await clientLog('Analysis:statusFailed').catch(() => {});
                 finish(createDemoResult());
               } else if (attempts < maxAttempts) {
                 attempts += 1;

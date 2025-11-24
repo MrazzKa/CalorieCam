@@ -368,6 +368,8 @@
     "stop": "중지",
     "typing": "어시스턴트가 입력 중입니다...",
     "quickActions": "빠른 작업",
+    "unavailable": "AI 어시스턴트가 일시적으로 사용 불가능합니다",
+    "unavailableDescription": "앱의 첫 번째 버전을 테스트하고 있습니다. 어시스턴트 섹션은 일시적으로 비활성화되어 있지만 다른 모든 기능은 정상적으로 작동합니다.",
     "suggestions": {
       "mealIdeas": "건강한 식사 아이디어",
       "dietPlan": "식단 계획 세우기",

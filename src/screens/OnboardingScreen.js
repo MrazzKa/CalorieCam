@@ -18,6 +18,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { clientLog } from '../utils/clientLog';
 
 const { width } = Dimensions.get('window');
 
@@ -386,6 +388,19 @@ const createStyles = (tokens, colors) => {
       color: onPrimary,
       marginRight: tokens.spacing?.xs ?? 8,
     },
+    skipButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: tokens.spacing?.md ?? 12,
+      paddingHorizontal: tokens.spacing?.lg ?? 16,
+      borderRadius: tokens.radii?.lg ?? 12,
+      backgroundColor: 'transparent',
+    },
+    skipButtonText: {
+      fontSize: tokens.typography?.body?.fontSize ?? 16,
+      color: colors.primary,
+      fontWeight: tokens.typography?.body?.fontWeight ?? '500',
+    },
     // Interactive Slider Styles
     interactiveSliderContainer: {
       backgroundColor: surface,
@@ -421,6 +436,7 @@ const createStyles = (tokens, colors) => {
 const OnboardingScreen = () => {
   const navigation = useNavigation();
   const { colors, tokens } = useTheme();
+  const { setUser, refreshUser } = useAuth();
   const styles = useMemo(() => createStyles(tokens, colors), [tokens, colors]);
   const onPrimaryColor = colors.onPrimary ?? tokens.colors?.onPrimary ?? '#FFFFFF';
   const [currentStep, setCurrentStep] = useState(0);
@@ -589,6 +605,23 @@ const OnboardingScreen = () => {
       const onboardingResult = await ApiService.completeOnboarding();
       console.log('[OnboardingScreen] Onboarding completed, result:', onboardingResult);
       
+      await clientLog('Onboarding:completed').catch(() => {});
+      
+      // Update user profile in context to mark onboarding as completed
+      try {
+        const updatedProfile = await ApiService.getUserProfile();
+        if (updatedProfile && setUser) {
+          setUser({ ...updatedProfile, isOnboardingCompleted: true });
+          console.log('[OnboardingScreen] User context updated with isOnboardingCompleted: true');
+        }
+      } catch (updateError) {
+        console.warn('[OnboardingScreen] Failed to update user context:', updateError);
+        // Try to refresh user anyway
+        if (refreshUser && typeof refreshUser === 'function') {
+          refreshUser().catch(() => {});
+        }
+      }
+      
       // Используем InteractionManager для безопасного вызова navigation после завершения всех анимаций
       InteractionManager.runAfterInteractions(() => {
         // Дополнительная задержка для гарантии готовности navigation
@@ -596,6 +629,7 @@ const OnboardingScreen = () => {
           try {
             if (navigation && navigation.isReady && navigation.isReady()) {
               console.log('[OnboardingScreen] Navigation is ready, calling reset');
+              clientLog('Onboarding:navigateToMainTabs').catch(() => {});
               navigation.dispatch(
                 CommonActions.reset({
                   index: 0,
@@ -604,6 +638,7 @@ const OnboardingScreen = () => {
               );
             } else if (navigation && typeof navigation.reset === 'function') {
               console.log('[OnboardingScreen] Navigation reset available, calling directly');
+              clientLog('Onboarding:navigateToMainTabs').catch(() => {});
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'MainTabs' }],
@@ -1069,6 +1104,30 @@ const OnboardingScreen = () => {
             <TouchableOpacity style={styles.backButton} onPress={prevStep}>
               <Ionicons name="chevron-back" size={24} color={colors.primary} />
               <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Show "Skip" button on plan step if Free plan is not selected, or allow closing */}
+          {currentStep === steps.length - 1 && (
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={async () => {
+                // Auto-select Free plan and complete
+                await clientLog('Onboarding:planSkippedFreeSelected').catch(() => {});
+                setProfileData({
+                  ...profileData,
+                  selectedPlan: 'free',
+                  planBillingCycle: 'lifetime',
+                });
+                // Small delay to ensure state is updated, then complete
+                setTimeout(() => {
+                  handleComplete();
+                }, 100);
+              }}
+            >
+              <Text style={styles.skipButtonText}>
+                {profileData.selectedPlan === 'free' ? 'Continue with Free' : 'Skip & Use Free'}
+              </Text>
             </TouchableOpacity>
           )}
           

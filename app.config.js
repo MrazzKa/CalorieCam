@@ -28,9 +28,9 @@ export default {
     splash: { image: "./assets/splash.png", resizeMode: "contain", backgroundColor: "#ffffff" },
     scheme: "eatsense",
 
-    ios: {
-      bundleIdentifier: "ch.eatsense.app",
-      buildNumber: "29",
+          ios: {
+            bundleIdentifier: "ch.eatsense.app",
+            buildNumber: "31",
       developmentTeam: "73T7PB4F99",
       supportsTablet: true,
       infoPlist: {

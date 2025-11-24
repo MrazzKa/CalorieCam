@@ -379,6 +379,8 @@
     "stop": "Stop",
     "typing": "Assistant is typing...",
     "quickActions": "Quick actions",
+    "unavailable": "AI Assistant temporarily unavailable",
+    "unavailableDescription": "We are testing the first version of the app. The assistant section is temporarily disabled, but everything else is working.",
     "suggestions": {
       "mealIdeas": "Healthy meal ideas",
       "dietPlan": "Plan my diet",

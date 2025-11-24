@@ -368,6 +368,8 @@
     "stop": "停止",
     "typing": "助手正在输入...",
     "quickActions": "快速操作",
+    "unavailable": "AI助手暂时不可用",
+    "unavailableDescription": "我们正在测试应用程序的第一个版本。助手部分暂时禁用，但其他所有功能都正常工作。",
     "suggestions": {
       "mealIdeas": "健康餐点灵感",
       "dietPlan": "制定饮食计划",
