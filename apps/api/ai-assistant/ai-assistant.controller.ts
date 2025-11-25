@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, ServiceUnavailableException } from '@nestjs/common';
 import { AiAssistantService } from './ai-assistant.service';
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 

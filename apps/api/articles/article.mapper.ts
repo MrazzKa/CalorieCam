@@ -21,8 +21,8 @@ export const mapArticleToSummary = (article: Partial<Article>): ArticleSummaryDt
 export const mapArticleToDetail = (article: Article): ArticleDetailDto => ({
   ...mapArticleToSummary(article),
   contentHtml: article.contentHtml ?? null,
-  bodyMarkdown: article.bodyMarkdown || article.contentMd || '', // Use bodyMarkdown, fallback to contentMd for backward compatibility
-  contentMd: article.contentMd ?? article.bodyMarkdown ?? null, // Legacy field (kept for backward compatibility)
+  bodyMarkdown: article.bodyMarkdown ?? '', // Use bodyMarkdown as canonical field
+  contentMd: null, // Legacy field - set to null since contentMd no longer exists in Prisma
   sourceUrl: article.sourceUrl ?? null,
 });
 
