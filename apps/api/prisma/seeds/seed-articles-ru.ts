@@ -485,7 +485,6 @@ async function seedArticlesRu() {
           subtitle: article.subtitle,
           excerpt: article.excerpt,
           bodyMarkdown: article.bodyMarkdown,
-          contentMd: article.bodyMarkdown, // Legacy field for backward compatibility
           heroImageUrl: article.heroImageUrl,
           coverUrl: article.heroImageUrl || undefined, // Legacy field
           tags: article.tags,
@@ -504,7 +503,6 @@ async function seedArticlesRu() {
           subtitle: article.subtitle,
           excerpt: article.excerpt,
           bodyMarkdown: article.bodyMarkdown,
-          contentMd: article.bodyMarkdown, // Legacy field for backward compatibility
           heroImageUrl: article.heroImageUrl,
           coverUrl: article.heroImageUrl || undefined, // Legacy field
           tags: article.tags,

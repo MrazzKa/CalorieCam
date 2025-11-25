@@ -738,7 +738,7 @@ const seed = async () => {
     const contentHtml = await marked.parse(article.contentMd);
     const readingMinutes = estimateReadingMinutes(article.contentMd);
     await prisma.article.upsert({
-      where: { slug },
+      where: { slug_locale: { slug, locale: 'en' } },
       update: {
         title: article.title,
         excerpt: article.excerpt,
@@ -747,7 +747,7 @@ const seed = async () => {
         sourceName: article.sourceName,
         sourceUrl: article.sourceUrl,
         tags: article.tags,
-        contentMd: article.contentMd,
+        bodyMarkdown: article.contentMd,
         contentHtml,
         readingMinutes,
         isFeatured: article.isFeatured ?? false,
@@ -756,6 +756,7 @@ const seed = async () => {
       },
       create: {
         slug,
+        locale: 'en',
         title: article.title,
         excerpt: article.excerpt,
         coverUrl: article.coverUrl,
@@ -763,7 +764,7 @@ const seed = async () => {
         sourceName: article.sourceName,
         sourceUrl: article.sourceUrl,
         tags: article.tags,
-        contentMd: article.contentMd,
+        bodyMarkdown: article.contentMd,
         contentHtml,
         readingMinutes,
         isFeatured: article.isFeatured ?? false,

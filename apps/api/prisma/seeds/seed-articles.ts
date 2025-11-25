@@ -536,32 +536,26 @@ async function main() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') + `-${index + 1}`;
 
-    // Try to find existing article by slug_locale or slug only
+    // Try to find existing article by slug and locale
     const existingArticle = await prisma.article.findFirst({
       where: {
-        OR: [
-          { slug_locale: { slug, locale: 'en' } },
-          { slug, locale: 'en' },
-          { slug }, // Fallback for backward compatibility
-        ],
+        slug,
+        locale: 'en',
       },
     });
 
-    // Build where clause - prefer slug_locale if exists, otherwise fallback to slug
-    const whereClause = existingArticle && existingArticle.locale
-      ? { slug_locale: { slug: existingArticle.slug, locale: existingArticle.locale } }
-      : { slug }; // This will fail if unique constraint requires slug_locale, but that's expected after migration
+    // Build where clause using slug_locale compound unique
+    const whereClause = { slug_locale: { slug, locale: 'en' } };
 
     try {
       await prisma.article.upsert({
-        where: whereClause as any, // Type assertion needed because Prisma types may not match yet
+        where: whereClause,
         update: {
           locale: 'en', // Set locale for legacy articles
           title: base.title,
           excerpt: base.excerpt,
           tags: base.tags,
           bodyMarkdown: base.contentMd.trim(),
-          contentMd: base.contentMd.trim(), // Legacy field
           contentHtml: null,
           heroImageUrl: base.coverUrl,
           coverUrl: base.coverUrl, // Legacy field
@@ -580,7 +574,6 @@ async function main() {
           excerpt: base.excerpt,
           tags: base.tags,
           bodyMarkdown: base.contentMd.trim(),
-          contentMd: base.contentMd.trim(), // Legacy field
           contentHtml: null,
           heroImageUrl: base.coverUrl,
           coverUrl: base.coverUrl, // Legacy field

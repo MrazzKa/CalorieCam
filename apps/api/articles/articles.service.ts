@@ -186,7 +186,6 @@ export class ArticlesService {
                 { excerpt: { contains: query, mode: 'insensitive' } },
                 { subtitle: { contains: query, mode: 'insensitive' } },
                 { bodyMarkdown: { contains: query, mode: 'insensitive' } },
-                { contentMd: { contains: query, mode: 'insensitive' } }, // Legacy field
                 { tags: { has: query } },
               ],
             },
@@ -212,7 +211,6 @@ export class ArticlesService {
                 { excerpt: { contains: query, mode: 'insensitive' } },
                 { subtitle: { contains: query, mode: 'insensitive' } },
                 { bodyMarkdown: { contains: query, mode: 'insensitive' } },
-                { contentMd: { contains: query, mode: 'insensitive' } }, // Legacy field
                 { tags: { has: query } },
               ],
             },
