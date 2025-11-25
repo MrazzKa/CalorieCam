@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
-import { seedArticlesRu } from './seed-articles-ru';
 
 const prisma = new PrismaClient();
 const SOURCE_NAME = 'EatSense Editorial';
+
+// Import seedArticlesRu using require (CommonJS) to avoid ESM/CJS mixing issues
+const { seedArticlesRu } = require('./seed-articles-ru');
 
 const articles = [
   {

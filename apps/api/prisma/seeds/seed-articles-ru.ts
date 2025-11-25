@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export interface SeedArticle {
+interface SeedArticle {
   slug: string;
   locale: string;
   title: string;
@@ -17,7 +17,7 @@ export interface SeedArticle {
   bodyMarkdown: string;
 }
 
-export const RU_ARTICLES: SeedArticle[] = [
+const RU_ARTICLES: SeedArticle[] = [
   {
     slug: 'how-to-build-a-balanced-plate',
     locale: 'ru',
@@ -468,7 +468,7 @@ export const RU_ARTICLES: SeedArticle[] = [
   },
 ];
 
-export async function seedArticlesRu() {
+async function seedArticlesRu() {
   console.log('🌱 Seeding Russian articles...');
 
   for (const article of RU_ARTICLES) {
@@ -526,6 +526,9 @@ export async function seedArticlesRu() {
 
   console.log(`✅ Successfully seeded ${RU_ARTICLES.length} Russian articles`);
 }
+
+// Export for use in other seed files (CommonJS)
+module.exports = { seedArticlesRu };
 
 // Run if called directly
 if (require.main === module) {
