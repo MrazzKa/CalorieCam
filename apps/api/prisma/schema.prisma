@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,25 +8,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  profile   Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  password               String
+  profile                Json?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  aiAssistant            AiAssistant[]
   analyses               Analysis[]
+  magicLinks             MagicLink[]
+  mealLogs               MealLog[]
   meals                  Meal[]
   media                  Media[]
-  mealLogs               MealLog[]
-  refreshTokens          RefreshToken[]
-  otps                   Otp[]
-  magicLinks             MagicLink[]
-  userProfile            UserProfile?
-  aiAssistant            AiAssistant[]
-  pushTokens             PushToken[]
   notificationPreference NotificationPreference?
+  otps                   Otp[]
+  pushTokens             PushToken[]
+  refreshTokens          RefreshToken[]
+  userProfile            UserProfile?
 
   @@map("users")
 }
@@ -40,37 +35,33 @@ model UserProfile {
   firstName             String?
   lastName              String?
   age                   Int?
-  height                Float? // in cm
-  weight                Float? // in kg
-  gender                String? // male, female, other
-  activityLevel         String? // sedentary, lightly_active, moderately_active, very_active, extremely_active
-  goal                  String? // lose_weight, maintain_weight, gain_weight
+  height                Float?
+  weight                Float?
+  gender                String?
+  activityLevel         String?
+  goal                  String?
   targetWeight          Float?
   dailyCalories         Int?
-  preferences           Json? // dietary preferences, allergies, etc.
+  preferences           Json?
   isOnboardingCompleted Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
 
 model Analysis {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  type      String // IMAGE, TEXT
-  status    String // PENDING, PROCESSING, COMPLETED, FAILED
+  type      String
+  status    String
   metadata  Json?
   error     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  results AnalysisResult[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results   AnalysisResult[]
 
   @@map("analyses")
 }
@@ -80,28 +71,24 @@ model AnalysisResult {
   analysisId String
   data       Json
   createdAt  DateTime @default(now())
-
-  // Relations
-  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  analysis   Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
   @@map("analysis_results")
 }
 
 model Meal {
-  id             String    @id @default(cuid())
+  id             String     @id @default(cuid())
   userId         String
   name           String
   type           String
   consumedAt     DateTime?
-  healthScore    Float?    @map("health_score")
-  healthGrade    String?   @map("health_grade")
-  healthInsights Json?     @map("health_insights")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  // Relations
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items MealItem[]
+  healthScore    Float?     @map("health_score")
+  healthGrade    String?    @map("health_grade")
+  healthInsights Json?      @map("health_insights")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  items          MealItem[]
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("meals")
 }
@@ -115,17 +102,9 @@ model MealItem {
   fat      Float
   carbs    Float
   weight   Float?
-
-  // Relations
-  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  meal     Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
 
   @@map("meal_items")
-}
-
-enum MealLogMealType {
-  BREAKFAST
-  LUNCH
-  DINNER
 }
 
 model MealLog {
@@ -141,9 +120,7 @@ model MealLog {
   fat       Float?
   carbs     Float?
   createdAt DateTime        @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([fdcId])
@@ -161,9 +138,7 @@ model Media {
   storageBucket   String?
   storageProvider String?  @default("database")
   createdAt       DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@map("media")
@@ -173,13 +148,11 @@ model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  jti       String? // JWT ID for blacklisting
+  jti       String?
   revoked   Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
 }
@@ -192,9 +165,7 @@ model Otp {
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("otps")
 }
@@ -207,9 +178,7 @@ model MagicLink {
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([email])
@@ -219,17 +188,15 @@ model MagicLink {
 model AiAssistant {
   id               String   @id @default(cuid())
   userId           String
-  type             String // nutrition_advice, health_check, general_question
+  type             String
   question         String
   answer           String
-  context          Json? // additional context for the conversation
-  tokensUsed       Int? // Total tokens used for this request
-  promptTokens     Int? // Prompt tokens
-  completionTokens Int? // Completion tokens
+  context          Json?
+  tokensUsed       Int?
+  promptTokens     Int?
+  completionTokens Int?
   createdAt        DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("ai_assistant")
 }
@@ -245,9 +212,7 @@ model PushToken {
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-
-  // Relations
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("push_tokens")
@@ -262,8 +227,7 @@ model NotificationPreference {
   lastPushSentAt   DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
 }
@@ -271,38 +235,33 @@ model NotificationPreference {
 model Article {
   id             String    @id @default(cuid())
   slug           String
-  locale         String    @default("ru")
   title          String
-  subtitle       String?   @map("subtitle")
-  bodyMarkdown   String    @map("body_markdown") // Markdown content
-  contentHtml    String?   @map("content_html") // Generated HTML (optional, for backward compatibility)
+  contentHtml    String?   @map("content_html")
   excerpt        String?   @map("excerpt")
-  heroImageUrl   String?   @map("hero_image_url") // Main hero image
-  coverUrl       String?   @map("cover_url") // Legacy field (kept for backward compatibility)
+  coverUrl       String?   @map("cover_url")
   coverAlt       String?   @map("cover_alt")
   sourceName     String?   @map("source_name")
   sourceUrl      String?   @map("source_url")
   readingMinutes Int?      @map("reading_minutes")
-  tags           String[]  // Array of tags
+  tags           String[]
   isFeatured     Boolean   @default(false) @map("is_featured")
-  isActive       Boolean   @default(true) @map("is_active") // Active status
-  isPublished    Boolean   @default(true) @map("is_published") // Legacy field (kept for backward compatibility)
-  authorId       String?   @map("author_id")
+  isPublished    Boolean   @default(true) @map("is_published")
   viewCount      Int       @default(0) @map("view_count")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   publishedAt    DateTime? @map("published_at")
+  authorId       String?   @map("author_id")
+  bodyMarkdown   String    @map("body_markdown")
+  heroImageUrl   String?   @map("hero_image_url")
+  isActive       Boolean   @default(true) @map("is_active")
+  locale         String    @default("ru")
+  subtitle       String?   @map("subtitle")
 
   @@unique([slug, locale])
   @@index([locale, isActive])
   @@index([isActive, isFeatured])
   @@index([tags])
   @@map("articles")
-}
-
-enum FoodSource {
-  USDA_LOCAL
-  USDA_API
 }
 
 model Food {
@@ -319,11 +278,10 @@ model Food {
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAtRow   DateTime                 @updatedAt @map("updated_at_row")
   searchVector   Unsupported("tsvector")? @map("search_vector")
-
-  portions  FoodPortion[]
-  nutrients FoodNutrient[]
-  label     LabelNutrients?
-  embedding FoodEmbedding?
+  embedding      FoodEmbedding?
+  nutrients      FoodNutrient[]
+  portions       FoodPortion[]
+  label          LabelNutrients?
 
   @@index([fdcId])
   @@index([dataType])
@@ -345,7 +303,7 @@ model FoodPortion {
 }
 
 model Nutrient {
-  id       Int            @id // USDA nutrient.id
+  id       Int            @id
   number   String?
   name     String
   unitName String         @map("unit_name")
@@ -361,7 +319,7 @@ model FoodNutrient {
   nutrientId Int      @map("nutrient_id")
   amount     Float
   food       Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
-  nutrient   Nutrient @relation(fields: [nutrientId], references: [id], onDelete: Restrict)
+  nutrient   Nutrient @relation(fields: [nutrientId], references: [id])
 
   @@unique([foodId, nutrientId])
   @@index([foodId])
@@ -389,11 +347,22 @@ model LabelNutrients {
 
 model FoodEmbedding {
   foodId    String  @id @map("food_id")
-  embedding Bytes // pgvector через Prisma: @db.Vector(1536), если включено; иначе хранить в Bytes и работать через сырой SQL
+  embedding Bytes
   doc       String
-  ts        String? // tsvector через raw SQL индекс
+  ts        String?
   food      Food    @relation(fields: [foodId], references: [id], onDelete: Cascade)
 
   @@index([foodId])
   @@map("food_embeddings")
+}
+
+enum MealLogMealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum FoodSource {
+  USDA_LOCAL
+  USDA_API
 }
