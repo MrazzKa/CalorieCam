@@ -20,7 +20,7 @@ DROP INDEX "articles_slug_key";
 ALTER TABLE "articles" DROP COLUMN "authorId",
 DROP COLUMN "content_md",
 ADD COLUMN     "author_id" TEXT,
-ADD COLUMN     "body_markdown" TEXT NOT NULL,
+ADD COLUMN     "body_markdown" TEXT,
 ADD COLUMN     "hero_image_url" TEXT,
 ADD COLUMN     "is_active" BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN     "locale" TEXT NOT NULL DEFAULT 'ru',
