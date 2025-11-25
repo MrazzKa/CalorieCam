@@ -22,6 +22,7 @@
     "fdc:import:sr": "ts-node -r tsconfig-paths/register src/fdc/etl/etl-import-raw.ts --file=$USDA_DATA_DIR/sr-legacy-2018-04.json --type=SRLegacy",
     "fdc:import:branded": "ts-node -r tsconfig-paths/register src/fdc/etl/etl-import-raw.ts --file=$USDA_DATA_DIR/branded-2025-04.json --type=Branded",
     "fdc:reindex": "ts-node -r tsconfig-paths/register src/fdc/etl/etl-reindex.ts",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed:nutrients": "ts-node -r tsconfig-paths/register prisma/seeds/seed-nutrients.ts",
     "prisma:seed:articles": "ts-node -r tsconfig-paths/register prisma/seeds/seed-articles.ts"
   },

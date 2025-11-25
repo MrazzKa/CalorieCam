@@ -16,6 +16,34 @@ import { clientLog } from '../utils/clientLog';
 export default function CameraScreen() {
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
+  
+  // Safe requestPermission wrapper
+  const handleRequestPermission = async () => {
+    if (requestPermission && typeof requestPermission === 'function') {
+      try {
+        await clientLog('Camera:requestPermissionStart').catch(() => {});
+        const result = await requestPermission();
+        await clientLog('Camera:requestPermissionResult', {
+          granted: result?.granted || false,
+          status: result?.status || 'unknown',
+        }).catch(() => {});
+      } catch (error) {
+        await clientLog('Camera:requestPermissionError', {
+          message: error?.message || String(error),
+        }).catch(() => {});
+        Alert.alert(
+          t('common.error') || 'Error',
+          t('camera.permissionError') || 'Failed to request camera permission'
+        );
+      }
+    } else {
+      await clientLog('Camera:requestPermissionNotFunction').catch(() => {});
+      Alert.alert(
+        t('common.error') || 'Error',
+        'Camera permission function not available'
+      );
+    }
+  };
   const [isLoading, setIsLoading] = useState(false);
   const cameraRef = useRef(null);
   const [zoom, setZoom] = useState(0);
@@ -29,36 +57,74 @@ export default function CameraScreen() {
   const captureScale = useSharedValue(1);
 
   const takePicture = async () => {
-    if (cameraRef.current && !isLoading) {
-      setIsLoading(true);
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-        });
+    if (!cameraRef.current || isLoading) {
+      await clientLog('Camera:takePictureNoRef').catch(() => {});
+      return;
+    }
 
-        // Compress the image
-        const compressedImage = await ImageManipulator.manipulateAsync(
-          photo.uri,
-          [{ resize: { width: 1024 } }],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-        );
+    // Check if takePictureAsync exists
+    if (typeof cameraRef.current.takePictureAsync !== 'function') {
+      await clientLog('Camera:takePictureAsyncNotFunction').catch(() => {});
+      Alert.alert(t('common.error') || 'Error', t('camera.captureError') || 'Camera function not available');
+      return;
+    }
 
-        if (navigation && typeof navigation.navigate === 'function') {
-          await clientLog('Camera:photoTaken', {
-            compressedSize: compressedImage.width + 'x' + compressedImage.height,
-          }).catch(() => {});
-          navigation.navigate('AnalysisResults', {
-            imageUri: compressedImage.uri,
-            source: 'camera',
-          });
-        }
-      } catch (error) {
-        console.error('Error taking picture:', error);
-        Alert.alert(t('common.error'), t('camera.captureError'));
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    try {
+      await clientLog('Camera:takePictureStart').catch(() => {});
+      
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!photo || !photo.uri) {
+        throw new Error('Photo capture returned invalid result');
       }
+
+      // Compress the image - check if ImageManipulator.manipulateAsync exists
+      let compressedImage = photo;
+      if (ImageManipulator && typeof ImageManipulator.manipulateAsync === 'function') {
+        try {
+          compressedImage = await ImageManipulator.manipulateAsync(
+            photo.uri,
+            [{ resize: { width: 1024 } }],
+            { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+          );
+        } catch (compressError) {
+          console.warn('[CameraScreen] Image compression failed, using original:', compressError);
+          // Use original photo if compression fails
+          compressedImage = photo;
+        }
+      }
+
+      await clientLog('Camera:photoTaken', {
+        width: compressedImage.width || 0,
+        height: compressedImage.height || 0,
+        uri: compressedImage.uri ? 'present' : 'missing',
+      }).catch(() => {});
+
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('AnalysisResults', {
+          imageUri: compressedImage.uri,
+          source: 'camera',
+        });
+      } else {
+        await clientLog('Camera:navigationNotAvailable').catch(() => {});
+        Alert.alert(t('common.error') || 'Error', 'Navigation not available');
+      }
+    } catch (error) {
+      console.error('[CameraScreen] Error taking picture:', error);
+      await clientLog('Camera:takePictureError', {
+        message: error?.message || String(error),
+        stack: String(error?.stack || '').substring(0, 500),
+      }).catch(() => {});
+      Alert.alert(
+        t('common.error') || 'Error',
+        t('camera.captureError') || 'Failed to take picture. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -114,7 +180,10 @@ export default function CameraScreen() {
           <Text style={[styles.permissionText, { color: tokens.colors.textSecondary }]}>
             {t('camera.accessBody')}
           </Text>
-          <Pressable style={[styles.permissionButton, { backgroundColor: tokens.colors.primary }]} onPress={requestPermission}>
+          <Pressable 
+            style={[styles.permissionButton, { backgroundColor: tokens.colors.primary }]} 
+            onPress={handleRequestPermission}
+          >
             <Text style={[styles.permissionButtonText, { color: tokens.colors.onPrimary }]}>
               {t('camera.requestPermission')}
             </Text>

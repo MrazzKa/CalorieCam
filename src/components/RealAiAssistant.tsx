@@ -134,18 +134,31 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
       }).catch(() => {});
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[RealAiAssistant] Error sending message:', error);
+      
+      // Check for quota exceeded error
+      const isQuotaExceeded = 
+        error?.status === 503 ||
+        error?.status === 429 ||
+        error?.payload?.code === 'AI_QUOTA_EXCEEDED' ||
+        error?.message?.includes('quota') ||
+        error?.message?.includes('AI_QUOTA_EXCEEDED');
       
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: t('aiAssistant.error') || 'Sorry, something went wrong. Please try again later.',
+        content: isQuotaExceeded
+          ? (t('aiAssistant.quotaExceeded') || 'AI Assistant quota exceeded. The service is temporarily unavailable. Please try again later.')
+          : (t('aiAssistant.error') || 'Sorry, something went wrong. Please try again later.'),
         timestamp: new Date(),
       };
 
       await clientLog('AiAssistant:messageError', { 
         message: error?.message || String(error),
+        status: error?.status,
+        code: error?.payload?.code,
+        isQuotaExceeded,
       }).catch(() => {});
 
       setMessages((prev) => [...prev, errorMessage]);

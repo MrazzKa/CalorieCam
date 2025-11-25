@@ -94,17 +94,20 @@ export default function DashboardScreen() {
   const loadArticles = React.useCallback(async () => {
     try {
       const [featured, feed] = await Promise.all([
-        ApiService.getFeaturedArticles(),
-        ApiService.getArticlesFeed(1, 5),
+        ApiService.getFeaturedArticles(3, language || 'ru'),
+        ApiService.getArticlesFeed(1, 5, language || 'ru'),
       ]);
       
-      // Deduplicate featured articles by slug
+      const currentLocale = language || 'ru';
+      
+      // Deduplicate featured articles by slug (unique per locale)
       if (Array.isArray(featured)) {
         const seen = new Set();
         const unique = featured.filter((article) => {
           if (!article?.slug) return false;
-          if (seen.has(article.slug)) return false;
-          seen.add(article.slug);
+          const key = `${article.locale || currentLocale}:${article.slug}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
         setFeaturedArticles(unique.slice(0, 3));
@@ -112,13 +115,14 @@ export default function DashboardScreen() {
         setFeaturedArticles([]);
       }
       
-      // Deduplicate feed articles by slug
+      // Deduplicate feed articles by slug (unique per locale)
       if (feed && typeof feed === 'object' && Array.isArray(feed.articles)) {
         const seen = new Set();
         const unique = feed.articles.filter((article) => {
           if (!article?.slug) return false;
-          if (seen.has(article.slug)) return false;
-          seen.add(article.slug);
+          const key = `${article.locale || currentLocale}:${article.slug}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
         setFeedArticles(unique.slice(0, 5));
@@ -126,11 +130,12 @@ export default function DashboardScreen() {
         console.warn('[DashboardScreen] Invalid feed response:', feed);
         setFeedArticles([]);
       }
-    } catch {
+    } catch (err) {
+      console.error('[DashboardScreen] Error loading articles:', err);
       setFeaturedArticles([]);
       setFeedArticles([]);
     }
-  }, []);
+  }, [language]);
 
   const loadRecent = React.useCallback(async () => {
     try {

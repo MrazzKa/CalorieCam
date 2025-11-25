@@ -1,11 +1,14 @@
 export interface ArticleSummary {
   id: string;
   slug: string;
+  locale: string;
   title: string;
+  subtitle: string | null;
   excerpt: string | null;
   readingMinutes: number | null;
   tags: string[];
-  coverUrl: string | null;
+  heroImageUrl: string | null;
+  coverUrl: string | null; // Legacy field (kept for backward compatibility)
   coverAlt: string | null;
   sourceName: string | null;
   publishedAt: string | null;
@@ -14,7 +17,8 @@ export interface ArticleSummary {
 
 export interface ArticleDetail extends ArticleSummary {
   contentHtml: string | null;
-  contentMd: string;
+  bodyMarkdown: string;
+  contentMd: string | null; // Legacy field (kept for backward compatibility)
   sourceUrl: string | null;
 }
 

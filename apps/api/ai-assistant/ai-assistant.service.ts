@@ -98,38 +98,50 @@ export class AiAssistantService {
   ) {
     const { systemPrompt, context } = await this.buildSystemPrompt(type, userId, extraContext, language);
 
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: question },
-      ],
-      max_tokens: 900,
-      temperature,
-    });
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: question },
+        ],
+        max_tokens: 900,
+        temperature,
+      });
 
-    const answer = response.choices[0]?.message?.content || 'Sorry, I could not process your question.';
-    const usage = response.usage;
+      const answer = response.choices[0]?.message?.content || 'Sorry, I could not process your question.';
+      const usage = response.usage;
 
-    await this.prisma.aiAssistant.create({
-      data: {
-        userId,
-        type,
-        question,
+      await this.prisma.aiAssistant.create({
+        data: {
+          userId,
+          type,
+          question,
+          answer,
+          tokensUsed: usage?.total_tokens || 0,
+          promptTokens: usage?.prompt_tokens || 0,
+          completionTokens: usage?.completion_tokens || 0,
+          context,
+        },
+      });
+
+      return {
         answer,
         tokensUsed: usage?.total_tokens || 0,
         promptTokens: usage?.prompt_tokens || 0,
         completionTokens: usage?.completion_tokens || 0,
-        context,
-      },
-    });
-
-    return {
-      answer,
-      tokensUsed: usage?.total_tokens || 0,
-      promptTokens: usage?.prompt_tokens || 0,
-      completionTokens: usage?.completion_tokens || 0,
-    };
+      };
+    } catch (error: any) {
+      // Handle OpenAI API errors
+      if (error?.status === 429 || error?.response?.status === 429) {
+        // Re-throw with specific error code for quota exceeded
+        const quotaError: any = new Error('AI_QUOTA_EXCEEDED');
+        quotaError.status = 429;
+        throw quotaError;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   private async buildSystemPrompt(
