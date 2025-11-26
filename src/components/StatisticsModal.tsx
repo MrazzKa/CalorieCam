@@ -16,7 +16,7 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClo
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
+      animationType="fade"
       presentationStyle="pageSheet"
     >
       <View style={styles.container}>

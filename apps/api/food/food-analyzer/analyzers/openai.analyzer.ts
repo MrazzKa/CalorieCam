@@ -37,8 +37,8 @@ export class OpenAiAnalyzer {
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
-        // Model can be configured via OPENAI_MODEL (e.g. gpt-5.1); fallback to a safe default
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        // Model can be configured via OPENAI_MODEL, default to gpt-5.1
+        model: process.env.OPENAI_MODEL || 'gpt-5.1',
         messages: [
           {
             role: 'system',
@@ -120,7 +120,7 @@ export class OpenAiAnalyzer {
   async analyzeText(description: string): Promise<AnalysisResult> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        model: process.env.OPENAI_MODEL || 'gpt-5.1',
         messages: [
           {
             role: 'system',

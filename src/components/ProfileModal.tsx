@@ -152,7 +152,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) 
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
+      animationType="fade"
       presentationStyle="pageSheet"
     >
       <View style={styles.container}>

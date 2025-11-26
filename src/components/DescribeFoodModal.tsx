@@ -31,7 +31,7 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
+      animationType="fade"
     >
       <View style={styles.content}>
         <Text style={styles.title}>Describe Your Food</Text>

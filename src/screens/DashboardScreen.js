@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   Animated,
   Modal,
   ActivityIndicator,
-  PanResponder,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +30,6 @@ export default function DashboardScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
   const [plusOpacity] = useState(new Animated.Value(0));
-  const fabPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const [stats, setStats] = useState({
     totalCalories: 0,
     totalProtein: 0,
@@ -691,20 +688,15 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Plus Button - Left Side (draggable) */}
+      {/* Floating Plus Button - Left Side (fixed, non-draggable) */}
       <Animated.View
         style={[
           styles.plusButtonContainer,
           {
-            transform: [
-              { translateX: fabPan.x },
-              { translateY: fabPan.y },
-              { scale: plusScale },
-            ],
+            transform: [{ scale: plusScale }],
             opacity: plusOpacity,
           },
         ]}
-        {...fabPanResponder.panHandlers}
       >
         <TouchableOpacity
           style={styles.plusButton}
@@ -723,7 +715,7 @@ export default function DashboardScreen() {
         swipeDirection="down"
         enableSwipe={true}
         enableBackdropClose={true}
-        animationType="slide"
+        animationType="fade"
       >
         <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
