@@ -2,8 +2,8 @@
 // Wrapped in ErrorBoundary to prevent crashes
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { clientLog } from '../utils/clientLog';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -56,6 +56,7 @@ const AiAssistantFallback: React.FC<{ onClose: () => void; t: (key: string) => s
 const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) => {
   const { t } = useI18n();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -98,38 +99,48 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
       animationType="fade"
       presentationStyle="fullScreen"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top']}>
-        <View style={[styles.header, { borderBottomColor: colors.border || '#E5E5EA' }]}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {t('dashboard.aiAssistant') || 'AI Assistant'}
-          </Text>
-          <TouchableOpacity 
-            onPress={typeof handleClose === 'function' ? handleClose : () => {}}
-            style={styles.closeButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="close" size={24} color={colors.text || '#000'} />
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={insets.top}
+      >
+        <View style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]}>
+          <View style={[styles.header, { 
+            borderBottomColor: colors.border || '#E5E5EA',
+            paddingTop: insets.top,
+            paddingHorizontal: 16,
+          }]}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {t('dashboard.aiAssistant') || 'AI Assistant'}
+            </Text>
+            <TouchableOpacity 
+              onPress={typeof handleClose === 'function' ? handleClose : () => {}}
+              style={styles.closeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={24} color={colors.text || '#000'} />
+            </TouchableOpacity>
+          </View>
+          
+          <ErrorBoundary>
+            {hasError ? (
+              <AiAssistantFallback onClose={handleClose} t={t} />
+            ) : (
+              <Suspense fallback={
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary || '#007AFF'} />
+                  <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+                    {t('common.loading') || 'Loading...'}
+                  </Text>
+                </View>
+              }>
+                <RealAiAssistant onClose={handleClose} />
+              </Suspense>
+            )}
+          </ErrorBoundary>
         </View>
-        
-        <ErrorBoundary>
-          {hasError ? (
-            <AiAssistantFallback onClose={handleClose} t={t} />
-          ) : (
-            <Suspense fallback={
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary || '#007AFF'} />
-                <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                  {t('common.loading') || 'Loading...'}
-                </Text>
-              </View>
-            }>
-              <RealAiAssistant onClose={handleClose} />
-            </Suspense>
-          )}
-        </ErrorBoundary>
-      </SafeAreaView>
+      </KeyboardAvoidingView>
     </SwipeClosableModal>
   );
 };
@@ -147,12 +158,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingTop: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
     minHeight: 56,
+    zIndex: 10,
   },
   title: {
     fontSize: 18,

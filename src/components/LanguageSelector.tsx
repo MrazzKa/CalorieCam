@@ -58,11 +58,13 @@ const createStyles = (tokens: any) =>
     wrapper: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: tokens.spacing.sm,
+      columnGap: tokens.spacing.sm,
+      rowGap: tokens.spacing.sm,
     },
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: tokens.spacing.xs,
       paddingVertical: tokens.spacing.sm,
       paddingHorizontal: tokens.spacing.md,
@@ -70,6 +72,7 @@ const createStyles = (tokens: any) =>
       borderWidth: 1,
       borderColor: tokens.colors.borderMuted,
       backgroundColor: tokens.colors.surface,
+      flexShrink: 0,
     },
     chipActive: {
       backgroundColor: tokens.states.primary.base,

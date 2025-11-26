@@ -284,8 +284,27 @@ export class FoodService {
         }
       : null;
 
+    // Generate a more descriptive dish name
+    // If we have multiple items, create a combined name, otherwise use the first item
+    let dishName = 'Food Analysis';
+    if (items.length > 0) {
+      const firstItem = items[0];
+      if (items.length === 1) {
+        dishName = firstItem.label || firstItem.name || 'Food Analysis';
+      } else if (items.length <= 3) {
+        // For 2-3 items, combine them: "Chicken with Rice and Vegetables"
+        const names = items.slice(0, 3).map(item => item.label || item.name).filter(Boolean);
+        if (names.length > 0) {
+          dishName = names.join(' with ');
+        }
+      } else {
+        // For more items, use first item + "and more"
+        dishName = `${firstItem.label || firstItem.name || 'Food'} and more`;
+      }
+    }
+
     return {
-      dishName: items.length > 0 ? (items[0].label || 'Food Analysis') : 'Food Analysis',
+      dishName,
       totalCalories,
       totalProtein,
       totalCarbs,
