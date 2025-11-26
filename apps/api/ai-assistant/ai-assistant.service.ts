@@ -110,7 +110,7 @@ export class AiAssistantService {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: question },
         ],
-        max_tokens: 900,
+        max_completion_tokens: 900,
         temperature,
       });
 
@@ -375,7 +375,7 @@ Return ONLY valid JSON in this format:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Analyze these lab results:\n\n${rawText}` },
         ],
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
         temperature: 0.3,
         response_format: { type: 'json_object' },
       });

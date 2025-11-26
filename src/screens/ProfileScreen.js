@@ -563,20 +563,21 @@ const ProfileScreen = () => {
               label={t('profile.email')}
               value={profile.email}
               keyboardType="email-address"
+              autoCapitalize="none"
               onChangeText={(text) => setProfile((prev) => ({ ...prev, email: text }))}
             />
             <View style={styles.fieldRow}>
               <ProfileField
-                label={t('profile.height')}
-                value={profile.height ? String(profile.height) : ''}
-                keyboardType="numeric"
-                onChangeText={(text) => setProfile((prev) => ({ ...prev, height: parseInt(text, 10) || 0 }))}
-              />
-              <ProfileField
                 label={t('profile.weight')}
                 value={profile.weight ? String(profile.weight) : ''}
                 keyboardType="numeric"
-                onChangeText={(text) => setProfile((prev) => ({ ...prev, weight: parseInt(text, 10) || 0 }))}
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, weight: parseFloat(text) || 0 }))}
+              />
+              <ProfileField
+                label={t('profile.height')}
+                value={profile.height ? String(profile.height) : ''}
+                keyboardType="numeric"
+                onChangeText={(text) => setProfile((prev) => ({ ...prev, height: parseFloat(text) || 0 }))}
               />
             </View>
             <View style={styles.fieldRow}>

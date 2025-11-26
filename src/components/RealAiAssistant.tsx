@@ -415,7 +415,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
       {/* Tabs */}
       <View style={[styles.tabsContainer, { backgroundColor: colors.surface || '#FFFFFF', borderBottomColor: colors.border || '#E5E5EA' }]}>
         <TouchableOpacity
@@ -469,7 +469,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
+        keyboardVerticalOffset={0}
       >
         {activeTab === 'chat' ? (
           <>
@@ -507,7 +507,6 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
             <View style={[styles.inputContainer, { 
               backgroundColor: colors.surface || '#FFFFFF', 
               borderTopColor: colors.border || '#E5E5EA',
-              paddingBottom: insets.bottom,
             }]}>
               <TextInput
                 ref={inputRef}
@@ -565,7 +564,6 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
             <View style={[styles.inputContainer, { 
               backgroundColor: colors.surface || '#FFFFFF', 
               borderTopColor: colors.border || '#E5E5EA',
-              paddingBottom: insets.bottom,
             }]}>
               <TextInput
                 style={[
@@ -616,7 +614,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
           </>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -672,6 +670,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingBottom: 12,
     borderTopWidth: 1,
     gap: 8,
   },

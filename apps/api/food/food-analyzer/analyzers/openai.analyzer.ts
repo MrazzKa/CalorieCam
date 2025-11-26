@@ -94,7 +94,7 @@ export class OpenAiAnalyzer {
             ],
           },
         ],
-        max_tokens: 1500,
+        max_completion_tokens: 1500,
         temperature: 0.3,
       });
 
@@ -179,7 +179,7 @@ export class OpenAiAnalyzer {
             content: `Analyze this food description and provide detailed nutritional information: "${description}"`,
           },
         ],
-        max_tokens: 1500,
+        max_completion_tokens: 1500,
         temperature: 0.3,
       });
 
