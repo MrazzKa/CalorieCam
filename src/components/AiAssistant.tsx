@@ -89,10 +89,10 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType="fade"
+      presentationStyle="fullScreen"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top', 'bottom']}>
         <View style={[styles.header, { borderBottomColor: colors.border || '#E5E5EA' }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             {t('dashboard.aiAssistant') || 'AI Assistant'}
