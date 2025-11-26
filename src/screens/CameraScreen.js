@@ -9,7 +9,6 @@ import * as ImageManipulator from 'expo-image-manipulator';
 // Note: we intentionally avoid react-native-reanimated here to reduce
 // chances of runtime issues in production builds. No custom animations.
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView, useReducedMotion } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { clientLog } from '../utils/clientLog';
@@ -52,7 +51,6 @@ export default function CameraScreen() {
       );
     }
   };
-  const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
@@ -212,10 +210,7 @@ export default function CameraScreen() {
         />
 
         <View style={styles.cameraOverlay}>
-          <MotiView
-            from={reduceMotion ? undefined : { opacity: 0, translateY: -12 }}
-            animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: tokens.motion.durations.slow }}
+          <View
             style={[styles.header, { paddingTop: insets.top + tokens.spacing.lg }]}
           >
             <Pressable style={styles.headerButton} onPress={typeof handleClose === 'function' ? handleClose : () => {}}>
@@ -223,12 +218,9 @@ export default function CameraScreen() {
             </Pressable>
             <Text style={[styles.headerTitle, { color: tokens.colors.onPrimary }]}>{t('camera.takePhoto')}</Text>
             <View style={styles.headerButtonPlaceholder} />
-          </MotiView>
+          </View>
 
-          <MotiView
-            from={reduceMotion ? undefined : { opacity: 0, translateY: 24 }}
-            animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: tokens.motion.durations.base }}
+          <View
             style={[styles.controls, { paddingBottom: insets.bottom + tokens.spacing.xl }]}
           >
             <View style={styles.controlRow}>
@@ -284,7 +276,7 @@ export default function CameraScreen() {
                 onValueChange={setZoom}
               />
             </View>
-          </MotiView>
+          </View>
         </View>
       </CameraView>
     </SafeAreaView>

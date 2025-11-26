@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
 
@@ -81,44 +80,26 @@ export default function HelpSupportScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* FAQ Section */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15 }}
-        >
+        <View>
             <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Часто задаваемые вопросы</Text>
-            {(faqItems || []).map((item, index) => (
-              <MotiView
-                key={item.id}
-                from={{ opacity: 0, translateX: -20 }}
-                animate={{ opacity: 1, translateX: 0 }}
-                transition={{ type: 'spring', damping: 15, delay: index * 50 }}
-              >
+            {(faqItems || []).map((item) => (
+              <View key={item.id}>
                 <View style={[styles.faqCard, { backgroundColor: colors.card }]}>
                   <Text style={[styles.faqQuestion, { color: colors.text }]}>{item.question}</Text>
                   <Text style={[styles.faqAnswer, { color: colors.textSecondary }]}>{item.answer}</Text>
                 </View>
-              </MotiView>
+              </View>
             ))}
           </View>
-        </MotiView>
+        </View>
 
         {/* Contact Section */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15, delay: 200 }}
-        >
+        <View>
             <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Свяжитесь с нами</Text>
-            {(contactOptions || []).map((option, index) => (
-              <MotiView
-                key={option.id}
-                from={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', damping: 15, delay: 250 + index * 50 }}
-              >
+            {(contactOptions || []).map((option) => (
+              <View key={option.id}>
                 <TouchableOpacity
                   style={[styles.contactCard, { backgroundColor: colors.card }]}
                   onPress={() => option.onPress && typeof option.onPress === 'function' ? option.onPress() : null}
@@ -132,10 +113,10 @@ export default function HelpSupportScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
                 </TouchableOpacity>
-              </MotiView>
+              </View>
             ))}
           </View>
-        </MotiView>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

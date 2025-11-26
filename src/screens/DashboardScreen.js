@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
@@ -367,12 +366,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Calories Circle */}
-        <MotiView
-          from={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 15 }}
-          style={styles.caloriesContainer}
-        >
+        <View style={styles.caloriesContainer}>
           <View style={styles.caloriesCircle}>
             <View style={styles.caloriesInner}>
               <Text style={styles.caloriesNumber}>{stats.totalCalories}</Text>
@@ -380,50 +374,25 @@ export default function DashboardScreen() {
               <Text style={styles.caloriesGoal}>{t('dashboard.ofGoal', { goal: stats.goal.toLocaleString() })}</Text>
             </View>
           </View>
-        </MotiView>
+        </View>
 
         {/* Quick Stats */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15, delay: 100 }}
-          style={styles.statsContainer}
-        >
-          <MotiView
-            from={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 150 }}
-            style={styles.statItem}
-          >
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
             <Text style={styles.statNumber}>{stats.totalProtein}g</Text>
             <Text style={styles.statLabel}>{t('dashboard.protein')}</Text>
-          </MotiView>
-          <MotiView
-            from={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 200 }}
-            style={styles.statItem}
-          >
+          </View>
+          <View style={styles.statItem}>
             <Text style={styles.statNumber}>{stats.totalCarbs}g</Text>
             <Text style={styles.statLabel}>{t('dashboard.carbs')}</Text>
-          </MotiView>
-          <MotiView
-            from={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 250 }}
-            style={styles.statItem}
-          >
+          </View>
+          <View style={styles.statItem}>
             <Text style={styles.statNumber}>{stats.totalFat}g</Text>
             <Text style={styles.statLabel}>{t('dashboard.fat')}</Text>
-          </MotiView>
-        </MotiView>
+          </View>
+        </View>
 
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15, delay: 150 }}
-          style={styles.monthlySection}
-        >
+        <View style={styles.monthlySection}>
           <View style={styles.monthlyHeader}>
             <Text style={styles.sectionTitle}>{t('dashboard.monthlyStats.title')}</Text>
             {formatRangeLabel(monthlyStats?.range) ? (
@@ -492,15 +461,10 @@ export default function DashboardScreen() {
               </View>
             </>
           )}
-        </MotiView>
+        </View>
 
         {/* Articles Preview */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15, delay: 150 }}
-          style={styles.articlesSection}
-        >
+        <View style={styles.articlesSection}>
           <View style={styles.articlesHeader}>
             <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
             <TouchableOpacity onPress={async () => {
@@ -548,15 +512,10 @@ export default function DashboardScreen() {
               ))}
             </ScrollView>
           )}
-        </MotiView>
+        </View>
 
         {/* Photo Analysis Counter */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 15, delay: 200 }}
-          style={styles.analysisCounterContainer}
-        >
+        <View style={styles.analysisCounterContainer}>
           <View style={styles.analysisCounterCard}>
             <View style={styles.analysisCounterRow}>
               <Ionicons name="camera" size={20} color={colors.primary} />
@@ -582,7 +541,7 @@ export default function DashboardScreen() {
               </View>
             </View>
           </View>
-        </MotiView>
+        </View>
 
         {/* AI Assistant Button */}
         {highlightMeal?.healthScore && (
@@ -650,7 +609,7 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Plus Button - Left Side (fixed, non-draggable) */}
+      {/* Floating Plus Button - Right Side (fixed, non-draggable) */}
       <Animated.View
         style={[
           styles.plusButtonContainer,
@@ -1005,7 +964,7 @@ const createStyles = (tokens) =>
     plusButtonContainer: {
       position: 'absolute',
       bottom: tokens.spacing.xxl,
-      left: tokens.spacing.xl,
+      right: tokens.spacing.xl,
       zIndex: 10,
     },
     plusButton: {

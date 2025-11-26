@@ -63,10 +63,13 @@ Example format:
   }
 ]`;
 
+    const model = process.env.OPENAI_MODEL || process.env.VISION_MODEL || 'gpt-5.1';
+    this.logger.debug(`[VisionService] Using model: ${model} for component extraction`);
+    
     try {
       const response = await this.openai.chat.completions.create({
         // Use global OPENAI_MODEL if provided (e.g. gpt-5.1), fallback to VISION_MODEL or default
-        model: process.env.OPENAI_MODEL || process.env.VISION_MODEL || 'gpt-5.1',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           {
@@ -111,13 +114,21 @@ Example format:
 
       return filtered;
     } catch (error: any) {
-      this.logger.error(`Vision extraction error: ${error.message}`);
+      this.logger.error('[VisionService] Vision extraction error', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        status: error?.status,
+        responseStatus: error?.response?.status,
+        responseData: error?.response?.data,
+        model,
+      });
       
-      if (error.status === 429) {
+      if (error?.status === 429 || error?.response?.status === 429) {
         throw new Error('OpenAI rate limit exceeded. Please try again later.');
       }
 
-      throw new Error(`Vision analysis failed: ${error.message}`);
+      throw error;
     }
   }
 }

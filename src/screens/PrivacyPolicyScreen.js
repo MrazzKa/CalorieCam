@@ -9,7 +9,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 
@@ -79,7 +78,7 @@ export default function PrivacyPolicyScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 300 }}>
+        <View>
           <View style={styles.content}>
             <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>
               {t('privacy.lastUpdated')}: {new Date().toLocaleDateString()}
@@ -87,21 +86,16 @@ export default function PrivacyPolicyScreen() {
 
             <Text style={[styles.intro, { color: colors.text }]}>{t('privacy.intro')}</Text>
 
-            {(sections || []).map((section, index) => (
-              <MotiView
-                key={section.id}
-                from={{ opacity: 0, translateY: 20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'spring', damping: 15, delay: index * 100 }}
-              >
+            {(sections || []).map((section) => (
+              <View key={section.id}>
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
                   <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{section.content}</Text>
                 </View>
-              </MotiView>
+              </View>
             ))}
           </View>
-        </MotiView>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

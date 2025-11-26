@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView, useReducedMotion } from 'moti';
 import ApiService from '../services/apiService';
 import { useTheme, useDesignTokens } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
@@ -17,17 +16,17 @@ const ProfileScreen = () => {
   const themeContext = useTheme();
   const authContext = useAuth();
   
-  // Safe destructuring with fallbacks
   const tokens = themeContext?.tokens || {};
   const colors = themeContext?.colors || {};
   const isDark = themeContext?.isDark || false;
   const themeMode = themeContext?.themeMode || 'light';
-  // Ensure toggleTheme is always a function
+  
   const toggleTheme = useCallback((mode) => {
     if (themeContext?.toggleTheme && typeof themeContext.toggleTheme === 'function') {
       themeContext.toggleTheme(mode);
     }
   }, [themeContext]);
+  
   const signOut = useCallback(async () => {
     if (authContext?.signOut && typeof authContext.signOut === 'function') {
       await authContext.signOut();
@@ -35,7 +34,11 @@ const ProfileScreen = () => {
   }, [authContext]);
   
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const reduceMotion = useReducedMotion();
+
+  const safeT = useCallback((key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  }, [t]);
 
   const [profile, setProfile] = useState({
     firstName: '',
@@ -51,6 +54,8 @@ const ProfileScreen = () => {
     planId: 'free',
     billingCycle: 'lifetime',
   });
+  const [goal, setGoal] = useState('maintain_weight');
+  const [dietPreferences, setDietPreferences] = useState([]);
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
   const [pendingPlan, setPendingPlan] = useState('free');
@@ -61,7 +66,6 @@ const ProfileScreen = () => {
         return tz || 'UTC';
       }
     } catch (e) {
-      // ignore and fall back
     }
     return 'UTC';
   }, []);
@@ -76,6 +80,7 @@ const ProfileScreen = () => {
   const [notificationSaving, setNotificationSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
+  
   const initials = useMemo(() => {
     const parts = [profile.firstName, profile.lastName].filter(Boolean);
     if (parts.length === 0 && profile.email) {
@@ -89,6 +94,22 @@ const ProfileScreen = () => {
       .join('')
       .slice(0, 2);
   }, [profile.firstName, profile.lastName, profile.email]);
+
+  const bmi = useMemo(() => {
+    if (profile.height > 0 && profile.weight > 0) {
+      const heightInMeters = profile.height / 100;
+      return profile.weight / (heightInMeters * heightInMeters);
+    }
+    return null;
+  }, [profile.height, profile.weight]);
+
+  const bmiCategory = useMemo(() => {
+    if (!bmi) return null;
+    if (bmi < 18.5) return safeT('profile.bmiUnderweight', 'Underweight');
+    if (bmi < 25) return safeT('profile.bmiNormal', 'Normal');
+    if (bmi < 30) return safeT('profile.bmiOverweight', 'Overweight');
+    return safeT('profile.bmiObesity', 'Obesity');
+  }, [bmi, safeT]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -118,6 +139,11 @@ const ProfileScreen = () => {
             (subscriptionPref.planId === 'free' ? 'lifetime' : 'monthly'),
         });
         setPendingPlan(subscriptionPref.planId || 'free');
+        
+        const goalPref = preferences?.goal || 'maintain_weight';
+        const dietsPref = Array.isArray(preferences?.diets) ? preferences.diets : [];
+        setGoal(goalPref);
+        setDietPreferences(dietsPref);
       }
     } catch (error) {
       console.warn('Unable to load profile, using demo data.', error);
@@ -136,6 +162,8 @@ const ProfileScreen = () => {
         billingCycle: 'lifetime',
       });
       setPendingPlan('free');
+      setGoal('maintain_weight');
+      setDietPreferences([]);
     }
   }, []);
 
@@ -166,12 +194,26 @@ const ProfileScreen = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await ApiService.updateUserProfile(profile);
-      Alert.alert(t('profile.savedTitle'), t('profile.savedMessage'));
+      const updatedProfile = {
+        ...profile,
+        preferences: {
+          ...(profile.preferences || {}),
+          goal,
+          diets: dietPreferences,
+          subscription: {
+            ...(profile.preferences?.subscription || {}),
+            planId: subscription.planId,
+            billingCycle: subscription.billingCycle,
+          },
+        },
+      };
+      await ApiService.updateUserProfile(updatedProfile);
+      setProfile(updatedProfile);
       setEditing(false);
+      Alert.alert(safeT('profile.savedTitle', 'Saved'), safeT('profile.savedMessage', 'Profile updated successfully'));
     } catch (error) {
       console.error('Profile update failed', error);
-      Alert.alert(t('profile.errorTitle'), t('profile.errorMessage'));
+      Alert.alert(safeT('profile.errorTitle', 'Error'), safeT('profile.errorMessage', 'Failed to update profile'));
     } finally {
       setLoading(false);
     }
@@ -218,7 +260,6 @@ const ProfileScreen = () => {
 
   const getPlanDetails = (planId) => {
     const plan = planOptions.find((plan) => plan.id === planId) || planOptions[0];
-    // Ensure plan has features array
     if (!plan || !plan.features || !Array.isArray(plan.features)) {
       return {
         ...plan,
@@ -252,7 +293,7 @@ const ProfileScreen = () => {
       });
     } catch (error) {
       console.error('Failed to update push preferences', error);
-      Alert.alert(t('profile.notificationsErrorTitle'), t('profile.notificationsErrorMessage'));
+      Alert.alert(safeT('profile.notificationsErrorTitle', 'Error'), safeT('profile.notificationsErrorMessage', 'Failed to update notifications'));
     } finally {
       setNotificationSaving(false);
     }
@@ -275,7 +316,7 @@ const ProfileScreen = () => {
       });
     } catch (error) {
       console.error('Failed to update reminder hour', error);
-      Alert.alert(t('profile.notificationsErrorTitle'), t('profile.notificationsErrorMessage'));
+      Alert.alert(safeT('profile.notificationsErrorTitle', 'Error'), safeT('profile.notificationsErrorMessage', 'Failed to update notifications'));
     } finally {
       setNotificationSaving(false);
     }
@@ -288,10 +329,11 @@ const ProfileScreen = () => {
     }
     try {
       setPlanSaving(true);
-      // Wrap plan selection in preferences.subscription (same as OnboardingScreen)
       await ApiService.updateUserProfile({
         preferences: {
           ...(profile.preferences || {}),
+          goal,
+          diets: dietPreferences,
           subscription: {
             ...(profile.preferences?.subscription || {}),
             planId: selectedPlan.id,
@@ -299,6 +341,17 @@ const ProfileScreen = () => {
           },
         },
       });
+      setProfile(prev => ({
+        ...prev,
+        preferences: {
+          ...(prev.preferences || {}),
+          subscription: {
+            ...(prev.preferences?.subscription || {}),
+            planId: selectedPlan.id,
+            billingCycle: selectedPlan.billingCycle,
+          },
+        },
+      }));
       setSubscription({
         planId: selectedPlan.id,
         billingCycle: selectedPlan.billingCycle,
@@ -306,15 +359,14 @@ const ProfileScreen = () => {
       setPendingPlan(selectedPlan.id);
       setPlanModalVisible(false);
       Alert.alert(
-        t('profile.planUpdatedTitle') || 'Plan updated',
-        t('profile.planUpdatedMessage') ||
-          'Your subscription preference has been saved.'
+        safeT('profile.planUpdatedTitle', 'Plan updated'),
+        safeT('profile.planUpdatedMessage', 'Your subscription preference has been saved.')
       );
     } catch (error) {
       console.error('Failed to update plan', error);
       Alert.alert(
-        t('profile.errorTitle'),
-        t('profile.planUpdateError') || 'Unable to update plan right now.'
+        safeT('profile.errorTitle', 'Error'),
+        safeT('profile.planUpdateError', 'Unable to update plan right now.')
       );
     } finally {
       setPlanSaving(false);
@@ -323,15 +375,15 @@ const ProfileScreen = () => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      t('profile.deleteAccountTitle') || 'Delete Account',
-      t('profile.deleteAccountMessage') || 'Are you sure you want to delete your account? This action cannot be undone.',
+      safeT('profile.deleteAccountTitle', 'Delete Account'),
+      safeT('profile.deleteAccountMessage', 'Are you sure you want to delete your account? This action cannot be undone.'),
       [
         {
-          text: t('profile.deleteAccountCancel') || 'Cancel',
+          text: safeT('profile.deleteAccountCancel', 'Cancel'),
           style: 'cancel',
         },
         {
-          text: t('profile.deleteAccountConfirm') || 'Delete',
+          text: safeT('profile.deleteAccountConfirm', 'Delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -343,24 +395,20 @@ const ProfileScreen = () => {
                 await clientLog('Profile:deleteAccountNotAvailable').catch(() => {});
               }
               
-              // Clear tokens
               if (ApiService && typeof ApiService.setToken === 'function') {
                 await ApiService.setToken(null, null);
               }
               
-              // Sign out - safe call
               if (signOut && typeof signOut === 'function') {
                 await signOut();
               } else {
                 await clientLog('Profile:signOutNotAvailable').catch(() => {});
               }
               
-              // Show success message
-              Alert.alert(t('profile.deleteAccountSuccess') || 'Account deleted', '', [
+              Alert.alert(safeT('profile.deleteAccountSuccess', 'Account deleted'), '', [
                 {
                   text: 'OK',
                   onPress: () => {
-                    // Navigation will be handled by App.js when isAuthenticated becomes false
                   },
                 },
               ]);
@@ -370,8 +418,8 @@ const ProfileScreen = () => {
                 message: error?.message || String(error),
               }).catch(() => {});
               Alert.alert(
-                t('profile.errorTitle') || 'Error',
-                t('profile.deleteAccountError') || 'Failed to delete account'
+                safeT('profile.errorTitle', 'Error'),
+                safeT('profile.deleteAccountError', 'Failed to delete account')
               );
             } finally {
               setLoading(false);
@@ -383,6 +431,15 @@ const ProfileScreen = () => {
     );
   };
 
+  const toggleDietPreference = (dietId) => {
+    setDietPreferences(prev => {
+      if (prev.includes(dietId)) {
+        return prev.filter(id => id !== dietId);
+      }
+      return [...prev, dietId];
+    });
+  };
+
   const metrics = [
     { label: t('profile.metricWeight'), value: `${profile.weight || '--'} kg`, icon: 'barbell' },
     { label: t('profile.metricHeight'), value: `${profile.height || '--'} cm`, icon: 'body' },
@@ -390,14 +447,18 @@ const ProfileScreen = () => {
     { label: t('profile.metricCalories'), value: `${profile.dailyCalories || '--'} kcal`, icon: 'flame' },
   ];
 
+  if (bmi !== null) {
+    metrics.push({
+      label: bmiCategory ? `${safeT('profile.metricBmi', 'BMI')} (${bmiCategory})` : safeT('profile.metricBmi', 'BMI'),
+      value: bmi.toFixed(1),
+      icon: 'fitness',
+    });
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <MotiView
-          from={reduceMotion ? undefined : { opacity: 0, translateY: 12 }}
-          animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 320 }}
-        >
+        <View>
           <AppCard style={styles.heroCard} padding="xl">
             <View style={styles.heroHeader}>
               <View style={styles.avatar}>
@@ -412,16 +473,9 @@ const ProfileScreen = () => {
               </View>
             </View>
             <View style={styles.metricsRow}>
-              {(metrics || []).map((metric, index) => (
-                <MotiView
+              {(metrics || []).map((metric) => (
+                <View
                   key={metric.label}
-                  from={reduceMotion ? undefined : { opacity: 0, translateY: 8 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, translateY: 0 }}
-                  transition={{
-                    type: 'timing',
-                    duration: 260,
-                    delay: reduceMotion ? 0 : index * 80,
-                  }}
                   style={styles.metricWrapper}
                 >
                   <View style={styles.metricCard}>
@@ -431,7 +485,7 @@ const ProfileScreen = () => {
                     <Text style={styles.metricValue}>{metric.value}</Text>
                     <Text style={styles.metricLabel}>{metric.label}</Text>
                   </View>
-                </MotiView>
+                </View>
               ))}
             </View>
             <PrimaryButton
@@ -441,12 +495,24 @@ const ProfileScreen = () => {
               style={styles.heroButton}
             />
           </AppCard>
-        </MotiView>
+        </View>
 
         <AppCard style={styles.planCard}>
-          <Text style={styles.sectionTitle}>
-            {t('profile.subscriptionTitle') || 'Subscription'}
-          </Text>
+          <View style={styles.planHeader}>
+            <Text style={styles.sectionTitle}>
+              {safeT('profile.subscriptionTitle', 'Subscription')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setPendingPlan(subscription.planId);
+                setPlanModalVisible(true);
+              }}
+            >
+              <Text style={styles.planChangeText}>
+                {safeT('profile.changePlan', 'Change plan')}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.planSummary}>
             <View style={styles.planSummaryText}>
               <Text style={styles.planSummaryName}>
@@ -455,25 +521,14 @@ const ProfileScreen = () => {
               <Text style={styles.planSummaryPrice}>
                 {getPlanDetails(subscription.planId).price}
               </Text>
-              <Text style={styles.planSummaryDescription}>
-                {getPlanDetails(subscription.planId).description}
-              </Text>
             </View>
-            <PrimaryButton
-              title={t('profile.changePlan') || 'Change plan'}
-              onPress={() => {
-                setPendingPlan(subscription.planId);
-                setPlanModalVisible(true);
-              }}
-              style={styles.planChangeButton}
-            />
           </View>
           <View style={styles.planSummaryFeatures}>
-            {(getPlanDetails(subscription.planId).features || []).map((feature) => (
+            {(getPlanDetails(subscription.planId).features || []).slice(0, 3).map((feature) => (
               <View key={feature} style={styles.planFeatureRow}>
                 <Ionicons
                   name="checkmark-circle"
-                  size={18}
+                  size={16}
                   color={tokens.colors?.success ?? '#34C759'}
                 />
                 <Text style={styles.planFeatureText}>{feature}</Text>
@@ -482,10 +537,10 @@ const ProfileScreen = () => {
           </View>
           <Text style={styles.planMeta}>
             {subscription.billingCycle === 'annual'
-              ? t('profile.billingAnnual') || 'Billed annually'
+              ? safeT('profile.billingAnnual', 'Billed annually')
               : subscription.billingCycle === 'monthly'
-              ? t('profile.billingMonthly') || 'Billed monthly'
-              : t('profile.billingFree') || 'Free forever'}
+              ? safeT('profile.billingMonthly', 'Billed monthly')
+              : safeT('profile.billingFree', 'Free forever')}
           </Text>
         </AppCard>
 
@@ -538,6 +593,87 @@ const ProfileScreen = () => {
                 onChangeText={(text) => setProfile((prev) => ({ ...prev, dailyCalories: parseInt(text, 10) || 0 }))}
               />
             </View>
+
+            <View style={styles.goalsSection}>
+              <Text style={styles.sectionTitle}>{safeT('profile.goalsTitle', 'Goals & diet')}</Text>
+              
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>{safeT('profile.goalLabel', 'Goal')}</Text>
+                <View style={styles.chipRow}>
+                  <TouchableOpacity
+                    style={[styles.chip, goal === 'lose_weight' && styles.chipActive]}
+                    onPress={() => setGoal('lose_weight')}
+                  >
+                    <Text style={[styles.chipLabel, goal === 'lose_weight' && styles.chipLabelActive]}>
+                      {safeT('profile.goalLoseWeight', 'Lose weight')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, goal === 'maintain_weight' && styles.chipActive]}
+                    onPress={() => setGoal('maintain_weight')}
+                  >
+                    <Text style={[styles.chipLabel, goal === 'maintain_weight' && styles.chipLabelActive]}>
+                      {safeT('profile.goalMaintainWeight', 'Maintain weight')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, goal === 'gain_muscle' && styles.chipActive]}
+                    onPress={() => setGoal('gain_muscle')}
+                  >
+                    <Text style={[styles.chipLabel, goal === 'gain_muscle' && styles.chipLabelActive]}>
+                      {safeT('profile.goalGainMuscle', 'Gain muscle')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.subsection}>
+                <Text style={styles.subsectionTitle}>{safeT('profile.dietLabel', 'Diet type')}</Text>
+                <View style={styles.chipWrap}>
+                  <TouchableOpacity
+                    style={[styles.chip, dietPreferences.includes('balanced') && styles.chipActive]}
+                    onPress={() => toggleDietPreference('balanced')}
+                  >
+                    <Text style={[styles.chipLabel, dietPreferences.includes('balanced') && styles.chipLabelActive]}>
+                      {safeT('profile.dietBalanced', 'Balanced')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, dietPreferences.includes('high_protein') && styles.chipActive]}
+                    onPress={() => toggleDietPreference('high_protein')}
+                  >
+                    <Text style={[styles.chipLabel, dietPreferences.includes('high_protein') && styles.chipLabelActive]}>
+                      {safeT('profile.dietHighProtein', 'High protein')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, dietPreferences.includes('low_carb') && styles.chipActive]}
+                    onPress={() => toggleDietPreference('low_carb')}
+                  >
+                    <Text style={[styles.chipLabel, dietPreferences.includes('low_carb') && styles.chipLabelActive]}>
+                      {safeT('profile.dietLowCarb', 'Low carb')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, dietPreferences.includes('mediterranean') && styles.chipActive]}
+                    onPress={() => toggleDietPreference('mediterranean')}
+                  >
+                    <Text style={[styles.chipLabel, dietPreferences.includes('mediterranean') && styles.chipLabelActive]}>
+                      {safeT('profile.dietMediterranean', 'Mediterranean')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, dietPreferences.includes('plant_based') && styles.chipActive]}
+                    onPress={() => toggleDietPreference('plant_based')}
+                  >
+                    <Text style={[styles.chipLabel, dietPreferences.includes('plant_based') && styles.chipLabelActive]}>
+                      {safeT('profile.dietPlantBased', 'Plant-based')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
             <PrimaryButton
               title={t('common.save')}
               onPress={typeof handleSave === 'function' ? handleSave : () => {}}
@@ -724,8 +860,8 @@ const ProfileScreen = () => {
             <PrimaryButton
               title={
                 planSaving
-                  ? t('profile.savingButton') || 'Saving...'
-                  : t('profile.applyPlan') || 'Apply plan'
+                  ? safeT('profile.savingButton', 'Saving...')
+                  : safeT('profile.applyPlan', 'Apply plan')
               }
               onPress={() => handlePlanChange(pendingPlan)}
               loading={planSaving}
@@ -828,14 +964,16 @@ const createStyles = (tokens) =>
       alignSelf: 'flex-start',
     },
     planCard: {
-      marginTop: tokens.spacing.xl,
-      gap: tokens.spacing.lg,
+      gap: tokens.spacing.md,
     },
-    planSummary: {
+    planHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: tokens.spacing.lg,
+      marginBottom: tokens.spacing.sm,
+    },
+    planSummary: {
+      marginBottom: tokens.spacing.sm,
     },
     planSummaryText: {
       flex: 1,
@@ -851,12 +989,9 @@ const createStyles = (tokens) =>
       color: tokens.colors.primary,
       marginTop: tokens.spacing.xs,
     },
-    planSummaryDescription: {
-      color: tokens.colors.textSecondary,
-      marginTop: tokens.spacing.xs,
-    },
     planSummaryFeatures: {
       gap: tokens.spacing.xs,
+      marginBottom: tokens.spacing.sm,
     },
     planFeatureRow: {
       flexDirection: 'row',
@@ -865,16 +1000,16 @@ const createStyles = (tokens) =>
     },
     planFeatureText: {
       color: tokens.colors.textSecondary,
-    },
-    planFeatureSelectedText: {
-      color: tokens.states.primary.on,
+      fontSize: 13,
     },
     planMeta: {
       color: tokens.colors.textSecondary,
       fontSize: tokens.typography.caption.fontSize,
     },
-    planChangeButton: {
-      minWidth: 140,
+    planChangeText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.primary,
     },
     modalBackdrop: {
       flex: 1,
@@ -967,6 +1102,7 @@ const createStyles = (tokens) =>
       fontSize: 18,
       fontWeight: '600',
       color: tokens.colors.textPrimary,
+      marginBottom: tokens.spacing.md,
     },
     fieldRow: {
       flexDirection: 'row',
@@ -974,6 +1110,48 @@ const createStyles = (tokens) =>
     },
     formSaveButton: {
       marginTop: tokens.spacing.sm,
+    },
+    goalsSection: {
+      gap: tokens.spacing.lg,
+      marginTop: tokens.spacing.md,
+    },
+    subsection: {
+      gap: tokens.spacing.sm,
+    },
+    subsectionTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      gap: tokens.spacing.sm,
+      flexWrap: 'wrap',
+    },
+    chipWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm,
+    },
+    chip: {
+      paddingVertical: tokens.spacing.sm,
+      paddingHorizontal: tokens.spacing.md,
+      borderRadius: tokens.radii.pill,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      backgroundColor: tokens.colors.surface,
+    },
+    chipActive: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
+    chipLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: tokens.colors.textSecondary,
+    },
+    chipLabelActive: {
+      color: tokens.colors.onPrimary,
     },
     preferencesCard: {
       gap: tokens.spacing.lg,
