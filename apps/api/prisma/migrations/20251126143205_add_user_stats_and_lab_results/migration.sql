@@ -1,11 +1,12 @@
-/*
-  Warnings:
+-- Ensure there are no NULL values in body_markdown before making it NOT NULL.
+-- This makes the migration safe for existing production data.
+UPDATE "articles"
+SET "body_markdown" = ''
+WHERE "body_markdown" IS NULL;
 
-  - Made the column `body_markdown` on table `articles` required. This step will fail if there are existing NULL values in that column.
-
-*/
 -- AlterTable
-ALTER TABLE "articles" ALTER COLUMN "body_markdown" SET NOT NULL;
+ALTER TABLE "articles"
+ALTER COLUMN "body_markdown" SET NOT NULL;
 
 -- CreateTable
 CREATE TABLE "user_stats" (

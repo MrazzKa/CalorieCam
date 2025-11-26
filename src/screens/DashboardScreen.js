@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Animated,
   Modal,
   ActivityIndicator,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +32,7 @@ export default function DashboardScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
   const [plusOpacity] = useState(new Animated.Value(0));
+  const fabPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const [stats, setStats] = useState({
     totalCalories: 0,
     totalProtein: 0,
@@ -289,6 +292,49 @@ export default function DashboardScreen() {
     // Show modal with options
     setShowModal(true);
   };
+
+  // Draggable FAB (left side, within safe area)
+  const fabPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        fabPan.setOffset({ x: fabPan.x.__getValue(), y: fabPan.y.__getValue() });
+        fabPan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: fabPan.x, dy: fabPan.y }],
+        { useNativeDriver: false },
+      ),
+      onPanResponderRelease: (_, gestureState) => {
+        fabPan.flattenOffset();
+
+        const { width, height } = Dimensions.get('window');
+        const FAB_SIZE = 64;
+        const EDGE_MARGIN = tokens.spacing.lg;
+        const TAB_BAR_MARGIN = 80; // rough safe area for bottom tabs
+
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+        const clampedX = clamp(
+          fabPan.x.__getValue(),
+          0, // keep on the left side; do not allow moving to the right half
+          width / 2 - FAB_SIZE,
+        );
+        const clampedY = clamp(
+          fabPan.y.__getValue(),
+          -height / 3, // don't go too high
+          -(EDGE_MARGIN) // constraint so center stays above bottom/tab bar
+        );
+
+        Animated.spring(fabPan, {
+          toValue: { x: clampedX, y: clampedY },
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start();
+      },
+    }),
+  ).current;
 
   const [showModal, setShowModal] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
@@ -645,15 +691,20 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Plus Button - Left Side */}
+      {/* Floating Plus Button - Left Side (draggable) */}
       <Animated.View
         style={[
           styles.plusButtonContainer,
           {
-            transform: [{ scale: plusScale }],
+            transform: [
+              { translateX: fabPan.x },
+              { translateY: fabPan.y },
+              { scale: plusScale },
+            ],
             opacity: plusOpacity,
           },
         ]}
+        {...fabPanResponder.panHandlers}
       >
         <TouchableOpacity
           style={styles.plusButton}
