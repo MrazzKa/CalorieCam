@@ -400,6 +400,18 @@
       "mealIdeas": "Healthy meal ideas",
       "dietPlan": "Plan my diet",
       "calorieAdvice": "Calorie advice"
+    },
+    "tabs": {
+      "chat": "Assistant",
+      "labResults": "Analysis"
+    },
+    "labResults": {
+      "empty": "Paste your blood test results below to analyze them.",
+      "summary": "Summary",
+      "metrics": "Metrics",
+      "recommendation": "Recommendations",
+      "disclaimer": "This is not a medical diagnosis. Please consult a healthcare professional for medical decisions.",
+      "placeholder": "Paste your lab results text here..."
     }
   },
   "assistant": {
