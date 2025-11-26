@@ -377,6 +377,7 @@ export default function AnalysisResultsScreen() {
       const mealData = {
         name: analysisResult.dishName || 'Meal',
         type: 'meal',
+        consumedAt: new Date().toISOString(), // Set current date/time for the meal
         items: (analysisResult.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient) => ({
           name: ingredient.name || 'Unknown',
           calories: Number(ingredient.calories) || 0,

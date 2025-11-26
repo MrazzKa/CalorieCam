@@ -564,6 +564,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
             <View style={[styles.inputContainer, { 
               backgroundColor: colors.surface || '#FFFFFF', 
               borderTopColor: colors.border || '#E5E5EA',
+              paddingBottom: insets.bottom || 12,
             }]}>
               <TextInput
                 style={[
@@ -670,7 +671,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: 12,
     borderTopWidth: 1,
     gap: 8,
   },

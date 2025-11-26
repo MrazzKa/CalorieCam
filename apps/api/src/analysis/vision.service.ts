@@ -46,6 +46,10 @@ CRITICAL RULES:
 5. Preparation methods: raw, boiled, steamed, baked, grilled, fried, roasted, sauteed, unknown
 6. Estimate realistic portion sizes based on visual appearance
 7. Confidence should reflect certainty of identification (0.55+ for visible items)
+8. IMPORTANT: Identify foods accurately - if you see fish (salmon, tuna, etc.), name it as fish, NOT sausage or processed meat
+9. If you see grains (rice, quinoa, barley, etc.), name them correctly, NOT as bread or pasta unless clearly visible
+10. Main protein should be identified first and most accurately (e.g., "pan-fried salmon fillet", "grilled chicken breast")
+11. Vegetables should be identified by type when visible (e.g., "steamed broccoli", "roasted carrots")
 
 Example format:
 [
