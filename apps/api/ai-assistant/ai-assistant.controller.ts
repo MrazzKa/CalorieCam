@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, Request, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, Request, ServiceUnavailableException, UseGuards, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiAssistantService } from './ai-assistant.service';
@@ -10,6 +10,8 @@ import { GeneralQuestionDto, LabResultsDto, NutritionAdviceDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AiAssistantController {
+  private readonly logger = new Logger(AiAssistantController.name);
+
   constructor(
     private readonly assistantService: AiAssistantService,
     private readonly orchestrator: AssistantOrchestratorService,
@@ -134,6 +136,14 @@ export class AiAssistantController {
     try {
       return await this.assistantService.getGeneralQuestion(userId, dto.question, dto.language);
     } catch (error: any) {
+      this.logger.error('[AiAssistantController] getGeneralQuestion error', {
+        message: error.message,
+        stack: error.stack,
+        status: error.status,
+        userId,
+        question: dto.question?.substring(0, 100), // Log first 100 chars only
+      });
+
       // Handle quota exceeded error
       if (error?.message === 'AI_QUOTA_EXCEEDED' || error?.status === 429) {
         throw new ServiceUnavailableException({
@@ -142,8 +152,14 @@ export class AiAssistantController {
           statusCode: 503,
         });
       }
-      // Re-throw other errors
-      throw error;
+
+      // Re-throw BadRequestException as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      // For other errors, throw InternalServerErrorException
+      throw new InternalServerErrorException('AI_ASSISTANT_FAILED');
     }
   }
 

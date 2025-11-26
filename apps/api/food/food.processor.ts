@@ -200,18 +200,28 @@ export class FoodProcessor {
         }
       }
 
-      console.log(`Image analysis completed for analysis ${analysisId}`);
+      console.log(`[FoodProcessor] Image analysis completed for analysis ${analysisId}`);
     } catch (error: any) {
-      console.error(`Image analysis failed for analysis ${analysisId}:`, error);
+      console.error(`[FoodProcessor] Image analysis failed for analysis ${analysisId}:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        status: error?.status,
+        responseData: error?.response?.data,
+      });
       
       // Update status to failed
-      await this.prisma.analysis.update({
-        where: { id: analysisId },
-        data: { 
-          status: 'FAILED',
-          error: error.message,
-        },
-      });
+      try {
+        await this.prisma.analysis.update({
+          where: { id: analysisId },
+          data: { 
+            status: 'FAILED',
+            error: error.message || 'Unknown error',
+          },
+        });
+      } catch (updateError: any) {
+        console.error(`[FoodProcessor] Failed to update analysis status:`, updateError.message);
+      }
     }
   }
 
