@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
@@ -147,11 +146,7 @@ export default function RecentlyScreen() {
     const healthScoreValue = item.healthScore?.score ? Math.round(item.healthScore.score) : null;
 
     return (
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 15, delay: index * 50 }}
-      >
+      <View>
         <TouchableOpacity
           style={[styles.recentItem, { backgroundColor: colors.card, borderColor: colors.borderMuted }]}
           onPress={() => {
@@ -227,7 +222,7 @@ export default function RecentlyScreen() {
             )}
           </View>
         </TouchableOpacity>
-      </MotiView>
+      </View>
     );
   };
 

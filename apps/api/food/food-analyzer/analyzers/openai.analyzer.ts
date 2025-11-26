@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AnalysisResult } from '../food-analyzer.service';
 
 @Injectable()
 export class OpenAiAnalyzer {
+  private readonly logger = new Logger(OpenAiAnalyzer.name);
   private readonly openai: OpenAI;
 
   constructor() {
@@ -35,10 +36,13 @@ export class OpenAiAnalyzer {
   }
 
   async analyzeImage(imageBuffer: Buffer): Promise<AnalysisResult> {
+    const model = process.env.OPENAI_MODEL || 'gpt-5.1';
+    this.logger.debug(`[OpenAiAnalyzer] Using model: ${model} for image analysis`);
+    
     try {
       const response = await this.openai.chat.completions.create({
         // Model can be configured via OPENAI_MODEL, default to gpt-5.1
-        model: process.env.OPENAI_MODEL || 'gpt-5.1',
+        model,
         messages: [
           {
             role: 'system',
@@ -108,19 +112,33 @@ export class OpenAiAnalyzer {
         }
         return result;
       } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', content);
+        this.logger.error('[OpenAiAnalyzer] Failed to parse OpenAI response', {
+          parseError: parseError.message,
+          contentPreview: content?.substring(0, 200),
+        });
         throw new Error('Invalid response format from OpenAI');
       }
     } catch (error: any) {
-      console.error('OpenAI image analysis error:', error);
-      throw new Error(`OpenAI analysis failed: ${error.message}`);
+      this.logger.error('[OpenAiAnalyzer] OpenAI image analysis error', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        status: error?.status,
+        responseStatus: error?.response?.status,
+        responseData: error?.response?.data,
+        model,
+      });
+      throw error;
     }
   }
 
   async analyzeText(description: string): Promise<AnalysisResult> {
+    const model = process.env.OPENAI_MODEL || 'gpt-5.1';
+    this.logger.debug(`[OpenAiAnalyzer] Using model: ${model} for text analysis`);
+    
     try {
       const response = await this.openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-5.1',
+        model,
         messages: [
           {
             role: 'system',
@@ -179,12 +197,24 @@ export class OpenAiAnalyzer {
         }
         return result;
       } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', content);
+        this.logger.error('[OpenAiAnalyzer] Failed to parse OpenAI response', {
+          parseError: parseError.message,
+          contentPreview: content?.substring(0, 200),
+        });
         throw new Error('Invalid response format from OpenAI');
       }
     } catch (error: any) {
-      console.error('OpenAI text analysis error:', error);
-      throw new Error(`OpenAI text analysis failed: ${error.message}`);
+      this.logger.error('[OpenAiAnalyzer] OpenAI text analysis error', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        status: error?.status,
+        responseStatus: error?.response?.status,
+        responseData: error?.response?.data,
+        model,
+        descriptionPreview: description?.substring(0, 100),
+      });
+      throw error;
     }
   }
 }

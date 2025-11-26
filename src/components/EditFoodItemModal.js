@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
@@ -94,13 +93,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ type: 'timing', duration: 200 }}
-          style={[styles.modal, { backgroundColor: colors.surface }]}
-        >
+        <View style={[styles.modal, { backgroundColor: colors.surface }]}>
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>{t('editFood.title')}</Text>
@@ -247,7 +240,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
                 <Text style={styles.saveButtonText}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
-          </MotiView>
+          </View>
         </KeyboardAvoidingView>
     </SwipeClosableModal>
   );

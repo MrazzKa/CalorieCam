@@ -14,7 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MotiView } from 'moti';
 import ApiService from '../services/apiService';
 import { EditFoodItemModal } from '../components/EditFoodItemModal';
 import { HealthScoreCard } from '../components/HealthScoreCard';
@@ -565,22 +564,14 @@ export default function AnalysisResultsScreen() {
           </View>
 
           {/* Dish Name */}
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
-          >
+          <View>
             <View style={styles.dishNameContainer}>
               <Text style={styles.dishName}>{analysisResult?.dishName}</Text>
             </View>
-          </MotiView>
+          </View>
 
           {/* Total Nutrition */}
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 15, delay: 100 }}
-          >
+          <View>
             <View style={styles.nutritionContainer}>
               <View style={styles.nutritionCard}>
                 <Text style={styles.nutritionTitle}>{t('analysis.totalNutrition')}</Text>
@@ -602,9 +593,9 @@ export default function AnalysisResultsScreen() {
                   <Text style={styles.nutritionLabel}>{t('dashboard.fat')}</Text>
                 </View>
               </View>
+              </View>
             </View>
-            </View>
-          </MotiView>
+          </View>
 
           {/* Health Score */}
           {analysisResult?.healthScore && (
@@ -613,11 +604,7 @@ export default function AnalysisResultsScreen() {
 
           {/* Auto Save Banner */}
           {hasAutoSave && (
-            <MotiView
-              from={{ opacity: 0, translateY: 16 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'spring', damping: 20, delay: 180 }}
-            >
+            <View>
               <AppCard style={styles.autoSaveCard}>
                 <View style={styles.autoSaveHeader}>
                   <Ionicons name="cloud-done-outline" size={22} color={colors.success} />
@@ -630,24 +617,15 @@ export default function AnalysisResultsScreen() {
                   {formatTimestamp(autoSaveInfo?.savedAt)}
                 </Text>
               </AppCard>
-            </MotiView>
+            </View>
           )}
 
           {/* Ingredients */}
-          <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 200 }}
-          >
+          <View>
             <View style={styles.ingredientsContainer}>
               <Text style={styles.ingredientsTitle}>{t('analysis.ingredients')}</Text>
             {(analysisResult?.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient, index) => (
-              <MotiView
-                key={index}
-                from={{ opacity: 0, translateX: -20 }}
-                animate={{ opacity: 1, translateX: 0 }}
-                transition={{ type: 'spring', damping: 15, delay: index * 50 }}
-              >
+              <View key={index}>
                 <TouchableOpacity
                   style={[styles.ingredientItem, !allowEditing && styles.ingredientItemDisabled]}
                   onPress={allowEditing && typeof handleCorrect === 'function' ? () => handleCorrect(ingredient, index) : () => {}}
@@ -673,17 +651,13 @@ export default function AnalysisResultsScreen() {
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
-              </MotiView>
+              </View>
             ))}
             </View>
-          </MotiView>
+          </View>
 
           {/* Action Buttons */}
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 15, delay: 300 }}
-          >
+          <View>
             <View style={[styles.actionButtons, styles.actionButtonsSingle]}>
               <TouchableOpacity 
                 style={styles.shareButton} 
@@ -694,17 +668,13 @@ export default function AnalysisResultsScreen() {
                 }}
               >
                 <Ionicons name="share-outline" size={20} color={colors.primary} />
-                <Text style={styles.shareButtonText}>{t('analysis.share')}</Text>
+                <Text style={styles.shareButtonText}>{t('analysis.share')}                </Text>
               </TouchableOpacity>
             </View>
-          </MotiView>
+          </View>
 
           {/* Save Button */}
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 400 }}
-          >
+          <View>
             {hasAutoSave ? (
               <View style={styles.autoSaveActions}>
                 <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={handleViewMeal}>
@@ -722,7 +692,7 @@ export default function AnalysisResultsScreen() {
                 <Text style={styles.saveButtonText}>{t('analysis.saveToJournal')}</Text>
               </TouchableOpacity>
             )}
-          </MotiView>
+          </View>
         </ScrollView>
       </Animated.View>
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { spacing, radii, elevations } from '../design/tokens';
@@ -118,12 +117,7 @@ export const HealthScoreCard = ({ healthScore }) => {
   };
 
   return (
-    <MotiView
-      from={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', damping: 15 }}
-      style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="heart" size={24} color={gradeColor} />
@@ -139,11 +133,8 @@ export const HealthScoreCard = ({ healthScore }) => {
       {/* Score Progress Bar */}
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, { backgroundColor: colors.inputBackground }]}>
-          <MotiView
-            from={{ width: 0 }}
-            animate={{ width: `${score}%` }}
-            transition={{ type: 'spring', damping: 15, delay: 200 }}
-            style={[styles.progressFill, { backgroundColor: gradeColor }]}
+          <View
+            style={[styles.progressFill, { width: `${score}%`, backgroundColor: gradeColor }]}
           />
         </View>
       </View>
@@ -194,7 +185,7 @@ export const HealthScoreCard = ({ healthScore }) => {
           })}
         </View>
       )}
-    </MotiView>
+    </View>
   );
 };
 

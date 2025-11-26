@@ -38,7 +38,11 @@ const AiAssistantFallback: React.FC<{ onClose: () => void; t: (key: string) => s
       
       <TouchableOpacity 
         style={[styles.closeButtonLarge, { backgroundColor: colors.primary || '#007AFF' }]}
-        onPress={onClose}
+        onPress={() => {
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
+        }}
       >
         <Text style={[styles.closeButtonText, { color: colors.onPrimary || '#FFFFFF' }]}>
           {t('common.close') || 'Close'}
@@ -79,7 +83,9 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
 
   const handleClose = async () => {
     await clientLog('AiAssistant:closed').catch(() => {});
-    onClose();
+    if (onClose && typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   return (
@@ -92,7 +98,7 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
       animationType="fade"
       presentationStyle="fullScreen"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top']}>
         <View style={[styles.header, { borderBottomColor: colors.border || '#E5E5EA' }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             {t('dashboard.aiAssistant') || 'AI Assistant'}

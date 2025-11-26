@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,6 +51,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
   const { user } = useAuth();
   const { t, language } = useI18n();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -67,6 +68,10 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
       
       try {
         await clientLog('AiAssistant:loadingHistory').catch(() => {});
+        if (!ApiService || typeof ApiService.getConversationHistory !== 'function') {
+          console.warn('[RealAiAssistant] ApiService.getConversationHistory is not available');
+          return;
+        }
         const history = await ApiService.getConversationHistory(user.id, 10);
         
         if (Array.isArray(history) && history.length > 0) {
@@ -111,7 +116,9 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
   useEffect(() => {
     if (scrollViewRef.current && messages.length > 0) {
       setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        if (scrollViewRef.current && typeof scrollViewRef.current.scrollToEnd === 'function') {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
       }, 100);
     }
   }, [messages]);
@@ -135,7 +142,11 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
     try {
       await clientLog('AiAssistant:messageSent', { messageLength: trimmedInput.length }).catch(() => {});
 
-      // Call API
+      // Call API - check if method exists
+      if (!ApiService || typeof ApiService.getGeneralQuestion !== 'function') {
+        throw new Error('ApiService.getGeneralQuestion is not available');
+      }
+
       const response = await ApiService.getGeneralQuestion(
         user.id,
         trimmedInput,
@@ -210,6 +221,11 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
 
     try {
       await clientLog('AiAssistant:labResultsAnalyzed', { textLength: trimmedText.length }).catch(() => {});
+
+      // Check if method exists
+      if (!ApiService || typeof ApiService.analyzeLabResults !== 'function') {
+        throw new Error('ApiService.analyzeLabResults is not available');
+      }
 
       const response = await ApiService.analyzeLabResults(
         user.id,
@@ -399,7 +415,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]} edges={['top']}>
       {/* Tabs */}
       <View style={[styles.tabsContainer, { backgroundColor: colors.surface || '#FFFFFF', borderBottomColor: colors.border || '#E5E5EA' }]}>
         <TouchableOpacity
@@ -452,8 +468,8 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
       >
         {activeTab === 'chat' ? (
           <>
@@ -488,7 +504,11 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         </ScrollView>
 
             {/* Input */}
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface || '#FFFFFF', borderTopColor: colors.border || '#E5E5EA' }]}>
+            <View style={[styles.inputContainer, { 
+              backgroundColor: colors.surface || '#FFFFFF', 
+              borderTopColor: colors.border || '#E5E5EA',
+              paddingBottom: insets.bottom,
+            }]}>
               <TextInput
                 ref={inputRef}
                 style={[
@@ -542,7 +562,11 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
           <>
             {renderLabResults()}
             {/* Lab Results Input */}
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface || '#FFFFFF', borderTopColor: colors.border || '#E5E5EA' }]}>
+            <View style={[styles.inputContainer, { 
+              backgroundColor: colors.surface || '#FFFFFF', 
+              borderTopColor: colors.border || '#E5E5EA',
+              paddingBottom: insets.bottom,
+            }]}>
               <TextInput
                 style={[
                   styles.input,

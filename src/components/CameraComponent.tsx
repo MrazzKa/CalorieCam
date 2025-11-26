@@ -1,6 +1,12 @@
+// src/components/CameraComponent.tsx
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
+import {
+  CameraView,
+  CameraType,
+  useCameraPermissions,
+} from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CameraComponentProps {
@@ -12,50 +18,74 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
   onPhotoTaken,
   onClose,
 }) => {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [type, setType] = useState(CameraType.back);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [type, setType] = useState<CameraType>('back');
   const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('auto');
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<CameraView | null>(null);
 
-  const getCameraPermissions = useCallback(async () => {
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    setHasPermission(status === 'granted');
-  }, []);
+  const ensurePermission = useCallback(async () => {
+    try {
+      if (!permission || permission.status !== 'granted') {
+        const result = await requestPermission();
+        if (!result?.granted) {
+          Alert.alert('No access to camera');
+        }
+      }
+    } catch (error) {
+      console.error('[CameraComponent] request permission error:', error);
+      Alert.alert('Error', 'Failed to request camera permission');
+    }
+  }, [permission, requestPermission]);
 
   useEffect(() => {
-    void getCameraPermissions();
-  }, [getCameraPermissions]);
+    void ensurePermission();
+  }, [ensurePermission]);
 
   const takePicture = async () => {
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-        });
-        if (onPhotoTaken && typeof onPhotoTaken === 'function') {
-          onPhotoTaken(photo.uri);
-        }
-      } catch (error) {
-        console.error('Error taking picture:', error);
-        Alert.alert('Error', 'Failed to take picture');
+    if (!cameraRef.current) {
+      console.warn('[CameraComponent] cameraRef is null');
+      return;
+    }
+
+    // В новом API у CameraView тоже есть takePictureAsync
+    if (typeof cameraRef.current.takePictureAsync !== 'function') {
+      console.warn('[CameraComponent] takePictureAsync is not a function');
+      Alert.alert('Error', 'Camera function not available');
+      return;
+    }
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!photo || !photo.uri) {
+        throw new Error('Invalid photo result');
       }
+
+      if (onPhotoTaken && typeof onPhotoTaken === 'function') {
+        onPhotoTaken(photo.uri);
+      }
+    } catch (error) {
+      console.error('[CameraComponent] Error taking picture:', error);
+      Alert.alert('Error', 'Failed to take picture');
     }
   };
 
   const flipCamera = () => {
-    setType(current => (current === CameraType.back ? CameraType.front : CameraType.back));
+    setType((current) => (current === 'back' ? 'front' : 'back'));
   };
 
   const toggleFlash = () => {
-    setFlashMode(current => {
+    setFlashMode((current) => {
       if (current === 'off') return 'on';
       if (current === 'on') return 'auto';
       return 'off';
     });
   };
 
-  if (hasPermission === null) {
+  if (!permission) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>Requesting camera permission...</Text>
@@ -63,12 +93,12 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
     );
   }
 
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>No access to camera</Text>
-        <TouchableOpacity 
-          style={styles.button} 
+        <TouchableOpacity
+          style={styles.button}
           onPress={() => {
             if (onClose && typeof onClose === 'function') {
               onClose();
@@ -83,22 +113,35 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
 
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView
         style={styles.camera}
-        type={type}
+        facing={type}
         ref={cameraRef}
-        flashMode={flashMode}
+        flash={flashMode}
       >
         <View style={styles.overlay}>
           <View style={styles.topControls}>
-            <TouchableOpacity style={styles.controlButton} onPress={onClose}>
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={() => {
+                if (onClose && typeof onClose === 'function') {
+                  onClose();
+                }
+              }}
+            >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={toggleFlash}>
-              <Ionicons 
-                name={flashMode === 'off' ? 'flash-off' : flashMode === 'on' ? 'flash' : 'flash'} 
-                size={24} 
-                color="white" 
+              <Ionicons
+                name={
+                  flashMode === 'off'
+                    ? 'flash-off'
+                    : flashMode === 'on'
+                    ? 'flash'
+                    : 'flash'
+                }
+                size={24}
+                color="white"
               />
             </TouchableOpacity>
           </View>
@@ -107,15 +150,15 @@ export const CameraComponent: React.FC<CameraComponentProps> = ({
             <TouchableOpacity style={styles.flipButton} onPress={flipCamera}>
               <Ionicons name="camera-reverse" size={24} color="white" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
               <View style={styles.captureButtonInner} />
             </TouchableOpacity>
-            
+
             <View style={styles.placeholder} />
           </View>
         </View>
-      </Camera>
+      </CameraView>
     </View>
   );
 };
