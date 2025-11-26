@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import OpenAI from 'openai';
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
 
 @Injectable()
 export class AiAssistantService {
+  private readonly logger = new Logger(AiAssistantService.name);
   private readonly openai: OpenAI;
 
   constructor(
@@ -99,9 +100,12 @@ export class AiAssistantService {
     const { systemPrompt, context } = await this.buildSystemPrompt(type, userId, extraContext, language);
 
     try {
+      const model = process.env.OPENAI_MODEL || 'gpt-5.1';
+      this.logger.debug(`[AiAssistantService] Using model: ${model} for type: ${type}`);
+
       const response = await this.openai.chat.completions.create({
         // Use configurable GPT model (default gpt-5.1)
-        model: process.env.OPENAI_MODEL || 'gpt-5.1',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: question },
@@ -133,6 +137,18 @@ export class AiAssistantService {
         completionTokens: usage?.completion_tokens || 0,
       };
     } catch (error: any) {
+      this.logger.error('[AiAssistantService] OpenAI API error', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        status: error?.status,
+        responseStatus: error?.response?.status,
+        responseData: error?.response?.data,
+        model: process.env.OPENAI_MODEL || 'gpt-5.1',
+        type,
+        userId,
+      });
+
       // Handle OpenAI API errors
       if (error?.status === 429 || error?.response?.status === 429) {
         // Re-throw with specific error code for quota exceeded

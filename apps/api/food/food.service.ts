@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, InternalServerErrorException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../prisma.service';
@@ -8,6 +8,8 @@ import { calculateHealthScore } from './food-health-score.util';
 
 @Injectable()
 export class FoodService {
+  private readonly logger = new Logger(FoodService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly foodAnalyzer: FoodAnalyzerService,
@@ -16,69 +18,88 @@ export class FoodService {
   ) {}
 
   async analyzeImage(file: any, userId: string) {
-    if (!file) {
-      throw new BadRequestException('No image file provided');
-    }
+    try {
+      if (!file) {
+        throw new BadRequestException('No image file provided');
+      }
 
-    // Validate file type
-    if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('File must be an image');
-    }
+      // Validate file type
+      if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+        throw new BadRequestException('File must be an image');
+      }
 
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      throw new BadRequestException('File size must be less than 10MB');
-    }
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new BadRequestException('File size must be less than 10MB');
+      }
 
-    // Validate and prepare buffer
-    let imageBuffer: Buffer;
-    if (file.buffer && Buffer.isBuffer(file.buffer)) {
-      imageBuffer = file.buffer;
-    } else if (file.buffer) {
-      // Convert to buffer if it's not already
-      imageBuffer = Buffer.from(file.buffer);
-    } else {
-      throw new BadRequestException('File buffer is missing. Please check multer configuration.');
-    }
+      // Validate and prepare buffer
+      let imageBuffer: Buffer;
+      if (file.buffer && Buffer.isBuffer(file.buffer)) {
+        imageBuffer = file.buffer;
+      } else if (file.buffer) {
+        // Convert to buffer if it's not already
+        imageBuffer = Buffer.from(file.buffer);
+      } else {
+        throw new BadRequestException('File buffer is missing. Please check multer configuration.');
+      }
 
-    if (imageBuffer.length === 0) {
-      throw new BadRequestException('File buffer is empty');
-    }
+      if (imageBuffer.length === 0) {
+        throw new BadRequestException('File buffer is empty');
+      }
 
-    // Create analysis record
-    const analysis = await this.prisma.analysis.create({
-      data: {
-        userId,
-        type: 'IMAGE',
-        status: 'PENDING',
-        metadata: {
-          filename: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
+      // Create analysis record
+      const analysis = await this.prisma.analysis.create({
+        data: {
+          userId,
+          type: 'IMAGE',
+          status: 'PENDING',
+          metadata: {
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+          },
         },
-      },
-    });
+      });
 
-    // Convert buffer to base64 for Bull queue serialization
-    // Bull queues serialize to JSON, which doesn't support Buffer directly
-    const imageBufferBase64 = imageBuffer.toString('base64');
+      // Convert buffer to base64 for Bull queue serialization
+      // Bull queues serialize to JSON, which doesn't support Buffer directly
+      const imageBufferBase64 = imageBuffer.toString('base64');
 
-    // Add to queue for processing
-    await this.analysisQueue.add('analyze-image', {
-      analysisId: analysis.id,
-      imageBufferBase64: imageBufferBase64,
-      userId,
-    });
+      // Add to queue for processing
+      await this.analysisQueue.add('analyze-image', {
+        analysisId: analysis.id,
+        imageBufferBase64: imageBufferBase64,
+        userId,
+      });
 
-    // Increment daily limit counter after successful analysis creation
-    await this.incrementDailyLimit(userId, 'food');
+      // Increment daily limit counter after successful analysis creation
+      await this.incrementDailyLimit(userId, 'food');
 
-    return {
-      analysisId: analysis.id,
-      status: 'PENDING',
-      message: 'Analysis started. Results will be available shortly.',
-    };
+      return {
+        analysisId: analysis.id,
+        status: 'PENDING',
+        message: 'Analysis started. Results will be available shortly.',
+      };
+    } catch (error: any) {
+      this.logger.error('[FoodService] analyzeImage error', {
+        message: error.message,
+        stack: error.stack,
+        status: error.status,
+        userId,
+        fileName: file?.originalname,
+        fileSize: file?.size,
+      });
+
+      // Re-throw BadRequestException as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      // For other errors, throw InternalServerErrorException
+      throw new InternalServerErrorException('FOOD_ANALYZE_FAILED');
+    }
   }
 
   private async incrementDailyLimit(userId: string, resource: 'food' | 'chat') {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Request, UploadedFile, UseInterceptors, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,6 +12,8 @@ import { AnalyzeImageDto, AnalyzeTextDto } from './dto';
 @UseGuards(JwtAuthGuard, DailyLimitGuard)
 @ApiBearerAuth()
 export class FoodController {
+  private readonly logger = new Logger(FoodController.name);
+
   constructor(private readonly foodService: FoodService) {}
 
   @Post('analyze')
@@ -31,14 +33,31 @@ export class FoodController {
     @UploadedFile() file: any,
     @Request() req: any,
   ) {
-    if (!file) {
-      throw new BadRequestException('No image file provided');
+    try {
+      if (!file) {
+        throw new BadRequestException('No image file provided');
+      }
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('User not authenticated');
+      }
+      return await this.foodService.analyzeImage(file, userId);
+    } catch (error: any) {
+      this.logger.error('[FoodController] analyzeImage error', {
+        message: error.message,
+        stack: error.stack,
+        status: error.status,
+        userId: req.user?.id,
+      });
+      
+      // Re-throw BadRequestException as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      // For other errors, throw InternalServerErrorException
+      throw new InternalServerErrorException('FOOD_ANALYZE_FAILED');
     }
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new BadRequestException('User not authenticated');
-    }
-    return this.foodService.analyzeImage(file, userId);
   }
 
   @Post('analyze-text')
