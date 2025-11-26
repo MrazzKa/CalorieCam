@@ -113,18 +113,7 @@ export default function RecentlyScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadRecentItems();
-  }, []);
-
-  // Reload when screen comes into focus (e.g., after saving a meal)
-  useFocusEffect(
-    React.useCallback(() => {
-      loadRecentItems();
-    }, [])
-  );
-
-  const loadRecentItems = async () => {
+  const loadRecentItems = useCallback(async () => {
     try {
       setLoading(true);
       const meals = await ApiService.getMeals();
