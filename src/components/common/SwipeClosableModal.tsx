@@ -97,39 +97,44 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
           tension: 100,
           friction: 8,
         }).start();
+      } else {
+        // For fade, just animate opacity
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
       }
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
     } else {
       if (animationType === 'slide') {
         Animated.timing(translateY, {
           toValue: swipeDirection === 'down' ? SCREEN_HEIGHT : swipeDirection === 'up' ? -SCREEN_HEIGHT : 0,
-          duration: 300,
+          duration: 200,
           useNativeDriver: true,
         }).start();
       }
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 300,
+        duration: 200,
         useNativeDriver: true,
       }).start();
     }
   }, [visible, animationType, swipeDirection]);
 
   const closeModal = () => {
+    if (typeof onClose !== 'function') {
+      return;
+    }
     if (animationType === 'slide') {
       Animated.timing(translateY, {
         toValue: swipeDirection === 'down' ? SCREEN_HEIGHT : swipeDirection === 'up' ? -SCREEN_HEIGHT : 0,
-        duration: 300,
+        duration: 200,
         useNativeDriver: true,
       }).start(() => onClose());
     } else {
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 300,
+        duration: 200,
         useNativeDriver: true,
       }).start(() => onClose());
     }
@@ -151,43 +156,48 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
     return transforms;
   };
 
+  const isFullScreen = presentationStyle === 'fullScreen';
+  
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={!isFullScreen}
       animationType="none"
       presentationStyle={presentationStyle}
       onRequestClose={closeModal}
     >
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: animationType === 'fade' ? opacity : 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            },
-          ]}
-        >
-          {enableBackdropClose && (
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={closeModal}
-            />
-          )}
-        </Animated.View>
+      <View style={[styles.overlay, isFullScreen && styles.overlayFullScreen]}>
+        {!isFullScreen && (
+          <Animated.View
+            style={[
+              styles.backdrop,
+              {
+                opacity: animationType === 'fade' ? opacity : 1,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              },
+            ]}
+          >
+            {enableBackdropClose && (
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={closeModal}
+              />
+            )}
+          </Animated.View>
+        )}
         <Animated.View
           style={[
             styles.content,
+            isFullScreen && styles.contentFullScreen,
             {
               transform: getTransform(),
               opacity: animationType === 'fade' ? opacity : 1,
             },
           ]}
-          {...(enableSwipe && swipeDirection === 'down' ? panResponder.panHandlers : {})}
+          {...(enableSwipe && swipeDirection === 'down' && !isFullScreen ? panResponder.panHandlers : {})}
         >
-          {enableSwipe && swipeDirection === 'down' && (
+          {enableSwipe && swipeDirection === 'down' && !isFullScreen && (
             <View style={styles.swipeHandle}>
               <View style={[styles.handleBar, { backgroundColor: tokens.colors.borderMuted || '#BDC3C7' }]} />
             </View>
@@ -204,6 +214,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  overlayFullScreen: {
+    justifyContent: 'center',
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -213,6 +226,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: SCREEN_HEIGHT * 0.9,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  contentFullScreen: {
+    maxHeight: SCREEN_HEIGHT,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    flex: 1,
   },
   swipeHandle: {
     alignItems: 'center',

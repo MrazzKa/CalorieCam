@@ -44,8 +44,17 @@ const ProfileScreen = () => {
   const colors = themeContext?.colors || {};
   const isDark = themeContext?.isDark || false;
   const themeMode = themeContext?.themeMode || 'light';
-  const toggleTheme = themeContext?.toggleTheme || (() => {});
-  const signOut = authContext?.signOut || (async () => {});
+  // Ensure toggleTheme is always a function
+  const toggleTheme = useCallback((mode) => {
+    if (themeContext?.toggleTheme && typeof themeContext.toggleTheme === 'function') {
+      themeContext.toggleTheme(mode);
+    }
+  }, [themeContext]);
+  const signOut = useCallback(async () => {
+    if (authContext?.signOut && typeof authContext.signOut === 'function') {
+      await authContext.signOut();
+    }
+  }, [authContext]);
   
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const reduceMotion = useReducedMotion();
@@ -568,19 +577,31 @@ const ProfileScreen = () => {
             <View style={styles.themeToggles}>
               <TouchableOpacity
                 style={[styles.themeChip, !isDark && styles.themeChipActive]}
-                onPress={() => toggleTheme('light')}
+                onPress={() => {
+                  if (typeof toggleTheme === 'function') {
+                    toggleTheme('light');
+                  }
+                }}
               >
                 <Ionicons name="partly-sunny" size={18} color={!isDark ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeChip, isDark && styles.themeChipActive]}
-                onPress={() => toggleTheme('dark')}
+                onPress={() => {
+                  if (typeof toggleTheme === 'function') {
+                    toggleTheme('dark');
+                  }
+                }}
               >
                 <Ionicons name="moon" size={18} color={isDark ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.themeChip, themeMode === 'system' && styles.themeChipActive]}
-                onPress={() => toggleTheme('system')}
+                onPress={() => {
+                  if (typeof toggleTheme === 'function') {
+                    toggleTheme('system');
+                  }
+                }}
               >
                 <Ionicons name="phone-portrait" size={18} color={themeMode === 'system' ? tokens.colors.onPrimary : tokens.colors.textPrimary} />
               </TouchableOpacity>

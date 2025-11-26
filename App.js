@@ -23,9 +23,14 @@ import { clientLog } from './src/utils/clientLog';
 const Stack = createStackNavigator();
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const isAuthenticated = !!user;
   const needsOnboarding = isAuthenticated && !user?.isOnboardingCompleted;
+  
+  // Show loading/splash while checking auth
+  if (loading) {
+    return <EmptySplash />;
+  }
 
   useEffect(() => {
     clientLog('RootNav:render', { 

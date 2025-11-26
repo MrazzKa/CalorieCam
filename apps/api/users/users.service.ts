@@ -175,40 +175,57 @@ export class UsersService {
   }
 
   async getUserStats(userId: string) {
-    const stats = await this.prisma.userStats.findUnique({
-      where: { userId },
-    });
+    try {
+      const stats = await this.prisma.userStats.findUnique({
+        where: { userId },
+      });
 
-    if (!stats) {
-      // Return default stats if not found
+      // If no stats exist yet, return safe defaults
+      if (!stats) {
+        return {
+          totalPhotosAnalyzed: 0,
+          todayPhotosAnalyzed: 0,
+          dailyLimit: parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10),
+        };
+      }
+
+      // Normalise potentially null values from DB
+      const totalPhotosAnalyzed = Number.isFinite(Number(stats.totalPhotosAnalyzed))
+        ? Number(stats.totalPhotosAnalyzed)
+        : 0;
+      let todayPhotosAnalyzed = Number.isFinite(Number(stats.todayPhotosAnalyzed))
+        ? Number(stats.todayPhotosAnalyzed)
+        : 0;
+
+      // Check if today's count needs reset
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const lastAnalysisDate = stats.lastAnalysisDate
+        ? new Date(stats.lastAnalysisDate)
+        : null;
+
+      if (!lastAnalysisDate || lastAnalysisDate < today) {
+        // Reset today's count if last analysis was not today
+        todayPhotosAnalyzed = 0;
+      }
+
+      // Get daily limit based on subscription (for now, assume free)
+      const dailyLimit = parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10);
+
+      return {
+        totalPhotosAnalyzed,
+        todayPhotosAnalyzed,
+        dailyLimit,
+      };
+    } catch (error) {
+      // Never let stats endpoint crash the app – log and return safe defaults
+      this.logger.error(`[UsersService] getUserStats failed for user ${userId}: ${error?.message || error}`, error?.stack);
       return {
         totalPhotosAnalyzed: 0,
         todayPhotosAnalyzed: 0,
         dailyLimit: parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10),
       };
     }
-
-    // Check if today's count needs reset
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const lastAnalysisDate = stats.lastAnalysisDate
-      ? new Date(stats.lastAnalysisDate)
-      : null;
-
-    let todayPhotosAnalyzed = stats.todayPhotosAnalyzed;
-    if (!lastAnalysisDate || lastAnalysisDate < today) {
-      // Reset today's count if last analysis was not today
-      todayPhotosAnalyzed = 0;
-    }
-
-    // Get daily limit based on subscription (for now, assume free)
-    const dailyLimit = parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10);
-
-    return {
-      totalPhotosAnalyzed: stats.totalPhotosAnalyzed,
-      todayPhotosAnalyzed,
-      dailyLimit,
-    };
   }
 
   async getUserReport(userId: string, from?: string, to?: string) {

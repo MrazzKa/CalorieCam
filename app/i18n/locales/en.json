@@ -60,6 +60,10 @@
         "title": "Choose from Gallery",
         "description": "Select a photo from your gallery"
       }
+    },
+    "analysisCounter": {
+      "today": "Today",
+      "total": "Total"
     }
   },
   "articles": {
@@ -101,7 +105,14 @@
     "autoSavedTitle": "Auto-saved to your journal",
     "autoSavedDescription": "We saved this meal to your recent entries. You can open or edit it anytime.",
     "viewMeal": "View meal entry",
-    "saveAsNewEntry": "Save as new entry"
+    "saveAsNewEntry": "Save as new entry",
+    "errorTitle": "Analysis Error",
+    "errorMessage": "We couldn't analyze your meal. Please try again.",
+    "timeoutTitle": "Analysis Timeout",
+    "timeoutMessage": "The analysis is taking longer than expected. Please try again.",
+    "savedTitle": "Saved",
+    "savedMessage": "Meal saved to your journal",
+    "saveError": "Failed to save meal. Please try again."
   },
   "healthScore": {
     "title": "Health Score",
