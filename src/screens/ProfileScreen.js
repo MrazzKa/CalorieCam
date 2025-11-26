@@ -9,30 +9,8 @@ import { useI18n } from '../../app/i18n/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { clientLog } from '../utils/clientLog';
-
-// Safe imports with fallbacks
-let AppCard;
-let PrimaryButton;
-
-try {
-  AppCard = require('../components/common/AppCard').default;
-} catch (e) {
-  console.warn('[ProfileScreen] AppCard not found, using fallback');
-  AppCard = ({ children, style, ...props }) => (
-    <View style={style}>{children}</View>
-  );
-}
-
-try {
-  PrimaryButton = require('../components/common/PrimaryButton').default;
-} catch (e) {
-  console.warn('[ProfileScreen] PrimaryButton not found, using fallback');
-  PrimaryButton = ({ title, onPress, loading, style, ...props }) => (
-    <TouchableOpacity style={style} onPress={onPress} disabled={loading}>
-      <Text>{loading ? 'Loading...' : title}</Text>
-    </TouchableOpacity>
-  );
-}
+import AppCard from '../components/common/AppCard';
+import PrimaryButton from '../components/common/PrimaryButton';
 
 const ProfileScreen = () => {
   const { t, language, changeLanguage, availableLanguages } = useI18n();

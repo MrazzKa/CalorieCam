@@ -273,18 +273,18 @@ export default function DashboardScreen() {
   };
 
   const handlePlusPress = () => {
-    Animated.sequence([
-      Animated.timing(plusScale, {
-        toValue: 0.9,
-        duration: 100,
-        useNativeDriver: true,
-      }),
+    // Simple, unobtrusive feedback: light scale animation
+    Animated.timing(plusScale, {
+      toValue: 0.96,
+      duration: 120,
+      useNativeDriver: true,
+    }).start(() => {
       Animated.timing(plusScale, {
         toValue: 1,
-        duration: 100,
+        duration: 120,
         useNativeDriver: true,
-      }),
-    ]).start();
+      }).start();
+    });
 
     // Show modal with options
     setShowModal(true);
