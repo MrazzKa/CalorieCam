@@ -100,7 +100,8 @@ export class AiAssistantService {
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        // Allow overriding model via env (e.g. GPT 5.1) while keeping a safe default
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: question },
