@@ -1,8 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, Request, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiAssistantService } from './ai-assistant.service';
 import { AssistantOrchestratorService } from './assistant-orchestrator.service';
+import { GeneralQuestionDto, LabResultsDto, NutritionAdviceDto } from './dto';
 
+@ApiTags('AI Assistant')
 @Controller('ai-assistant')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class AiAssistantController {
   constructor(
     private readonly assistantService: AiAssistantService,
@@ -98,8 +104,18 @@ export class AiAssistantController {
   }
 
   @Post('nutrition-advice')
-  getNutritionAdvice(@Body('userId') userId: string, @Body('question') question: string, @Body('context') context?: any, @Body('language') language?: string) {
-    return this.assistantService.getNutritionAdvice(userId, question, context, language);
+  @ApiOperation({ summary: 'Get nutrition advice' })
+  @ApiResponse({ status: 200, description: 'Nutrition advice provided successfully' })
+  async getNutritionAdvice(
+    @Body() dto: NutritionAdviceDto,
+    @Body('userId') userIdFromBody?: string,
+    @Request() req?: any,
+  ) {
+    const userId = dto.userId || userIdFromBody || req?.user?.id;
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    return this.assistantService.getNutritionAdvice(userId, dto.question, dto.context, dto.language);
   }
 
   @Post('health-check')
@@ -108,9 +124,15 @@ export class AiAssistantController {
   }
 
   @Post('general-question')
-  async getGeneralQuestion(@Body('userId') userId: string, @Body('question') question: string, @Body('language') language?: string) {
+  @ApiOperation({ summary: 'Ask general question to AI assistant' })
+  @ApiResponse({ status: 200, description: 'Question answered successfully' })
+  async getGeneralQuestion(@Body() dto: GeneralQuestionDto, @Body('userId') userIdFromBody?: string, @Request() req?: any) {
+    const userId = dto.userId || userIdFromBody || req?.user?.id;
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
     try {
-      return await this.assistantService.getGeneralQuestion(userId, question, language);
+      return await this.assistantService.getGeneralQuestion(userId, dto.question, dto.language);
     } catch (error: any) {
       // Handle quota exceeded error
       if (error?.message === 'AI_QUOTA_EXCEEDED' || error?.status === 429) {
@@ -133,5 +155,31 @@ export class AiAssistantController {
   @Get('token-usage')
   getTokenUsage(@Query('userId') userId: string, @Query('days') days?: string) {
     return this.assistantService.getTokenUsageStats(userId, days ? parseInt(days, 10) : 30);
+  }
+
+  @Post('lab-results')
+  @ApiOperation({ summary: 'Analyze lab results (blood tests)' })
+  @ApiResponse({ status: 200, description: 'Lab results analyzed successfully' })
+  async analyzeLabResults(
+    @Body() dto: LabResultsDto,
+    @Body('userId') userIdFromBody?: string,
+    @Request() req?: any,
+  ) {
+    const userId = dto.userId || userIdFromBody || req?.user?.id;
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+    try {
+      return await this.assistantService.analyzeLabResults(userId, dto.rawText, dto.language);
+    } catch (error: any) {
+      if (error?.message === 'AI_QUOTA_EXCEEDED' || error?.status === 429) {
+        throw new ServiceUnavailableException({
+          message: 'AI Assistant quota exceeded. Please try again later.',
+          code: 'AI_QUOTA_EXCEEDED',
+          statusCode: 503,
+        });
+      }
+      throw error;
+    }
   }
 }

@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true); // Start with true for initial load
 
   const refreshUser = useCallback(async () => {
     try {
@@ -51,8 +51,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Removed automatic refreshUser call on mount to prevent crashes
-  // Components should call refreshUser() explicitly when needed
+  // Auto-login on mount if refresh token exists
+  React.useEffect(() => {
+    const attemptAutoLogin = async () => {
+      try {
+        setLoading(true);
+        // Load tokens from storage
+        await ApiService.loadTokens();
+        
+        // Try to refresh token if we have one
+        if (ApiService.refreshTokenValue) {
+          try {
+            const tokens = await ApiService.refreshToken();
+            if (tokens?.accessToken) {
+              await ApiService.setToken(tokens.accessToken, tokens.refreshToken || ApiService.refreshTokenValue);
+              // Load user profile after successful token refresh
+              await refreshUser();
+              return;
+            }
+          } catch (refreshError) {
+            console.log('[AuthContext] Auto-login failed (refresh token invalid/expired):', refreshError.message);
+            // Clear invalid tokens
+            await ApiService.setToken(null, null);
+          }
+        }
+        
+        // If no refresh token or refresh failed, try to load user with existing token
+        if (ApiService.token) {
+          await refreshUser();
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.log('[AuthContext] Auto-login error:', error.message);
+        setUser(null);
+        setLoading(false);
+      }
+    };
+
+    attemptAutoLogin();
+  }, [refreshUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, loading, refreshUser, setUser, signOut }),

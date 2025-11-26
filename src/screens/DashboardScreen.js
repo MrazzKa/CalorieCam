@@ -20,6 +20,7 @@ import { useI18n } from '../../app/i18n/hooks';
 import { HealthScoreCard } from '../components/HealthScoreCard';
 import { clientLog } from '../utils/clientLog';
 import { CommonActions } from '@react-navigation/native';
+import { SwipeClosableModal } from '../components/common/SwipeClosableModal';
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -28,6 +29,7 @@ export default function DashboardScreen() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
+  const [plusOpacity] = useState(new Animated.Value(0));
   const [stats, setStats] = useState({
     totalCalories: 0,
     totalProtein: 0,
@@ -41,6 +43,28 @@ export default function DashboardScreen() {
   const [feedArticles, setFeedArticles] = useState([]);
   const [recentItems, setRecentItems] = useState([]);
   const [highlightMeal, setHighlightMeal] = useState(null);
+  const [userStats, setUserStats] = useState({
+    totalPhotosAnalyzed: 0,
+    todayPhotosAnalyzed: 0,
+    dailyLimit: 3,
+  });
+
+  // Animate plus button on mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(plusOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(plusScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Определяем функции ПЕРЕД их использованием в хуках
   const loadStats = React.useCallback(async () => {
@@ -159,6 +183,21 @@ export default function DashboardScreen() {
     }
   }, [t, selectedDate]);
 
+  const loadUserStats = React.useCallback(async () => {
+    try {
+      const stats = await ApiService.getUserStats();
+      if (stats) {
+        setUserStats({
+          totalPhotosAnalyzed: stats.totalPhotosAnalyzed || 0,
+          todayPhotosAnalyzed: stats.todayPhotosAnalyzed || 0,
+          dailyLimit: stats.dailyLimit || 3,
+        });
+      }
+    } catch (error) {
+      console.error('[DashboardScreen] Error loading user stats:', error);
+    }
+  }, []);
+
   // Теперь используем функции в хуках ПОСЛЕ их определения
   useEffect(() => {
     const timer = setInterval(() => {
@@ -174,7 +213,8 @@ export default function DashboardScreen() {
       loadMonthlyStats();
       loadArticles();
       loadRecent();
-    }, [loadStats, loadMonthlyStats, loadArticles, loadRecent])
+      loadUserStats();
+    }, [loadStats, loadMonthlyStats, loadArticles, loadRecent, loadUserStats])
   );
 
   useEffect(() => {
@@ -182,7 +222,8 @@ export default function DashboardScreen() {
     loadMonthlyStats();
     loadArticles();
     loadRecent();
-  }, [selectedDate, loadStats, loadMonthlyStats, loadArticles, loadRecent]);
+    loadUserStats();
+  }, [selectedDate, loadStats, loadMonthlyStats, loadArticles, loadRecent, loadUserStats]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString(language || 'en', {
@@ -255,7 +296,6 @@ export default function DashboardScreen() {
 
   const handleCameraPress = async () => {
     await clientLog('Dashboard:openCameraPressed').catch(() => {});
-    console.log('Camera button pressed - navigating to Camera');
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Camera');
@@ -264,7 +304,6 @@ export default function DashboardScreen() {
 
   const handleGalleryPress = async () => {
     await clientLog('Dashboard:openGalleryPressed').catch(() => {});
-    console.log('Gallery button pressed - navigating to Gallery');
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate('Gallery');
@@ -506,6 +545,40 @@ export default function DashboardScreen() {
           )}
         </MotiView>
 
+        {/* Photo Analysis Counter */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 200 }}
+          style={styles.analysisCounterContainer}
+        >
+          <View style={styles.analysisCounterCard}>
+            <View style={styles.analysisCounterRow}>
+              <Ionicons name="camera" size={20} color={colors.primary} />
+              <View style={styles.analysisCounterContent}>
+                <Text style={styles.analysisCounterLabel}>
+                  {t('dashboard.analysisCounter.today') || 'Today'}
+                </Text>
+                <Text style={styles.analysisCounterValue}>
+                  {userStats.todayPhotosAnalyzed} / {userStats.dailyLimit}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.analysisCounterDivider} />
+            <View style={styles.analysisCounterRow}>
+              <Ionicons name="stats-chart" size={20} color={colors.textSecondary} />
+              <View style={styles.analysisCounterContent}>
+                <Text style={styles.analysisCounterLabel}>
+                  {t('dashboard.analysisCounter.total') || 'Total'}
+                </Text>
+                <Text style={styles.analysisCounterValue}>
+                  {userStats.totalPhotosAnalyzed}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </MotiView>
+
         {/* AI Assistant Button */}
         {highlightMeal?.healthScore && (
           <View style={styles.highlightSection}>
@@ -520,7 +593,7 @@ export default function DashboardScreen() {
         )}
 
         <View style={styles.aiAssistantContainer}>
-          <TouchableOpacity style={styles.aiAssistantButton} onPress={handleAiAssistantPress}>
+          <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
             <View style={styles.aiAssistantIcon}>
               <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
             </View>
@@ -572,36 +645,36 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Plus Button */}
+      {/* Floating Plus Button - Left Side */}
       <Animated.View
         style={[
           styles.plusButtonContainer,
-          { transform: [{ scale: plusScale }] },
+          {
+            transform: [{ scale: plusScale }],
+            opacity: plusOpacity,
+          },
         ]}
       >
         <TouchableOpacity
           style={styles.plusButton}
-          onPress={handlePlusPress}
+          onPress={typeof handlePlusPress === 'function' ? handlePlusPress : () => {}}
           activeOpacity={0.8}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="add" size={32} color={colors.onPrimary || colors.inverseText} />
         </TouchableOpacity>
       </Animated.View>
 
       {/* Modal for Add Options */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <SwipeClosableModal
         visible={showModal}
-        onRequestClose={() => setShowModal(false)}
+        onClose={() => setShowModal(false)}
+        swipeDirection="down"
+        enableSwipe={true}
+        enableBackdropClose={true}
+        animationType="slide"
       >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackground}
-            activeOpacity={1}
-            onPress={() => setShowModal(false)}
-          >
-            <View style={styles.modalContent}>
+        <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{t('dashboard.addFood.title')}</Text>
                 <TouchableOpacity onPress={() => setShowModal(false)}>
@@ -616,7 +689,7 @@ export default function DashboardScreen() {
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={styles.modalButton}
-                  onPress={handleCameraPress}
+                  onPress={typeof handleCameraPress === 'function' ? handleCameraPress : () => {}}
                 >
                   <View style={styles.modalButtonIcon}>
                     <Ionicons name="camera" size={32} color={colors.primary} />
@@ -629,7 +702,7 @@ export default function DashboardScreen() {
                 
                 <TouchableOpacity
                   style={styles.modalButton}
-                  onPress={handleGalleryPress}
+                  onPress={typeof handleGalleryPress === 'function' ? handleGalleryPress : () => {}}
                 >
                   <View style={styles.modalButtonIcon}>
                     <Ionicons name="images" size={32} color={colors.primary} />
@@ -640,10 +713,8 @@ export default function DashboardScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </TouchableOpacity>
         </View>
-      </Modal>
+      </SwipeClosableModal>
 
       {/* AI Assistant Modal */}
       <AiAssistant
@@ -929,7 +1000,8 @@ const createStyles = (tokens) =>
     plusButtonContainer: {
       position: 'absolute',
       bottom: tokens.spacing.xxl,
-      alignSelf: 'center',
+      left: tokens.spacing.xl,
+      zIndex: 10,
     },
     plusButton: {
       width: 64,
@@ -1113,5 +1185,40 @@ const createStyles = (tokens) =>
     mealDistributionMetaSmall: {
       fontSize: 12,
       color: tokens.colors.textSecondary,
+    },
+    analysisCounterContainer: {
+      paddingHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.xl,
+    },
+    analysisCounterCard: {
+      backgroundColor: tokens.colors.card,
+      borderRadius: tokens.radii.lg,
+      padding: tokens.spacing.md,
+      borderWidth: 1,
+      borderColor: tokens.colors.borderMuted,
+      ...(tokens.states.cardShadow || tokens.elevations.sm),
+    },
+    analysisCounterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+    },
+    analysisCounterContent: {
+      flex: 1,
+    },
+    analysisCounterLabel: {
+      fontSize: 12,
+      color: tokens.colors.textSecondary,
+      marginBottom: 2,
+    },
+    analysisCounterValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: tokens.colors.textPrimary,
+    },
+    analysisCounterDivider: {
+      height: 1,
+      backgroundColor: tokens.colors.borderMuted,
+      marginVertical: tokens.spacing.sm,
     },
   });

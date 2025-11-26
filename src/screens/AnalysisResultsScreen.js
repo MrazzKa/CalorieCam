@@ -23,65 +23,6 @@ import { useI18n } from '../../app/i18n/hooks';
 import AppCard from '../components/common/AppCard';
 import { clientLog } from '../utils/clientLog';
 
-const demoHealthScore = {
-  score: 78,
-  grade: 'B',
-  factors: {
-    protein: { label: 'Protein', score: 82, weight: 0.25 },
-    fiber: { label: 'Fiber', score: 70, weight: 0.2 },
-    satFat: { label: 'Saturated fat', score: 65, weight: -0.2 },
-    sugar: { label: 'Sugar', score: 72, weight: -0.2 },
-    energyDensity: { label: 'Energy density', score: 80, weight: -0.15 },
-  },
-  feedback: [
-    {
-      key: 'fiber',
-      label: 'Fiber',
-      action: 'increase',
-      message: 'Good balance overall. Consider adding more fiber-rich ingredients.',
-    },
-  ],
-};
-
-const createDemoResult = () => ({
-  dishName: 'Mixed Salad',
-  totalCalories: 320,
-  totalProtein: 15,
-  totalCarbs: 25,
-  totalFat: 18,
-  ingredients: [
-    {
-      name: 'Lettuce',
-      calories: 80,
-      protein: 5,
-      carbs: 10,
-      fat: 2,
-      weight: 100,
-    },
-    {
-      name: 'Tomato',
-      calories: 60,
-      protein: 3,
-      carbs: 8,
-      fat: 1,
-      weight: 80,
-    },
-    {
-      name: 'Olive Oil',
-      calories: 180,
-      protein: 0,
-      carbs: 0,
-      fat: 20,
-      weight: 15,
-    },
-  ],
-  healthScore: demoHealthScore,
-  autoSave: {
-    mealId: 'demo',
-    savedAt: new Date().toISOString(),
-  },
-});
-
 const formatMacroValue = (value) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return '0';
@@ -128,6 +69,43 @@ export default function AnalysisResultsScreen() {
   const subduedColor = colors.textSecondary || colors.textMuted || '#6B7280';
   const tertiaryColor = colors.textSubdued || colors.textTertiary || subduedColor;
   const allowEditing = !readOnly;
+
+  const navigateToDashboard = useCallback(() => {
+    if (navigation && typeof navigation.reset === 'function') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+      });
+      return;
+    }
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('MainTabs', { screen: 'Dashboard' });
+      return;
+    }
+    if (navigation && typeof navigation.goBack === 'function') {
+      navigation.goBack();
+    }
+  }, [navigation]);
+
+  const showAnalysisError = useCallback(
+    (titleKey = 'analysis.errorTitle', messageKey = 'analysis.errorMessage') => {
+      setIsAnalyzing(false);
+      Alert.alert(
+        t(titleKey) || t('analysis.errorTitle') || 'Analysis unavailable',
+        t(messageKey) ||
+          t('analysis.errorMessage') ||
+          'The analysis service is temporarily unavailable. Please try again later.',
+        [
+          {
+            text: t('common.ok') || 'OK',
+            onPress: () => navigateToDashboard(),
+          },
+        ],
+        { cancelable: false },
+      );
+    },
+    [navigateToDashboard, t],
+  );
 
   const normalizeAnalysis = useCallback(
     (raw, fallbackImage = baseImageUri) => {
@@ -229,7 +207,7 @@ export default function AnalysisResultsScreen() {
     }
 
     if (!capturedImageUri) {
-      setIsAnalyzing(false);
+      showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
       return;
     }
 
@@ -267,30 +245,9 @@ export default function AnalysisResultsScreen() {
             status: analysisError?.status,
             timeout: analysisError?.message?.includes('timeout'),
           }).catch(() => {});
-          
-          // In production, don't use demo - show error instead
-          if (!__DEV__) {
-            cancelled = true;
-            setIsAnalyzing(false);
-            Alert.alert(
-              t('analysis.errorTitle') || 'Analysis unavailable',
-              t('analysis.errorMessage') || 'The analysis service is currently unavailable. Please try again later.',
-              [
-                {
-                  text: t('common.ok') || 'OK',
-                  onPress: () => {
-                    if (navigation && typeof navigation.goBack === 'function') {
-                      navigation.goBack();
-                    }
-                  },
-                },
-              ]
-            );
-            return;
-          }
-          
-          // Only in dev mode, use demo
-          finish(createDemoResult());
+
+          cancelled = true;
+          showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
           return;
         }
 
@@ -312,26 +269,8 @@ export default function AnalysisResultsScreen() {
                 finish(result);
               } else if (status.status === 'failed') {
                 await clientLog('Analysis:statusFailed').catch(() => {});
-                if (__DEV__) {
-                  finish(createDemoResult());
-                } else {
-                  cancelled = true;
-                  setIsAnalyzing(false);
-                  Alert.alert(
-                    t('analysis.errorTitle') || 'Analysis failed',
-                    t('analysis.errorMessage') || 'Failed to analyze image. Please try again.',
-                    [
-                      {
-                        text: t('common.ok') || 'OK',
-                        onPress: () => {
-                          if (navigation && typeof navigation.goBack === 'function') {
-                            navigation.goBack();
-                          }
-                        },
-                      },
-                    ]
-                  );
-                }
+                cancelled = true;
+                showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
               } else if (attempts < maxAttempts) {
                 attempts += 1;
                 setTimeout(() => {
@@ -341,30 +280,18 @@ export default function AnalysisResultsScreen() {
                 }, 1000);
               } else {
                 await clientLog('Analysis:timeout', { attempts }).catch(() => {});
-                if (__DEV__) {
-                  finish(createDemoResult());
-                } else {
-                  cancelled = true;
-                  setIsAnalyzing(false);
-                  Alert.alert(
-                    t('analysis.timeoutTitle') || 'Analysis timeout',
-                    t('analysis.timeoutMessage') || 'The analysis is taking too long. Please try again later.',
-                    [
-                      {
-                        text: t('common.ok') || 'OK',
-                        onPress: () => {
-                          if (navigation && typeof navigation.goBack === 'function') {
-                            navigation.goBack();
-                          }
-                        },
-                      },
-                    ]
-                  );
-                }
+                cancelled = true;
+                showAnalysisError('analysis.timeoutTitle', 'analysis.timeoutMessage');
               }
             } catch (error) {
               console.error('Polling error:', error);
-              finish(createDemoResult());
+              if (!cancelled) {
+                await clientLog('Analysis:pollingError', {
+                  message: error?.message || String(error),
+                }).catch(() => {});
+                cancelled = true;
+                showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
+              }
             }
           };
 
@@ -374,7 +301,11 @@ export default function AnalysisResultsScreen() {
         }
       } catch (error) {
         console.error('Analysis error:', error);
-        finish(createDemoResult());
+        await clientLog('Analysis:unhandledError', {
+          message: error?.message || String(error),
+        }).catch(() => {});
+        cancelled = true;
+        showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
       }
     };
 
@@ -383,7 +314,7 @@ export default function AnalysisResultsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [applyResult, baseImageUri, capturedImageUri, initialAnalysisParam]);
+  }, [applyResult, baseImageUri, capturedImageUri, initialAnalysisParam, showAnalysisError]);
 
   const autoSaveInfo = analysisResult?.autoSave || null;
   const hasAutoSave = Boolean(autoSaveInfo?.mealId);
@@ -719,7 +650,7 @@ export default function AnalysisResultsScreen() {
               >
                 <TouchableOpacity
                   style={[styles.ingredientItem, !allowEditing && styles.ingredientItemDisabled]}
-                  onPress={allowEditing ? () => handleCorrect(ingredient, index) : undefined}
+                  onPress={allowEditing && typeof handleCorrect === 'function' ? () => handleCorrect(ingredient, index) : () => {}}
                   disabled={!allowEditing}
                   activeOpacity={allowEditing ? 0.7 : 1}
                 >

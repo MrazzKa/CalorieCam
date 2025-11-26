@@ -437,7 +437,7 @@ const ProfileScreen = () => {
             </View>
             <PrimaryButton
               title={editing ? t('common.save') : t('profile.editProfile')}
-              onPress={editing ? handleSave : () => setEditing(true)}
+              onPress={editing && typeof handleSave === 'function' ? handleSave : typeof setEditing === 'function' ? () => setEditing(true) : () => {}}
               loading={loading}
               style={styles.heroButton}
             />
@@ -541,7 +541,7 @@ const ProfileScreen = () => {
             </View>
             <PrimaryButton
               title={t('common.save')}
-              onPress={handleSave}
+              onPress={typeof handleSave === 'function' ? handleSave : () => {}}
               loading={loading}
               style={styles.formSaveButton}
             />
@@ -627,7 +627,7 @@ const ProfileScreen = () => {
           <Text style={styles.dangerDescription}>{t('profile.deleteAccountMessage')}</Text>
           <TouchableOpacity
             style={styles.dangerButton}
-            onPress={handleDeleteAccount}
+            onPress={typeof handleDeleteAccount === 'function' ? handleDeleteAccount : () => {}}
             disabled={loading}
           >
             <Ionicons name="trash-outline" size={18} color={tokens.colors.error} />

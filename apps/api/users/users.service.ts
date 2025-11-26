@@ -173,4 +173,118 @@ export class UsersService {
       throw error;
     }
   }
+
+  async getUserStats(userId: string) {
+    const stats = await this.prisma.userStats.findUnique({
+      where: { userId },
+    });
+
+    if (!stats) {
+      // Return default stats if not found
+      return {
+        totalPhotosAnalyzed: 0,
+        todayPhotosAnalyzed: 0,
+        dailyLimit: parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10),
+      };
+    }
+
+    // Check if today's count needs reset
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastAnalysisDate = stats.lastAnalysisDate
+      ? new Date(stats.lastAnalysisDate)
+      : null;
+
+    let todayPhotosAnalyzed = stats.todayPhotosAnalyzed;
+    if (!lastAnalysisDate || lastAnalysisDate < today) {
+      // Reset today's count if last analysis was not today
+      todayPhotosAnalyzed = 0;
+    }
+
+    // Get daily limit based on subscription (for now, assume free)
+    const dailyLimit = parseInt(process.env.FREE_DAILY_ANALYSES || '3', 10);
+
+    return {
+      totalPhotosAnalyzed: stats.totalPhotosAnalyzed,
+      todayPhotosAnalyzed,
+      dailyLimit,
+    };
+  }
+
+  async getUserReport(userId: string, from?: string, to?: string) {
+    const now = new Date();
+    const toDate = to ? new Date(to) : now;
+    const fromDate = from ? new Date(from) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+
+    // Get analyses in period
+    const analyses = await this.prisma.analysis.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+        status: 'COMPLETED',
+      },
+      select: {
+        id: true,
+        type: true,
+        createdAt: true,
+      },
+    });
+
+    // Get lab results if any
+    const labResults = await this.prisma.labResult.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: {
+        id: true,
+        summary: true,
+        createdAt: true,
+      },
+    });
+
+    // Get basic nutrition aggregates from meals
+    const meals = await this.prisma.meal.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    const totalCalories = meals.reduce((sum, meal) => {
+      return sum + meal.items.reduce((mealSum, item) => mealSum + item.calories, 0);
+    }, 0);
+
+    const totalProtein = meals.reduce((sum, meal) => {
+      return sum + meal.items.reduce((mealSum, item) => mealSum + item.protein, 0);
+    }, 0);
+
+    return {
+      period: {
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+      },
+      totalPhotosAnalyzed: analyses.length,
+      nutritionAggregates: {
+        totalCalories,
+        totalProtein,
+        averageCaloriesPerDay: analyses.length > 0 ? totalCalories / analyses.length : 0,
+      },
+      labResultsSummary: labResults.length > 0
+        ? `${labResults.length} lab result(s) analyzed in this period.`
+        : null,
+    };
+  }
 }

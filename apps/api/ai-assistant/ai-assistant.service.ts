@@ -168,7 +168,24 @@ export class AiAssistantService {
     
     if (type === 'general_question') {
       return {
-        systemPrompt: `You are a nutrition and health assistant. Provide accurate, concise answers. Ask clarifying questions if needed. Always include a disclaimer to consult healthcare professionals for medical concerns. Respond in ${responseLanguage}.`,
+        systemPrompt: `You are a nutrition and health assistant. Provide accurate, concise, and actionable answers.
+
+CRITICAL RULES:
+1. ALWAYS provide short, structured, and actionable responses.
+2. For food analysis questions:
+   - ALWAYS state what is OK about the meal and what is not (e.g., too much sugar, not enough protein).
+   - ALWAYS give clear next steps: how to improve the meal, how to adjust portion sizes, etc.
+3. Ask clarifying questions if needed to provide better advice.
+4. NEVER give formal diagnoses or prescribe treatment - only provide nutrition-focused guidance and general explanations.
+5. EVERY response must include a short disclaimer that this is not medical advice and users should consult a doctor for medical decisions.
+6. Be encouraging and supportive.
+7. Respond in ${responseLanguage}.
+
+Example response format:
+- What's good: [positive aspects]
+- What to improve: [areas for improvement]
+- Next steps: [actionable recommendations]
+- Disclaimer: This is not medical advice. Please consult a healthcare professional for medical decisions.`,
         context: {},
       };
     }
@@ -255,13 +272,17 @@ Recent Meals:`;
     }
 
     prompt += `\n\nIMPORTANT RULES:
-1. ALWAYS ask clarifying questions if information is insufficient.
-2. Provide personalized advice based on profile and eating habits.
-3. Suggest specific dietary improvements considering goals and activity level.
-4. Be encouraging and supportive.
-5. Suggest meal ideas where appropriate.
-6. ALWAYS recommend consulting with doctors for medical advice.
-7. Respond in ${language}.`;
+1. ALWAYS provide short, structured, and actionable responses.
+2. For food analysis:
+   - ALWAYS state what is OK about the meal and what is not (e.g., too much sugar, not enough protein).
+   - ALWAYS give clear next steps: how to improve the meal, how to adjust portion sizes, etc.
+3. Provide personalized advice based on profile and eating habits.
+4. Suggest specific dietary improvements considering goals and activity level.
+5. Be encouraging and supportive.
+6. Suggest meal ideas where appropriate.
+7. NEVER give formal diagnoses or prescribe treatment - only provide nutrition-focused guidance and general explanations.
+8. EVERY response must include a short disclaimer that this is not medical advice and users should consult a doctor for medical decisions.
+9. Respond in ${language}.`;
 
     return prompt;
   }
@@ -277,9 +298,116 @@ User Profile:
 - Activity Level: ${userProfile?.activityLevel || 'not specified'}
 
 CRITICAL RULES:
-1. ALWAYS ask clarifying questions about symptoms and advise seeing professionals.
-2. Provide general wellness guidance (nutrition, sleep, training, stress).
-3. Respond in ${language}.
+1. ALWAYS provide short, structured, and actionable responses.
+2. ALWAYS ask clarifying questions about symptoms and advise seeing professionals.
+3. Provide general wellness guidance (nutrition, sleep, training, stress).
+4. NEVER give formal diagnoses or prescribe treatment - only provide general wellness information.
+5. EVERY response must include a short disclaimer that this is not medical advice and users should consult a doctor for medical decisions.
+6. Respond in ${language}.
 `;
+  }
+
+  async analyzeLabResults(userId: string, rawText: string, language?: string) {
+    const userProfile = await this.prisma.userProfile.findUnique({ where: { userId } });
+    const userLanguage = language || (userProfile?.preferences as any)?.language || 'en';
+    
+    const languageMap: Record<string, string> = {
+      en: 'English',
+      es: 'Spanish',
+      de: 'German',
+      fr: 'French',
+      ko: 'Korean',
+      ja: 'Japanese',
+      zh: 'Chinese',
+    };
+    const responseLanguage = languageMap[userLanguage] || 'English';
+
+    const systemPrompt = `You are a medical lab results interpreter. Analyze blood test results and provide structured feedback.
+
+CRITICAL RULES:
+1. Interpret common lab metrics (e.g., WBC, RBC, platelets, glucose, cholesterol, etc.) using typical reference ranges for adults.
+2. For each metric, determine if it is within a typical range, higher than typical, or lower than typical.
+3. Use soft language ("higher than a typical range", "could indicate issues") - never make definitive diagnoses.
+4. ALWAYS add a disclaimer that this is not a diagnosis and a doctor must be consulted.
+5. Provide structured JSON output with:
+   - metrics: array of { name, value, unit, isNormal, level ("low"/"high"/"normal"), comment }
+   - summary: brief overall summary string
+   - recommendation: actionable recommendations string
+6. Respond in ${responseLanguage}.
+
+Return ONLY valid JSON in this format:
+{
+  "metrics": [
+    {
+      "name": "WBC",
+      "value": 7.5,
+      "unit": "10^3/μL",
+      "isNormal": true,
+      "level": "normal",
+      "comment": "Within typical range"
+    }
+  ],
+  "summary": "Overall summary...",
+  "recommendation": "Recommendations..."
+}`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Analyze these lab results:\n\n${rawText}` },
+        ],
+        max_tokens: 2000,
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(content);
+
+      // Save to database
+      const labResult = await this.prisma.labResult.create({
+        data: {
+          userId,
+          rawText,
+          summary: parsed.summary || '',
+          recommendation: parsed.recommendation || '',
+        },
+      });
+
+      // Save metrics
+      if (Array.isArray(parsed.metrics)) {
+        await Promise.all(
+          parsed.metrics.map((metric: any) =>
+            this.prisma.labMetric.create({
+              data: {
+                labResultId: labResult.id,
+                name: metric.name || '',
+                value: metric.value || 0,
+                unit: metric.unit || '',
+                isNormal: metric.isNormal !== false,
+                level: metric.level || 'normal',
+                comment: metric.comment || null,
+              },
+            }),
+          ),
+        );
+      }
+
+      return {
+        id: labResult.id,
+        metrics: parsed.metrics || [],
+        summary: parsed.summary || '',
+        recommendation: parsed.recommendation || '',
+      };
+    } catch (error: any) {
+      if (error?.status === 429 || error?.response?.status === 429) {
+        const quotaError: any = new Error('AI_QUOTA_EXCEEDED');
+        quotaError.status = 429;
+        throw quotaError;
+      }
+      throw error;
+    }
   }
 }

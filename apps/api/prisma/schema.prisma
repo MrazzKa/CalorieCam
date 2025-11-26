@@ -16,6 +16,7 @@ model User {
   updatedAt              DateTime                @updatedAt
   aiAssistant            AiAssistant[]
   analyses               Analysis[]
+  labResults             LabResult[]
   magicLinks             MagicLink[]
   mealLogs               MealLog[]
   meals                  Meal[]
@@ -25,6 +26,7 @@ model User {
   pushTokens             PushToken[]
   refreshTokens          RefreshToken[]
   userProfile            UserProfile?
+  userStats              UserStats?
 
   @@map("users")
 }
@@ -360,6 +362,50 @@ enum MealLogMealType {
   BREAKFAST
   LUNCH
   DINNER
+}
+
+model UserStats {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  totalPhotosAnalyzed   Int      @default(0) @map("total_photos_analyzed")
+  todayPhotosAnalyzed   Int      @default(0) @map("today_photos_analyzed")
+  lastAnalysisDate      DateTime? @map("last_analysis_date")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+model LabResult {
+  id          String        @id @default(cuid())
+  userId      String
+  rawText     String?       @map("raw_text")
+  summary     String?
+  recommendation String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metrics     LabMetric[]
+
+  @@index([userId, createdAt])
+  @@map("lab_results")
+}
+
+model LabMetric {
+  id          String    @id @default(cuid())
+  labResultId String    @map("lab_result_id")
+  name        String
+  value       Float
+  unit        String
+  isNormal    Boolean   @default(true) @map("is_normal")
+  level       String    // "low", "normal", "high"
+  comment     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  labResult   LabResult @relation(fields: [labResultId], references: [id], onDelete: Cascade)
+
+  @@index([labResultId])
+  @@map("lab_metrics")
 }
 
 enum FoodSource {

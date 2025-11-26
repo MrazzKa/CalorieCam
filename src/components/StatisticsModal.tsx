@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SwipeClosableModal } from './common/SwipeClosableModal';
 
 interface StatisticsModalProps {
   visible: boolean;
@@ -9,11 +10,14 @@ interface StatisticsModalProps {
 
 export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClose }) => {
   return (
-    <Modal
+    <SwipeClosableModal
       visible={visible}
+      onClose={onClose}
+      swipeDirection="down"
+      enableSwipe={true}
+      enableBackdropClose={true}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
     >
       <View style={styles.container}>
         <View style={styles.header}>
@@ -68,7 +72,7 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClo
           </View>
         </ScrollView>
       </View>
-    </Modal>
+    </SwipeClosableModal>
   );
 };
 

@@ -17,26 +17,6 @@ import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 
-const demoHealthScore = {
-  score: 78,
-  grade: 'B',
-  factors: {
-    protein: { label: 'Protein', score: 82, weight: 0.25 },
-    fiber: { label: 'Fiber', score: 70, weight: 0.2 },
-    satFat: { label: 'Saturated fat', score: 65, weight: -0.2 },
-    sugar: { label: 'Sugar', score: 72, weight: -0.2 },
-    energyDensity: { label: 'Energy density', score: 80, weight: -0.15 },
-  },
-  feedback: [
-    {
-      key: 'fiber',
-      label: 'Fiber',
-      action: 'increase',
-      message: 'Good balance overall. Consider adding more fiber-rich ingredients.',
-    },
-  ],
-};
-
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const formatDateLabel = (date, t, language) => {
@@ -122,38 +102,6 @@ const normalizeMeal = (meal) => {
       imageUri: meal.imageUri || meal.coverUrl || null,
     },
   };
-};
-
-const createFallbackMeals = () => {
-  const now = new Date();
-  return [
-    normalizeMeal({
-      id: 'demo-1',
-      name: 'Mixed Salad',
-      createdAt: now.toISOString(),
-      items: [
-        { name: 'Lettuce', calories: 80, protein: 5, carbs: 10, fat: 2, weight: 100 },
-        { name: 'Tomato', calories: 60, protein: 3, carbs: 8, fat: 1, weight: 80 },
-        { name: 'Olive Oil', calories: 180, protein: 0, carbs: 0, fat: 20, weight: 15 },
-      ],
-      healthInsights: demoHealthScore,
-    }),
-    normalizeMeal({
-      id: 'demo-2',
-      name: 'Grilled Chicken',
-      createdAt: new Date(now.getTime() - MS_PER_DAY).toISOString(),
-      items: [
-        { name: 'Chicken Breast', calories: 320, protein: 30, carbs: 0, fat: 8, weight: 150 },
-        { name: 'Roasted Veggies', calories: 120, protein: 5, carbs: 18, fat: 4, weight: 100 },
-      ],
-      healthInsights: {
-        score: 84,
-        grade: 'B',
-        factors: demoHealthScore.factors,
-        feedback: demoHealthScore.feedback,
-      },
-    }),
-  ].filter(Boolean);
 };
 
 export default function RecentlyScreen() {

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Delete, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
@@ -33,5 +33,23 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Account deleted successfully' })
   async deleteAccount(@Request() req: any) {
     return this.usersService.deleteAccount(req.user.id);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get user statistics' })
+  @ApiResponse({ status: 200, description: 'User statistics retrieved successfully' })
+  async getUserStats(@Request() req: any) {
+    return this.usersService.getUserStats(req.user.id);
+  }
+
+  @Get('report')
+  @ApiOperation({ summary: 'Get user report' })
+  @ApiResponse({ status: 200, description: 'User report retrieved successfully' })
+  async getUserReport(
+    @Request() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.usersService.getUserReport(req.user.id, from, to);
   }
 }

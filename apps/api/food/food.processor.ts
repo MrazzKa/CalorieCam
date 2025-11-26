@@ -158,6 +158,48 @@ export class FoodProcessor {
         data: { status: 'COMPLETED' },
       });
 
+      // Increment user stats for photo analysis
+      if (userId && userId !== 'test-user' && userId !== 'temp-user') {
+        try {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayStr = today.toISOString().split('T')[0];
+
+          const existingStats = await this.prisma.userStats.findUnique({
+            where: { userId },
+          });
+
+          if (existingStats) {
+            const lastAnalysisDate = existingStats.lastAnalysisDate
+              ? new Date(existingStats.lastAnalysisDate).toISOString().split('T')[0]
+              : null;
+
+            await this.prisma.userStats.update({
+              where: { userId },
+              data: {
+                totalPhotosAnalyzed: { increment: 1 },
+                todayPhotosAnalyzed: lastAnalysisDate === todayStr
+                  ? { increment: 1 }
+                  : 1,
+                lastAnalysisDate: new Date(),
+              },
+            });
+          } else {
+            await this.prisma.userStats.create({
+              data: {
+                userId,
+                totalPhotosAnalyzed: 1,
+                todayPhotosAnalyzed: 1,
+                lastAnalysisDate: new Date(),
+              },
+            });
+          }
+        } catch (statsError: any) {
+          console.error(`Failed to update user stats for ${userId}:`, statsError.message);
+          // Don't fail the analysis if stats update fails
+        }
+      }
+
       console.log(`Image analysis completed for analysis ${analysisId}`);
     } catch (error: any) {
       console.error(`Image analysis failed for analysis ${analysisId}:`, error);
