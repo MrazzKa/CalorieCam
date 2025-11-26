@@ -66,7 +66,7 @@ Example format:
     try {
       const response = await this.openai.chat.completions.create({
         // Use global OPENAI_MODEL if provided (e.g. gpt-5.1), fallback to VISION_MODEL or default
-        model: process.env.OPENAI_MODEL || process.env.VISION_MODEL || 'gpt-4o-mini',
+        model: process.env.OPENAI_MODEL || process.env.VISION_MODEL || 'gpt-5.1',
         messages: [
           { role: 'system', content: systemPrompt },
           {

@@ -54,12 +54,24 @@ const ProfileScreen = () => {
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [planSaving, setPlanSaving] = useState(false);
   const [pendingPlan, setPendingPlan] = useState('free');
-  const deviceTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
-  const [notificationPreferences, setNotificationPreferences] = useState({
-    dailyPushEnabled: false,
-    dailyPushHour: 8,
-    timezone: deviceTimezone,
-  });
+  const deviceTimezone = useMemo(() => {
+    try {
+      if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return tz || 'UTC';
+      }
+    } catch (e) {
+      // ignore and fall back
+    }
+    return 'UTC';
+  }, []);
+  const [notificationPreferences, setNotificationPreferences] = useState(
+    () => ({
+      dailyPushEnabled: false,
+      dailyPushHour: 8,
+      timezone: deviceTimezone,
+    }),
+  );
   const [notificationLoading, setNotificationLoading] = useState(true);
   const [notificationSaving, setNotificationSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -638,7 +650,7 @@ const ProfileScreen = () => {
       <Modal
         visible={planModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => !planSaving && setPlanModalVisible(false)}
       >
         <View style={styles.modalBackdrop}>

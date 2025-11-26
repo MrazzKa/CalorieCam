@@ -88,7 +88,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
+      animationType="fade"
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

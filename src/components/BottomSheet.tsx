@@ -25,7 +25,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       swipeDirection="down"
       enableSwipe={true}
       enableBackdropClose={true}
-      animationType="slide"
+      animationType="fade"
     >
       <View style={styles.content}>
         <Text style={styles.title}>Add Food</Text>

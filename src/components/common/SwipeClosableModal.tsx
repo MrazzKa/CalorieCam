@@ -33,7 +33,7 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
   swipeDirection = 'down',
   enableSwipe = true,
   enableBackdropClose = true,
-  animationType = 'slide',
+  animationType = 'fade',
   presentationStyle = 'pageSheet',
 }) => {
   const { tokens } = useTheme();
@@ -69,21 +69,19 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
 
         if (shouldClose && enableSwipe) {
           closeModal();
-        } else {
-          // Snap back to original position
-          Animated.spring(translateY, {
-            toValue: swipeDirection === 'down' ? 0 : swipeDirection === 'up' ? 0 : translateY._value,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }).start();
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }).start();
-        }
+    } else {
+      // Snap back to original position with a very small, simple animation
+      Animated.timing(translateY, {
+        toValue: swipeDirection === 'down' || swipeDirection === 'up' ? 0 : translateY._value,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    }
       },
     }),
   ).current;
@@ -91,31 +89,29 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
   useEffect(() => {
     if (visible) {
       if (animationType === 'slide') {
-        Animated.spring(translateY, {
+        Animated.timing(translateY, {
           toValue: 0,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
-      } else {
-        // For fade, just animate opacity
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 200,
+          duration: 150,
           useNativeDriver: true,
         }).start();
       }
+      // For fade / default, just animate opacity lightly
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
     } else {
       if (animationType === 'slide') {
         Animated.timing(translateY, {
           toValue: swipeDirection === 'down' ? SCREEN_HEIGHT : swipeDirection === 'up' ? -SCREEN_HEIGHT : 0,
-          duration: 200,
+          duration: 150,
           useNativeDriver: true,
         }).start();
       }
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
       }).start();
     }

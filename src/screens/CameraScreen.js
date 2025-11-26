@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+// Note: we intentionally avoid react-native-reanimated here to reduce
+// chances of runtime issues in production builds. No custom animations.
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, useReducedMotion } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
@@ -54,7 +55,6 @@ export default function CameraScreen() {
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const captureScale = useSharedValue(1);
 
   const takePicture = async () => {
     if (!cameraRef.current || isLoading) {
@@ -145,10 +145,6 @@ export default function CameraScreen() {
         return t('camera.flashModeOff');
     }
   }, [flashMode, t]);
-
-  const captureAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: captureScale.value }],
-  }));
 
   const handleClose = () => {
     if (navigation && typeof navigation.goBack === 'function') {
@@ -247,18 +243,10 @@ export default function CameraScreen() {
                 <Text style={[styles.controlLabel, { color: tokens.colors.onPrimary }]}>{flashLabel}</Text>
               </Pressable>
 
-              <Animated.View style={[styles.captureWrapper, captureAnimatedStyle]}>
+              <View style={styles.captureWrapper}>
                 <Pressable
                   style={[styles.captureButton, isLoading && styles.captureButtonDisabled]}
                   onPress={typeof takePicture === 'function' ? takePicture : () => {}}
-                  onPressIn={() => {
-                    if (reduceMotion) return;
-                    captureScale.value = withSpring(0.92, { damping: 12, stiffness: 180 });
-                  }}
-                  onPressOut={() => {
-                    if (reduceMotion) return;
-                    captureScale.value = withSpring(1, { damping: 12, stiffness: 180 });
-                  }}
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -267,7 +255,7 @@ export default function CameraScreen() {
                     <View style={[styles.captureButtonInner, { backgroundColor: tokens.colors.primary }]} />
                   )}
                 </Pressable>
-              </Animated.View>
+              </View>
 
               <Pressable
                 style={styles.controlButton}
