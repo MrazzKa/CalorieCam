@@ -57,14 +57,25 @@ export class StatsService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get today's meals
+    // Get today's meals (use consumedAt if available, otherwise createdAt)
     const todayMeals = await this.prisma.meal.findMany({
       where: {
         userId,
-        consumedAt: {
-          gte: today,
-          lt: tomorrow,
-        },
+        OR: [
+          {
+            consumedAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+          {
+            consumedAt: null,
+            createdAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+        ],
       },
       include: {
         items: true,
@@ -197,6 +208,10 @@ export class StatsService {
       throw new BadRequestException('"from" date must be before "to" date');
     }
 
+    // Normalize dates to start/end of day
+    fromDate.setHours(0, 0, 0, 0);
+    toDate.setHours(23, 59, 59, 999);
+
     const cacheKey = crypto
       .createHash('sha1')
       .update(`${userId}:${fromDate.toISOString()}:${toDate.toISOString()}`)
@@ -207,6 +222,33 @@ export class StatsService {
       return cached;
     }
 
+    // Use meals instead of mealLog for more accurate data
+    const meals = await this.prisma.meal.findMany({
+      where: {
+        userId,
+        OR: [
+          {
+            consumedAt: {
+              gte: fromDate,
+              lte: toDate,
+            },
+          },
+          {
+            consumedAt: null,
+            createdAt: {
+              gte: fromDate,
+              lte: toDate,
+            },
+          },
+        ],
+      },
+      include: {
+        items: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Also get mealLog for backward compatibility
     const logs = await this.prisma.mealLog.findMany({
       where: {
         userId,
@@ -218,13 +260,23 @@ export class StatsService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Calculate totals from meals (more accurate than mealLog)
     const totals = {
-      entries: logs.length,
+      entries: meals.length,
       calories: 0,
       protein: 0,
       fat: 0,
       carbs: 0,
     };
+
+    meals.forEach((meal) => {
+      meal.items.forEach((item) => {
+        totals.calories += item.calories || 0;
+        totals.protein += item.protein || 0;
+        totals.fat += item.fat || 0;
+        totals.carbs += item.carbs || 0;
+      });
+    });
 
     const mealTypeDistribution: Record<MealLogMealType, { count: number; calories: number }> = {
       [MealLogMealType.BREAKFAST]: { count: 0, calories: 0 },
@@ -246,35 +298,36 @@ export class StatsService {
       }
     >();
 
+    // Process meals for food map (primary source)
+    meals.forEach((meal) => {
+      meal.items.forEach((item) => {
+        const labelKey = (item.name || 'unknown').toLowerCase();
+        const existing =
+          foodMap.get(labelKey) ||
+          {
+            label: item.name || 'Unknown',
+            fdcId: (item as any)?.fdcId || null,
+            count: 0,
+            quantity: 0,
+            calories: 0,
+            protein: 0,
+            fat: 0,
+            carbs: 0,
+          };
+
+        existing.count += 1;
+        existing.quantity += item.weight || 0;
+        existing.calories += item.calories || 0;
+        existing.protein += item.protein || 0;
+        existing.fat += item.fat || 0;
+        existing.carbs += item.carbs || 0;
+
+        foodMap.set(labelKey, existing);
+      });
+    });
+
+    // Also process logs for backward compatibility and meal type distribution
     logs.forEach((log) => {
-      const labelKey = log.label?.toLowerCase() || log.fdcId || 'unknown';
-      const existing =
-        foodMap.get(labelKey) ||
-        {
-          label: log.label || 'Unknown',
-          fdcId: log.fdcId ?? null,
-          count: 0,
-          quantity: 0,
-          calories: 0,
-          protein: 0,
-          fat: 0,
-          carbs: 0,
-        };
-
-      existing.count += 1;
-      existing.quantity += log.quantity ?? 0;
-      existing.calories += log.calories ?? 0;
-      existing.protein += log.protein ?? 0;
-      existing.fat += log.fat ?? 0;
-      existing.carbs += log.carbs ?? 0;
-
-      foodMap.set(labelKey, existing);
-
-      totals.calories += log.calories ?? 0;
-      totals.protein += log.protein ?? 0;
-      totals.fat += log.fat ?? 0;
-      totals.carbs += log.carbs ?? 0;
-
       const distribution = mealTypeDistribution[log.mealType];
       if (distribution) {
         distribution.count += 1;

@@ -75,18 +75,38 @@ export class AiAssistantService {
   }
 
   async logFlowCompletion(userId: string, flowId: string, summary: string, collected: Record<string, any>) {
-    await this.prisma.aiAssistant.create({
-      data: {
+    try {
+      // Verify user exists before saving
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (userExists) {
+        await this.prisma.aiAssistant.create({
+          data: {
+            userId,
+            type: flowId,
+            question: '[flow-completion]',
+            answer: summary,
+            tokensUsed: 0,
+            promptTokens: 0,
+            completionTokens: 0,
+            context: { flowId, collected },
+          },
+        });
+      } else {
+        this.logger.warn(`[AiAssistantService] User not found for flow completion log: ${userId}`);
+      }
+    } catch (error: any) {
+      // Log but don't throw - flow completion logging is non-critical
+      this.logger.error('[AiAssistantService] Failed to log flow completion', {
         userId,
-        type: flowId,
-        question: '[flow-completion]',
-        answer: summary,
-        tokensUsed: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        context: { flowId, collected },
-      },
-    });
+        flowId,
+        error: error.message,
+        errorCode: error.code,
+      });
+    }
   }
 
   private async generateCompletion(
@@ -117,24 +137,52 @@ export class AiAssistantService {
       const answer = response.choices[0]?.message?.content || 'Sorry, I could not process your question.';
       const usage = response.usage;
 
-      await this.prisma.aiAssistant.create({
-        data: {
+      // Save history - non-critical, don't fail the request if this fails
+      let historyRecord: any = null;
+      try {
+        // Verify user exists before saving history
+        const userExists = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true },
+        });
+
+        if (userExists) {
+          historyRecord = await this.prisma.aiAssistant.create({
+            data: {
+              userId,
+              type,
+              question,
+              answer,
+              tokensUsed: usage?.total_tokens || 0,
+              promptTokens: usage?.prompt_tokens || 0,
+              completionTokens: usage?.completion_tokens || 0,
+              context,
+            },
+          });
+          this.logger.debug(`[AiAssistantService] History saved for userId: ${userId}, type: ${type}`);
+        } else {
+          this.logger.warn(`[AiAssistantService] User not found for history save: ${userId}`);
+        }
+      } catch (historyError: any) {
+        // Log but don't throw - history saving is non-critical
+        this.logger.error('[AiAssistantService] Failed to save conversation history', {
           userId,
           type,
-          question,
-          answer,
-          tokensUsed: usage?.total_tokens || 0,
-          promptTokens: usage?.prompt_tokens || 0,
-          completionTokens: usage?.completion_tokens || 0,
-          context,
-        },
-      });
+          error: historyError.message,
+          errorName: historyError.name,
+          errorCode: historyError.code,
+          // Don't log full stack in production
+          ...(process.env.NODE_ENV === 'development' && { stack: historyError.stack }),
+        });
+        // Continue - don't fail the request
+      }
 
       return {
         answer,
         tokensUsed: usage?.total_tokens || 0,
         promptTokens: usage?.prompt_tokens || 0,
         completionTokens: usage?.completion_tokens || 0,
+        historyId: historyRecord?.id || null,
       };
     } catch (error: any) {
       this.logger.error('[AiAssistantService] OpenAI API error', {

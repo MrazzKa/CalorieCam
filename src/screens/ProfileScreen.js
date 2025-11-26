@@ -210,6 +210,8 @@ const ProfileScreen = () => {
       await ApiService.updateUserProfile(updatedProfile);
       setProfile(updatedProfile);
       setEditing(false);
+      // Reload profile to get updated data and recalculate BMI
+      await loadProfile();
       Alert.alert(safeT('profile.savedTitle', 'Saved'), safeT('profile.savedMessage', 'Profile updated successfully'));
     } catch (error) {
       console.error('Profile update failed', error);
@@ -217,6 +219,12 @@ const ProfileScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Reload original profile data to discard changes
+    loadProfile();
+    setEditing(false);
   };
 
   const reminderOptions = [6, 8, 12, 18, 20];
@@ -675,12 +683,23 @@ const ProfileScreen = () => {
               </View>
             </View>
 
-            <PrimaryButton
-              title={t('common.save')}
-              onPress={typeof handleSave === 'function' ? handleSave : () => {}}
-              loading={loading}
-              style={styles.formSaveButton}
-            />
+            <View style={styles.formActions}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: tokens.colors.borderMuted }]}
+                onPress={handleCancel}
+                disabled={loading}
+              >
+                <Text style={[styles.cancelButtonText, { color: tokens.colors.textSecondary }]}>
+                  {t('common.cancel') || 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <PrimaryButton
+                title={t('common.save')}
+                onPress={typeof handleSave === 'function' ? handleSave : () => {}}
+                loading={loading}
+                style={styles.formSaveButton}
+              />
+            </View>
           </AppCard>
         ) : null}
 
@@ -688,11 +707,13 @@ const ProfileScreen = () => {
           <Text style={styles.sectionTitle}>{t('profile.preferences')}</Text>
           <View style={styles.preferenceRow}>
             <Text style={styles.preferenceLabel}>{t('profile.language')}</Text>
-            <LanguageSelector
-              selectedLanguage={language}
-              languages={availableLanguages}
-              onLanguageChange={changeLanguage}
-            />
+            <View style={styles.languageSelectorContainer}>
+              <LanguageSelector
+                selectedLanguage={language}
+                languages={availableLanguages}
+                onLanguageChange={changeLanguage}
+              />
+            </View>
           </View>
           <View style={[styles.preferenceRow, styles.themeRow]}>
             <View>
@@ -794,7 +815,7 @@ const ProfileScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {t('profile.choosePlan') || 'Choose a plan'}
+                {safeT('profile.choosePlan', 'Choose a plan')}
               </Text>
               <TouchableOpacity
                 onPress={() => !planSaving && setPlanModalVisible(false)}
@@ -1109,8 +1130,26 @@ const createStyles = (tokens) =>
       flexDirection: 'row',
       gap: tokens.spacing.md,
     },
+    formActions: {
+      flexDirection: 'row',
+      gap: tokens.spacing.md,
+      marginTop: tokens.spacing.lg,
+    },
     formSaveButton: {
-      marginTop: tokens.spacing.sm,
+      flex: 1,
+    },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.lg,
+      borderRadius: tokens.radii.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButtonText: {
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
     },
     goalsSection: {
       gap: tokens.spacing.lg,
@@ -1157,9 +1196,14 @@ const createStyles = (tokens) =>
     preferencesCard: {
       gap: tokens.spacing.lg,
     },
+    languageSelectorContainer: {
+      flex: 1,
+      marginLeft: tokens.spacing.md,
+      maxWidth: '100%',
+    },
     preferenceRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       backgroundColor: tokens.colors.card,
       borderRadius: tokens.radii.lg,

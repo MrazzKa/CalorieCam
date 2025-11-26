@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
@@ -117,6 +117,13 @@ export default function RecentlyScreen() {
     loadRecentItems();
   }, []);
 
+  // Reload when screen comes into focus (e.g., after saving a meal)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadRecentItems();
+    }, [])
+  );
+
   const loadRecentItems = async () => {
     try {
       setLoading(true);
@@ -133,7 +140,18 @@ export default function RecentlyScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadRecentItems();
+  }, [loadRecentItems]);
+
+  // Reload when screen comes into focus (e.g., after saving a meal)
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentItems();
+    }, [loadRecentItems])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

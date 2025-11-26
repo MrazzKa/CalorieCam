@@ -106,16 +106,41 @@ export class FoodProcessor {
           if (user) {
             const dishName = items[0]?.name || 'Analyzed Meal';
             // Фильтруем и валидируем items перед сохранением
+            // Relaxed validation: accept items with any nutrition data or reasonable portion
             const validItems = items
-              .map(item => ({
-                name: item.name || 'Unknown Food',
-                calories: item.nutrients?.calories ?? 0,
-                protein: item.nutrients?.protein ?? 0,
-                fat: item.nutrients?.fat ?? 0,
-                carbs: item.nutrients?.carbs ?? 0,
-                weight: item.portion_g ?? 100,
-              }))
-              .filter(item => (item.name && item.name !== 'Unknown Food') && item.calories > 0);
+              .map(item => {
+                const calories = item.nutrients?.calories ?? 0;
+                const protein = item.nutrients?.protein ?? 0;
+                const fat = item.nutrients?.fat ?? 0;
+                const carbs = item.nutrients?.carbs ?? 0;
+                const weight = item.portion_g ?? 100;
+                
+                return {
+                  name: item.name || 'Unknown Food',
+                  calories: Math.max(0, Math.round(calories)),
+                  protein: Math.max(0, Math.round(protein * 10) / 10),
+                  fat: Math.max(0, Math.round(fat * 10) / 10),
+                  carbs: Math.max(0, Math.round(carbs * 10) / 10),
+                  weight: Math.max(1, Math.round(weight)),
+                };
+              })
+              .filter(item => {
+                // Accept if: has valid name AND (has calories OR has macros OR has reasonable portion)
+                const hasValidName = item.name && item.name !== 'Unknown Food';
+                const hasNutrition = item.calories > 0 || item.protein > 0 || item.fat > 0 || item.carbs > 0;
+                const hasReasonablePortion = item.weight >= 10; // At least 10g
+                
+                return hasValidName && (hasNutrition || hasReasonablePortion);
+              });
+            
+            // Log for debugging
+            if (validItems.length === 0 && items.length > 0) {
+              console.log(`[FoodProcessor] No valid items after filtering. Original items:`, items.map(item => ({
+                name: item.name,
+                calories: item.nutrients?.calories,
+                portion_g: item.portion_g,
+              })));
+            }
             
             if (validItems.length > 0) {
               const meal = await this.mealsService.createMeal(userId, {
@@ -262,16 +287,32 @@ export class FoodProcessor {
           if (user) {
             const dishName = items[0]?.name || 'Analyzed Meal';
             // Фильтруем и валидируем items перед сохранением
+            // Relaxed validation: accept items with any nutrition data or reasonable portion
             const validItems = items
-              .map(item => ({
-                name: item.name || 'Unknown Food',
-                calories: item.nutrients?.calories ?? 0,
-                protein: item.nutrients?.protein ?? 0,
-                fat: item.nutrients?.fat ?? 0,
-                carbs: item.nutrients?.carbs ?? 0,
-                weight: item.portion_g ?? 100,
-              }))
-              .filter(item => (item.name && item.name !== 'Unknown Food') && item.calories > 0);
+              .map(item => {
+                const calories = item.nutrients?.calories ?? 0;
+                const protein = item.nutrients?.protein ?? 0;
+                const fat = item.nutrients?.fat ?? 0;
+                const carbs = item.nutrients?.carbs ?? 0;
+                const weight = item.portion_g ?? 100;
+                
+                return {
+                  name: item.name || 'Unknown Food',
+                  calories: Math.max(0, Math.round(calories)),
+                  protein: Math.max(0, Math.round(protein * 10) / 10),
+                  fat: Math.max(0, Math.round(fat * 10) / 10),
+                  carbs: Math.max(0, Math.round(carbs * 10) / 10),
+                  weight: Math.max(1, Math.round(weight)),
+                };
+              })
+              .filter(item => {
+                // Accept if: has valid name AND (has calories OR has macros OR has reasonable portion)
+                const hasValidName = item.name && item.name !== 'Unknown Food';
+                const hasNutrition = item.calories > 0 || item.protein > 0 || item.fat > 0 || item.carbs > 0;
+                const hasReasonablePortion = item.weight >= 10; // At least 10g
+                
+                return hasValidName && (hasNutrition || hasReasonablePortion);
+              });
             
             if (validItems.length > 0) {
               const meal = await this.mealsService.createMeal(userId, {
@@ -285,6 +326,8 @@ export class FoodProcessor {
                 savedAt: new Date().toISOString(),
               };
               console.log(`Automatically saved text analysis ${analysisId} to meals`);
+            } else {
+              console.log(`Skipping auto-save text analysis: no valid items for analysis ${analysisId}`);
             }
           }
         }
