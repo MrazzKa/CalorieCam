@@ -16,6 +16,13 @@ import { clientLog } from '../utils/clientLog';
 export default function CameraScreen() {
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
+  const { tokens } = useTheme();
+  const { t } = useI18n();
+  const [isLoading, setIsLoading] = useState(false);
+  const cameraRef = useRef(null);
+  const [zoom, setZoom] = useState(0);
+  const [facing, setFacing] = useState('back');
+  const [flashMode, setFlashMode] = useState('off');
   
   // Safe requestPermission wrapper
   const handleRequestPermission = async () => {
@@ -44,13 +51,6 @@ export default function CameraScreen() {
       );
     }
   };
-  const [isLoading, setIsLoading] = useState(false);
-  const cameraRef = useRef(null);
-  const [zoom, setZoom] = useState(0);
-  const [facing, setFacing] = useState('back');
-  const [flashMode, setFlashMode] = useState('off');
-  const { tokens } = useTheme();
-  const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -114,7 +114,7 @@ export default function CameraScreen() {
         Alert.alert(t('common.error') || 'Error', 'Navigation not available');
       }
     } catch (error) {
-      console.error('[CameraScreen] Error taking picture:', error);
+      if (__DEV__) console.error('[CameraScreen] Error taking picture:', error);
       await clientLog('Camera:takePictureError', {
         message: error?.message || String(error),
         stack: String(error?.stack || '').substring(0, 500),
@@ -222,7 +222,7 @@ export default function CameraScreen() {
             transition={{ type: 'timing', duration: tokens.motion.durations.slow }}
             style={[styles.header, { paddingTop: insets.top + tokens.spacing.lg }]}
           >
-            <Pressable style={styles.headerButton} onPress={handleClose}>
+            <Pressable style={styles.headerButton} onPress={typeof handleClose === 'function' ? handleClose : () => {}}>
               <Ionicons name="close" size={24} color={tokens.colors.onPrimary} />
             </Pressable>
             <Text style={[styles.headerTitle, { color: tokens.colors.onPrimary }]}>{t('camera.takePhoto')}</Text>
@@ -236,7 +236,7 @@ export default function CameraScreen() {
             style={[styles.controls, { paddingBottom: insets.bottom + tokens.spacing.xl }]}
           >
             <View style={styles.controlRow}>
-              <Pressable style={styles.controlButton} onPress={handleFlashToggle}>
+              <Pressable style={styles.controlButton} onPress={typeof handleFlashToggle === 'function' ? handleFlashToggle : () => {}}>
                 <Ionicons
                   name={
                     flashMode === 'off' ? 'flash-off' : flashMode === 'on' ? 'flash' : 'flash-outline'
@@ -250,7 +250,7 @@ export default function CameraScreen() {
               <Animated.View style={[styles.captureWrapper, captureAnimatedStyle]}>
                 <Pressable
                   style={[styles.captureButton, isLoading && styles.captureButtonDisabled]}
-                  onPress={takePicture}
+                  onPress={typeof takePicture === 'function' ? takePicture : () => {}}
                   onPressIn={() => {
                     if (reduceMotion) return;
                     captureScale.value = withSpring(0.92, { damping: 12, stiffness: 180 });

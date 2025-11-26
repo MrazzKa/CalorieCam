@@ -2,7 +2,7 @@
 // Wrapped in ErrorBoundary to prevent crashes
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { clientLog } from '../utils/clientLog';
@@ -10,6 +10,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { RealAiAssistant } from './RealAiAssistant';
+import { SwipeClosableModal } from './common/SwipeClosableModal';
 
 interface AiAssistantProps {
   visible: boolean;
@@ -82,13 +83,16 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
   };
 
   return (
-    <Modal
+    <SwipeClosableModal
       visible={visible}
+      onClose={handleClose}
+      swipeDirection="down"
+      enableSwipe={true}
+      enableBackdropClose={true}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={handleClose}
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]} edges={['top']}>
         <View style={[styles.header, { borderBottomColor: colors.border || '#E5E5EA' }]}>
           <Text style={[styles.title, { color: colors.text }]}>
             {t('dashboard.aiAssistant') || 'AI Assistant'}
@@ -115,7 +119,7 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
           )}
         </ErrorBoundary>
       </SafeAreaView>
-    </Modal>
+    </SwipeClosableModal>
   );
 };
 

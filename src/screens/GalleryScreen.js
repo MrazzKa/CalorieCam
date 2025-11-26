@@ -39,62 +39,53 @@ export default function GalleryScreen() {
 
     try {
       const p0 = await ImagePicker.getMediaLibraryPermissionsAsync();
-      // Отладочный лог полного объекта разрешений
-      console.log('[GalleryScreen] Permission object:', JSON.stringify(p0, null, 2));
-      console.log('[GalleryScreen] status:', p0.status);
-      console.log('[GalleryScreen] granted:', p0.granted);
-      console.log('[GalleryScreen] canAskAgain:', p0.canAskAgain);
-      if (Platform.OS === 'ios' && p0.accessPrivileges) {
-        console.log('[GalleryScreen] accessPrivileges:', p0.accessPrivileges);
-      }
 
       // Проверяем granted или limited (iOS частичный доступ)
       if (p0.granted) {
         // На iOS может быть частичный доступ (limited)
         if (Platform.OS === 'ios' && p0.accessPrivileges === 'limited') {
-          console.log('[GalleryScreen] Limited access granted - treating as allowed');
+          if (__DEV__) console.log('[GalleryScreen] Limited access granted');
           setState(STATE.LIMITED);
           return true;
         }
-        console.log('[GalleryScreen] Full access granted');
+        if (__DEV__) console.log('[GalleryScreen] Full access granted');
         setState(STATE.READY);
         return true;
       }
 
       // Если не granted, но статус limited - тоже допустимо
       if (p0.status === 'limited') {
-        console.log('[GalleryScreen] Limited status - treating as allowed');
+        if (__DEV__) console.log('[GalleryScreen] Limited status - treating as allowed');
         setState(STATE.LIMITED);
         return true;
       }
 
       // Если можно спросить снова - запрашиваем
       if (p0.canAskAgain !== false) {
-        console.log('[GalleryScreen] Requesting permission...');
+        if (__DEV__) console.log('[GalleryScreen] Requesting permission...');
         const p1 = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log('[GalleryScreen] Request result:', JSON.stringify(p1, null, 2));
         
         if (p1.granted) {
           if (Platform.OS === 'ios' && p1.accessPrivileges === 'limited') {
-            console.log('[GalleryScreen] Limited access after request - treating as allowed');
+            if (__DEV__) console.log('[GalleryScreen] Limited access after request');
             setState(STATE.LIMITED);
             return true;
           }
-          console.log('[GalleryScreen] Full access granted after request');
+          if (__DEV__) console.log('[GalleryScreen] Full access granted after request');
           setState(STATE.READY);
           return true;
         }
         
         // Если статус limited после запроса - тоже допустимо
         if (p1.status === 'limited') {
-          console.log('[GalleryScreen] Limited status after request - treating as allowed');
+          if (__DEV__) console.log('[GalleryScreen] Limited status after request');
           setState(STATE.LIMITED);
           return true;
         }
         
         // iOS странность: accessPrivileges="all" но granted=false - попробуем открыть пикер
         if (Platform.OS === 'ios' && p1.accessPrivileges === 'all' && p1.canAskAgain === true) {
-          console.log('[GalleryScreen] iOS quirk: accessPrivileges=all but granted=false - allowing anyway');
+          if (__DEV__) console.log('[GalleryScreen] iOS quirk: allowing anyway');
           setState(STATE.READY);
           return true;
         }
@@ -102,21 +93,21 @@ export default function GalleryScreen() {
 
       // iOS странность: accessPrivileges="all" но granted=false - попробуем открыть пикер
       if (Platform.OS === 'ios' && p0.accessPrivileges === 'all' && p0.canAskAgain === true) {
-        console.log('[GalleryScreen] iOS quirk detected: accessPrivileges=all but granted=false - allowing anyway');
-        setState(STATE.READY);
-        return true;
-      }
+          if (__DEV__) console.log('[GalleryScreen] iOS quirk detected - allowing anyway');
+          setState(STATE.READY);
+          return true;
+        }
 
-      // Отказ; возможно нельзя повторно спрашивать
-      console.log('[GalleryScreen] Permission denied, canAskAgain:', p0.canAskAgain);
-      setState(STATE.DENIED);
-      return false;
-    } catch (e) {
-      console.error('[GalleryScreen] Permission error:', e);
-      setState(STATE.ERROR);
-      setError(String(e?.message ?? e));
-      return false;
-    }
+        // Отказ; возможно нельзя повторно спрашивать
+        if (__DEV__) console.log('[GalleryScreen] Permission denied, canAskAgain:', p0.canAskAgain);
+        setState(STATE.DENIED);
+        return false;
+      } catch (e) {
+        if (__DEV__) console.error('[GalleryScreen] Permission error:', e);
+        setState(STATE.ERROR);
+        setError(String(e?.message ?? e));
+        return false;
+      }
   }, []);
 
   const openSettings = useCallback(() => {
@@ -129,7 +120,7 @@ export default function GalleryScreen() {
 
   const pickImage = useCallback(async () => {
     if (isOpeningRef.current) {
-      console.log('[GalleryScreen] Picker already opening, skipping...');
+      if (__DEV__) console.log('[GalleryScreen] Picker already opening, skipping...');
       return;
     }
 
@@ -140,7 +131,6 @@ export default function GalleryScreen() {
     try {
       // Проверяем разрешения, но даже если denied - пробуем открыть пикер
       const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-      console.log('[GalleryScreen] Permission before pick:', JSON.stringify(permission, null, 2));
       
       // iOS странность: accessPrivileges="all" но granted=false - пробуем открыть
       const shouldTryOpen = permission.granted || 
@@ -148,8 +138,7 @@ export default function GalleryScreen() {
         permission.status === 'limited';
       
       if (!shouldTryOpen && permission.canAskAgain) {
-        const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log('[GalleryScreen] Permission after request:', JSON.stringify(requested, null, 2));
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       }
 
       // Пробуем открыть пикер даже если разрешение denied (iOS может разрешить)
@@ -179,7 +168,7 @@ export default function GalleryScreen() {
         return;
       }
 
-      console.log('[GalleryScreen] Image selected, compressing...');
+      if (__DEV__) console.log('[GalleryScreen] Image selected, compressing...');
       
       // Compress the image
       const compressedImage = await ImageManipulator.manipulateAsync(
@@ -188,7 +177,7 @@ export default function GalleryScreen() {
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      console.log('[GalleryScreen] Image compressed, navigating...');
+      if (__DEV__) console.log('[GalleryScreen] Image compressed, navigating...');
       setState(STATE.READY);
       isOpeningRef.current = false;
       
@@ -202,8 +191,8 @@ export default function GalleryScreen() {
           source: 'gallery',
         });
       }
-    } catch (e) {
-      console.error('[GalleryScreen] Error picking image:', e);
+      } catch (e) {
+      if (__DEV__) console.error('[GalleryScreen] Error picking image:', e);
       setState(STATE.ERROR);
       setError(String(e?.message ?? e));
       isOpeningRef.current = false;
@@ -218,7 +207,6 @@ export default function GalleryScreen() {
       try {
         // Request permission first
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log('[GalleryScreen] Permission requested:', JSON.stringify(permission, null, 2));
         
         if (!mounted) return;
         
@@ -233,7 +221,7 @@ export default function GalleryScreen() {
           
           // Call pickImage directly
           if (isOpeningRef.current) {
-            console.log('[GalleryScreen] Already opening, skipping...');
+            if (__DEV__) console.log('[GalleryScreen] Already opening, skipping...');
             return;
           }
           
@@ -269,7 +257,7 @@ export default function GalleryScreen() {
               return;
             }
 
-            console.log('[GalleryScreen] Image selected, compressing...');
+            if (__DEV__) console.log('[GalleryScreen] Image selected, compressing...');
             
             // Compress the image
             const compressedImage = await ImageManipulator.manipulateAsync(
@@ -278,7 +266,7 @@ export default function GalleryScreen() {
               { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
             );
 
-            console.log('[GalleryScreen] Image compressed, navigating...');
+            if (__DEV__) console.log('[GalleryScreen] Image compressed, navigating...');
             setState(STATE.READY);
             isOpeningRef.current = false;
             
@@ -294,7 +282,7 @@ export default function GalleryScreen() {
             }
           } catch (e) {
             if (!mounted) return;
-            console.error('[GalleryScreen] Error picking image:', e);
+            if (__DEV__) console.error('[GalleryScreen] Error picking image:', e);
             setState(STATE.ERROR);
             setError(String(e?.message ?? e));
             isOpeningRef.current = false;
@@ -307,7 +295,7 @@ export default function GalleryScreen() {
         }
       } catch (error) {
         if (!mounted) return;
-        console.error('[GalleryScreen] Error in initializeAndOpen:', error);
+        if (__DEV__) console.error('[GalleryScreen] Error in initializeAndOpen:', error);
         setState(STATE.ERROR);
         setError(String(error?.message ?? error));
       }

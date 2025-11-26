@@ -59,7 +59,7 @@ export default function ArticlesScreen() {
             acc[key] = article;
           }
           return acc;
-        }, {} as Record<string, any>)
+        }, {})
       );
       
       setFeed({
@@ -82,7 +82,7 @@ export default function ArticlesScreen() {
         setFeatured([]);
       }
     } catch (err) {
-      console.error('[ArticlesScreen] Error loading articles:', err);
+      if (__DEV__) console.error('[ArticlesScreen] Error loading articles:', err);
       setError(t('articles.errorLoading'));
     } finally {
       setIsLoading(false);
@@ -125,14 +125,13 @@ export default function ArticlesScreen() {
             acc[key] = article;
           }
           return acc;
-        }, {} as Record<string, any>)
+        }, {})
       );
       
       setSearchFeed({
         ...result,
         articles: uniqueArticles,
       });
-      setSearchFeed(result);
     } catch (err) {
       console.error('Error searching articles:', err);
       setSearchFeed({ articles: [], page: 1, pageSize: 20, total: 0 });

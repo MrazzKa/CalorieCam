@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
@@ -15,6 +14,7 @@ import { MotiView } from 'moti';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { PADDING, SPACING, BORDER_RADIUS, SHADOW } from '../utils/designConstants';
+import { SwipeClosableModal } from './common/SwipeClosableModal';
 
 export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => {
   const { colors } = useTheme();
@@ -82,37 +82,25 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
   const autoCalculatedCalories = calculateCalories();
 
   return (
-      <Modal
+    <SwipeClosableModal
       visible={visible}
-      transparent
+      onClose={onClose}
+      swipeDirection="down"
+      enableSwipe={true}
+      enableBackdropClose={true}
       animationType="slide"
-      onRequestClose={() => {
-        if (onClose && typeof onClose === 'function') {
-          onClose();
-        }
-      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
+        style={styles.modalContainer}
       >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => {
-            if (onClose && typeof onClose === 'function') {
-              onClose();
-            }
-          }}
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ type: 'timing', duration: 200 }}
+          style={[styles.modal, { backgroundColor: colors.surface }]}
         >
-          <MotiView
-            from={{ translateY: 300, opacity: 0 }}
-            animate={{ translateY: 0, opacity: 1 }}
-            exit={{ translateY: 300, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20 }}
-            style={[styles.modal, { backgroundColor: colors.surface }]}
-            onPress={(e) => e.stopPropagation()}
-          >
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>{t('editFood.title')}</Text>
@@ -260,23 +248,18 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
               </TouchableOpacity>
             </View>
           </MotiView>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    </Modal>
+        </KeyboardAvoidingView>
+    </SwipeClosableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
   modal: {
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
+    flex: 1,
     maxHeight: '90%',
-    ...SHADOW.lg,
   },
   header: {
     flexDirection: 'row',

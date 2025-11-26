@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './src/core/middleware/error-handler.middleware';
 
 function resolveCorsOrigins(): string | string[] {
   const multi = process.env.CORS_ORIGINS;
@@ -20,11 +21,17 @@ function resolveCorsOrigins(): string | string[] {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Global exception filter for consistent error responses
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 

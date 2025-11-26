@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Animated, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const { height } = Dimensions.get('window');
+import { SwipeClosableModal } from './common/SwipeClosableModal';
 
 interface DescribeFoodModalProps {
   visible: boolean;
@@ -12,36 +11,6 @@ interface DescribeFoodModalProps {
 
 export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, onClose, onAnalyze }) => {
   const [description, setDescription] = useState('');
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: height,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim]);
-
-  const handleClose = () => {
-    Animated.timing(slideAnim, {
-      toValue: height,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      if (onClose && typeof onClose === 'function') {
-        onClose();
-      }
-    });
-  };
 
   const handleAnalyze = () => {
     if (description.trim()) {
@@ -49,88 +18,56 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
         onAnalyze(description.trim());
       }
       setDescription('');
-      handleClose();
+      if (onClose && typeof onClose === 'function') {
+        onClose();
+      }
     }
   };
 
   return (
-    <Modal
+    <SwipeClosableModal
       visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
+      onClose={onClose}
+      swipeDirection="down"
+      enableSwipe={true}
+      enableBackdropClose={true}
+      animationType="slide"
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} onPress={handleClose} />
-        <Animated.View
-          style={[
-            styles.modal,
-            {
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+      <View style={styles.content}>
+        <Text style={styles.title}>Describe Your Food</Text>
+        <Text style={styles.subtitle}>Tell us what you ate and we&apos;ll analyze it</Text>
+        
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="e.g., Grilled chicken breast with rice and vegetables"
+            placeholderTextColor="#95A5A6"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+        
+        <TouchableOpacity 
+          style={[styles.analyzeButton, !description.trim() && styles.analyzeButtonDisabled]} 
+          onPress={handleAnalyze}
+          disabled={!description.trim()}
         >
-          <View style={styles.handle} />
-          
-          <View style={styles.content}>
-            <Text style={styles.title}>Describe Your Food</Text>
-            <Text style={styles.subtitle}>Tell us what you ate and we&apos;ll analyze it</Text>
-            
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Grilled chicken breast with rice and vegetables"
-                placeholderTextColor="#95A5A6"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.analyzeButton, !description.trim() && styles.analyzeButtonDisabled]} 
-              onPress={handleAnalyze}
-              disabled={!description.trim()}
-            >
-              <Ionicons name="sparkles" size={20} color="white" />
-              <Text style={styles.analyzeButtonText}>Analyze</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+          <Ionicons name="sparkles" size={20} color="white" />
+          <Text style={styles.analyzeButtonText}>Analyze</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </SwipeClosableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    flex: 1,
-  },
-  modal: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-    maxHeight: height * 0.6,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#BDC3C7',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-  },
   content: {
     paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
   },
   title: {
     fontSize: 24,

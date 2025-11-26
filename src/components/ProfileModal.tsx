@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SwipeClosableModal } from './common/SwipeClosableModal';
 
 interface ProfileModalProps {
   visible: boolean;
@@ -145,11 +146,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) 
   );
 
   return (
-    <Modal
+    <SwipeClosableModal
       visible={visible}
+      onClose={onClose}
+      swipeDirection="down"
+      enableSwipe={true}
+      enableBackdropClose={true}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
     >
       <View style={styles.container}>
         <View style={styles.header}>
@@ -205,7 +209,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ visible, onClose }) 
           {activeSection === 'faq' && renderFAQSection()}
         </ScrollView>
       </View>
-    </Modal>
+    </SwipeClosableModal>
   );
 };
 

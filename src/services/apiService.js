@@ -11,9 +11,10 @@ class ApiService {
     /** @type {string | null} */
     this.expoPushToken = null;
     
-    // Log configuration on init (using safe values)
-    console.log('[ApiService] Initialized with baseURL:', this.baseURL);
-    console.log('[ApiService] API_BASE_URL constant:', API_BASE_URL);
+    // Log configuration on init (using safe values) - only in dev
+    if (__DEV__) {
+      console.log('[ApiService] Initialized with baseURL:', this.baseURL);
+    }
   }
 
   async setToken(token, refreshToken) {
@@ -35,7 +36,7 @@ class ApiService {
         try {
           await SecureStore.setItemAsync('auth.refreshToken', refreshToken);
         } catch (secureStoreError) {
-          console.warn('SecureStore not available, using AsyncStorage fallback:', secureStoreError);
+          if (__DEV__) console.warn('SecureStore not available, using AsyncStorage fallback');
           await AsyncStorage.setItem('auth.refreshToken', refreshToken);
         }
       } else {
@@ -44,17 +45,17 @@ class ApiService {
           await SecureStore.deleteItemAsync('auth.refreshToken');
         } catch (secureStoreError) {
           // Ignore SecureStore errors when deleting
-          console.warn('SecureStore delete error (ignored):', secureStoreError);
+          if (__DEV__) console.warn('SecureStore delete error (ignored)');
         }
         try {
           await AsyncStorage.removeItem('auth.refreshToken');
         } catch (asyncStorageError) {
           // Ignore AsyncStorage errors when deleting
-          console.warn('AsyncStorage delete error (ignored):', asyncStorageError);
+          if (__DEV__) console.warn('AsyncStorage delete error (ignored)');
         }
       }
     } catch (error) {
-      console.error('Error storing tokens:', error);
+      if (__DEV__) console.error('Error storing tokens:', error);
     }
   }
 
@@ -74,14 +75,14 @@ class ApiService {
         }
       } catch (secureStoreError) {
         // SecureStore might not be available in all environments
-        console.warn('SecureStore not available, trying AsyncStorage:', secureStoreError);
+        if (__DEV__) console.warn('SecureStore not available, trying AsyncStorage');
         const refreshToken = await AsyncStorage.getItem('auth.refreshToken');
         if (refreshToken) {
           this.refreshTokenValue = refreshToken;
         }
       }
     } catch (error) {
-      console.error('Error loading tokens:', error);
+      if (__DEV__) console.error('Error loading tokens:', error);
     }
   }
 
@@ -100,7 +101,7 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    console.log(`[ApiService] Requesting: ${url}`);
+    if (__DEV__) console.log(`[ApiService] Requesting: ${url}`);
     
     // Create AbortController for timeout (more reliable than AbortSignal.timeout)
     const timeoutMs = 30000; // 30 seconds
@@ -123,19 +124,21 @@ class ApiService {
         }
       }
 
-      console.log(`[ApiService] Fetch config:`, {
-        method: config.method || 'GET',
-        headers: Object.keys(config.headers || {}),
-        hasBody: !!config.body,
-        hasAuth: !!(config.headers && config.headers['Authorization']),
-      });
+      if (__DEV__) {
+        console.log(`[ApiService] Fetch config:`, {
+          method: config.method || 'GET',
+          headers: Object.keys(config.headers || {}),
+          hasBody: !!config.body,
+          hasAuth: !!(config.headers && config.headers['Authorization']),
+        });
+      }
 
       let response;
       try {
         response = await fetch(url, config);
       } catch (fetchError) {
         clearTimeout(timeoutId);
-        console.error(`[ApiService] Fetch error for ${url}:`, fetchError);
+        if (__DEV__) console.error(`[ApiService] Fetch error for ${url}:`, fetchError);
         // Re-throw with more context
         const error = new Error(fetchError.message || 'Network request failed');
         error.name = fetchError.name || 'NetworkError';
@@ -146,7 +149,7 @@ class ApiService {
       // Clear timeout on successful fetch
       clearTimeout(timeoutId);
 
-      console.log(`[ApiService] Response status: ${response.status}`);
+      if (__DEV__) console.log(`[ApiService] Response status: ${response.status}`);
 
       if (response.status === 401 && this.refreshTokenValue) {
         let refreshTimeoutId = null;
@@ -218,8 +221,10 @@ class ApiService {
         throw timeoutError;
       }
       
-      console.error(`[ApiService] Request failed for ${url}:`, error.message);
-      console.error('[ApiService] Error details:', error);
+      if (__DEV__) {
+        console.error(`[ApiService] Request failed for ${url}:`, error.message);
+        console.error('[ApiService] Error details:', error);
+      }
       throw error;
     }
   }
@@ -279,17 +284,17 @@ class ApiService {
   }
 
   async verifyOtp(email, otp) {
-    console.log('[ApiService] verifyOtp called with email:', email);
+    if (__DEV__) console.log('[ApiService] verifyOtp called');
     const response = await this.request('/auth/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, code: otp }),
     });
-    console.log('[ApiService] verifyOtp response:', {
-      hasAccessToken: !!response?.accessToken,
-      hasRefreshToken: !!response?.refreshToken,
-      keys: response ? Object.keys(response) : [],
-      fullResponse: response,
-    });
+    if (__DEV__) {
+      console.log('[ApiService] verifyOtp response:', {
+        hasAccessToken: !!response?.accessToken,
+        hasRefreshToken: !!response?.refreshToken,
+      });
+    }
     return response;
   }
 
@@ -314,8 +319,12 @@ class ApiService {
   }
 
   async refreshToken() {
-    return this.request('/auth/refresh', {
+    if (!this.refreshTokenValue) {
+      throw new Error('No refresh token available');
+    }
+    return this.request('/auth/refresh-token', {
       method: 'POST',
+      body: JSON.stringify({ refreshToken: this.refreshTokenValue }),
     });
   }
 
@@ -474,6 +483,19 @@ class ApiService {
     }
   }
 
+  async getUserStats() {
+    try {
+      return await this.request('/users/stats');
+    } catch (error) {
+      console.error('[ApiService] getUserStats error:', error);
+      return {
+        totalPhotosAnalyzed: 0,
+        todayPhotosAnalyzed: 0,
+        dailyLimit: 3,
+      };
+    }
+  }
+
   // Media
   async uploadImage(imageUri) {
     const formData = new FormData();
@@ -569,6 +591,13 @@ class ApiService {
       console.error('[ApiService] getConversationHistory error:', error);
       return [];
     }
+  }
+
+  async analyzeLabResults(userId, rawText, language) {
+    return this.request('/ai-assistant/lab-results', {
+      method: 'POST',
+      body: JSON.stringify({ userId, rawText, language }),
+    });
   }
 
   async listAssistantFlows() {
