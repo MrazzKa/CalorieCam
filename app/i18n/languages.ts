@@ -8,6 +8,7 @@ export interface LanguageOption {
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'en', label: 'English', nativeLabel: 'English', flag: '🇺🇸' },
   { code: 'ru', label: 'Russian', nativeLabel: 'Русский', flag: '🇷🇺' },
+  { code: 'kk', label: 'Kazakh', nativeLabel: 'Қазақша', flag: '🇰🇿' },
   { code: 'es', label: 'Spanish', nativeLabel: 'Español', flag: '🇪🇸' },
   { code: 'de', label: 'German', nativeLabel: 'Deutsch', flag: '🇩🇪' },
   { code: 'fr', label: 'French', nativeLabel: 'Français', flag: '🇫🇷' },

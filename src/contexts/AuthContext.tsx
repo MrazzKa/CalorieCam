@@ -25,12 +25,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshUser = useCallback(async () => {
     try {
       setLoading(true);
-      const profile = await ApiService.getUserProfile();
-      setUser(profile ?? null);
+      const result = await ApiService.getUserProfile();
+      // Backend returns { profile: null } if profile doesn't exist, or the profile object if it exists
+      const profile = result?.profile !== undefined ? result.profile : result;
+      
+      if (profile && profile.id) {
+        // Profile exists - use it directly
+        setUser(profile);
+      } else if (profile === null || (result && result.profile === null)) {
+        // Profile doesn't exist yet - user is authenticated but needs onboarding
+        // Create minimal user object to trigger onboarding flow
+        // Check if we have a valid token to confirm authentication
+        if (ApiService.token) {
+          setUser({ isOnboardingCompleted: false });
+        } else {
+          setUser(null);
+        }
+      } else {
+        // Unexpected response format - try to use result as-is
+        setUser(result || null);
+      }
     } catch (error) {
-      // If session expired or API unavailable, just clear the user in context
-      console.log('[AuthContext] Error refreshing user:', error.message);
-      setUser(null);
+      // Check if error is 404 (profile not found) vs 401 (unauthorized)
+      const isUnauthorized = error?.status === 401 || error?.response?.status === 401;
+      if (isUnauthorized) {
+        // Token expired or invalid - clear user
+        console.log('[AuthContext] Unauthorized - clearing user:', error.message);
+        setUser(null);
+        await ApiService.setToken(null, null);
+      } else {
+        // Profile doesn't exist (404) or other error - if we have a token, user is authenticated
+        // This ensures new users (no profile yet) see onboarding instead of login screen
+        if (ApiService.token) {
+          console.log('[AuthContext] Profile not found but token exists - showing onboarding');
+          setUser({ isOnboardingCompleted: false });
+        } else {
+          console.log('[AuthContext] Error refreshing user (no token):', error.message);
+          setUser(null);
+        }
+      }
     } finally {
       setLoading(false);
     }

@@ -320,7 +320,7 @@ export class HybridService {
   }
 
   private extractNutrients(food: any): any {
-    // Priority: LabelNutrients > FoodNutrient (Atwater 2047/2048) > FoodNutrient (1008)
+    // Priority: LabelNutrients > FoodNutrient (1008 Energy) > FoodNutrient (Atwater 2047/2048)
     if (food.label) {
       return {
         calories: food.label.calories || 0,
@@ -336,17 +336,21 @@ export class HybridService {
     // Extract from FoodNutrient
     const nutrients = food.nutrients || [];
     
-    // Energy: try 2047 (Atwater General), 2048 (Atwater Specific), then 1008
-    const energy = nutrients.find((n: any) => n.nutrientId === 2047 || n.nutrientId === 2048) 
-      || nutrients.find((n: any) => n.nutrientId === 1008);
+    // Energy (kcal): primary 1008, then Atwater 2047/2048
+    const energy =
+      nutrients.find((n: any) => n.nutrientId === 1008) ||
+      nutrients.find((n: any) => n.nutrientId === 2047 || n.nutrientId === 2048);
     
     // Macros: 1003 (protein), 1004 (fat), 1005 (carbs)
     const protein = nutrients.find((n: any) => n.nutrientId === 1003);
     const fat = nutrients.find((n: any) => n.nutrientId === 1004);
     const carbs = nutrients.find((n: any) => n.nutrientId === 1005);
+    // Fiber: 1079 (Fiber, total dietary)
     const fiber = nutrients.find((n: any) => n.nutrientId === 1079);
-    const sugars = nutrients.find((n: any) => n.nutrientId === 1079);
-    const sodium = nutrients.find((n: any) => n.nutrientId === 2000);
+    // Sugars: 2000 (Sugars, total)
+    const sugars = nutrients.find((n: any) => n.nutrientId === 2000);
+    // Sodium: 1093 (Sodium, Na)
+    const sodium = nutrients.find((n: any) => n.nutrientId === 1093);
 
     return {
       calories: energy?.amount || 0,

@@ -328,10 +328,9 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header with time */}
+        {/* Compact header with date only */}
         <View style={styles.header}>
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
             <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
           </View>
         </View>
@@ -392,127 +391,51 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.monthlySection}>
-          <View style={styles.monthlyHeader}>
-            <Text style={styles.sectionTitle}>{t('dashboard.monthlyStats.title')}</Text>
-            {formatRangeLabel(monthlyStats?.range) ? (
-              <Text style={styles.sectionSubtle}>{formatRangeLabel(monthlyStats?.range)}</Text>
-            ) : null}
-          </View>
-
-          {monthlyLoading ? (
-            <View style={styles.monthlyEmpty}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={styles.sectionSubtle}>{t('dashboard.monthlyStats.loading')}</Text>
+        {/* Compact Monthly Highlights - only top 3 foods */}
+        {monthlyStats && monthlyStats.topFoods && monthlyStats.topFoods.length > 0 && (
+          <View style={styles.monthlySection}>
+            <View style={styles.monthlyHeader}>
+              <Text style={styles.sectionTitle}>{t('dashboard.monthlyStats.title')}</Text>
+              {formatRangeLabel(monthlyStats?.range) ? (
+                <Text style={styles.sectionSubtle}>{formatRangeLabel(monthlyStats?.range)}</Text>
+              ) : null}
             </View>
-          ) : !monthlyStats || (monthlyStats?.topFoods?.length ?? 0) === 0 ? (
-            <View style={styles.monthlyEmpty}>
-              <Text style={styles.sectionSubtle}>{t('dashboard.monthlyStats.empty')}</Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.topFoodsContainer}>
-                <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.topFoods')}</Text>
-                {(monthlyStats.topFoods || []).slice(0, 5).map((food, index) => (
-                  <View key={`${food.label}-${index}`} style={styles.topFoodRow}>
-                    <Text style={styles.topFoodRank}>{index + 1}</Text>
-                    <View style={styles.topFoodContent}>
-                      <Text numberOfLines={1} style={styles.topFoodLabel}>{food.label}</Text>
-                      <Text style={styles.topFoodMeta}>
-                        {t('dashboard.monthlyStats.foodMeta', {
-                          count: food.count,
-                          calories: Math.round(food.totalCalories || 0),
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
 
-              <View style={styles.mealDistributionContainer}>
-                <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.mealDistribution')}</Text>
-                {(monthlyStats.mealTypeDistribution || []).map((entry) => (
-                  <View key={entry.mealType} style={styles.mealDistributionRow}>
-                    <View style={styles.mealDistributionHeader}>
-                      <Text style={styles.mealDistributionLabel}>{getMealTypeLabel(entry.mealType)}</Text>
-                      <Text style={styles.mealDistributionMeta}>
-                        {Math.round(entry.percentage || 0)}%
-                      </Text>
-                    </View>
-                    <View style={styles.mealDistributionBarTrack}>
-                      <View
-                        style={[
-                          styles.mealDistributionBarFill,
-                          {
-                            width: `${Math.min(100, Math.round(entry.percentage || 0))}%`,
-                            backgroundColor: colors.primary,
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.mealDistributionMetaSmall}>
-                      {t('dashboard.monthlyStats.mealMeta', {
-                        count: entry.count,
-                        calories: Math.round(entry.totalCalories || 0),
+            <View style={styles.topFoodsContainer}>
+              <Text style={styles.sectionSubtitle}>{t('dashboard.monthlyStats.topFoods')}</Text>
+              {(monthlyStats.topFoods || []).slice(0, 3).map((food, index) => (
+                <View key={`${food.label}-${index}`} style={styles.topFoodRow}>
+                  <Text style={styles.topFoodRank}>{index + 1}</Text>
+                  <View style={styles.topFoodContent}>
+                    <Text numberOfLines={1} style={styles.topFoodLabel}>{food.label}</Text>
+                    <Text style={styles.topFoodMeta}>
+                      {t('dashboard.monthlyStats.foodMeta', {
+                        count: food.count,
+                        calories: Math.round(food.totalCalories || 0),
                       })}
                     </Text>
                   </View>
-                ))}
-              </View>
-            </>
-          )}
-        </View>
+                </View>
+              ))}
+            </View>
 
-        {/* Articles Preview */}
-        <View style={styles.articlesSection}>
-          <View style={styles.articlesHeader}>
-            <Text style={styles.articlesTitle}>{t('dashboard.articles')}</Text>
-            <TouchableOpacity onPress={async () => {
-              await clientLog('Dashboard:viewAllArticlesPressed').catch(() => {});
-              // Navigate to Articles tab - use CommonActions to switch tabs
-              if (navigation && typeof navigation.navigate === 'function') {
-                try {
-                  navigation.navigate('Articles');
-                } catch (e) {
-                  console.warn('[DashboardScreen] Error navigating to Articles:', e);
-                  // Try alternative navigation method
-                  const parent = navigation.getParent();
-                  if (parent && typeof parent.navigate === 'function') {
-                    parent.navigate('Articles');
-                  }
+            <TouchableOpacity
+              style={styles.viewInsightsButton}
+              onPress={() => {
+                // Navigate to Profile tab where stats can be viewed
+                // Or create a dedicated Insights screen later
+                if (navigation && typeof navigation.navigate === 'function') {
+                  navigation.navigate('Profile');
                 }
-              }
-            }}>
-              <Text style={styles.articlesViewAll}>{t('common.viewAll')}</Text>
+              }}
+            >
+              <Text style={styles.viewInsightsButtonText}>
+                {t('dashboard.monthlyStats.viewFullInsights') || 'View full insights'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
-
-          {/* Show only first 3 featured articles */}
-          {featuredArticles.slice(0, 3).length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredList}>
-              {featuredArticles.slice(0, 3).map((a) => (
-                <TouchableOpacity
-                  key={a.id}
-                  style={styles.articleCardSmall}
-                  onPress={async () => {
-                    await clientLog('Dashboard:articleCardPressed', { slug: a.slug }).catch(() => {});
-                    if (navigation && typeof navigation.navigate === 'function') {
-                      navigation.navigate('ArticleDetail', { slug: a.slug });
-                    }
-                  }}
-                >
-                  <View style={styles.featuredBadgeSmall}>
-                    <Ionicons name="star" size={12} color={colors.inverseText} />
-                  </View>
-                  <Text numberOfLines={2} style={styles.articleTitleSmall}>{a.title}</Text>
-                  {a.excerpt ? (
-                    <Text numberOfLines={2} style={styles.articleExcerptSmall}>{a.excerpt}</Text>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </View>
+        )}
 
         {/* Photo Analysis Counter */}
         <View style={styles.analysisCounterContainer}>
@@ -543,33 +466,58 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* AI Assistant Button */}
+        {/* Highlight Meal Section */}
         {highlightMeal?.healthScore && (
-          <View style={styles.highlightSection}>
-            <Text style={styles.highlightTitle}>
-              {t('dashboard.healthScoreTitle', { meal: highlightMeal.name })}
-            </Text>
-            <HealthScoreCard healthScore={highlightMeal.healthScore} />
-            <Text style={styles.highlightSubtitle}>
-              {t('dashboard.healthScoreSubtitle')}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.aiAssistantContainer}>
-          <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
-            <View style={styles.aiAssistantIcon}>
-              <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
-            </View>
-            <View style={styles.aiAssistantContent}>
-              <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
-              <Text style={styles.aiAssistantSubtitle}>
-                {t('dashboard.aiAssistantSubtitle')}
+          <>
+            <View style={styles.highlightSection}>
+              <Text style={styles.highlightTitle}>
+                {t('dashboard.healthScoreTitle', { meal: highlightMeal.name })}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
+
+            {/* AI Assistant Card - moved above Health Score */}
+            <View style={styles.aiAssistantContainer}>
+              <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
+                <View style={styles.aiAssistantIcon}>
+                  <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
+                </View>
+                <View style={styles.aiAssistantContent}>
+                  <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
+                  <Text style={styles.aiAssistantSubtitle}>
+                    {t('dashboard.aiAssistantSubtitle')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Health Score Card */}
+            <View style={styles.highlightSection}>
+              <HealthScoreCard healthScore={highlightMeal.healthScore} />
+              <Text style={styles.highlightSubtitle}>
+                {t('dashboard.healthScoreSubtitle')}
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* AI Assistant Card - shown when no highlight meal */}
+        {!highlightMeal?.healthScore && (
+          <View style={styles.aiAssistantContainer}>
+            <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
+              <View style={styles.aiAssistantIcon}>
+                <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
+              </View>
+              <View style={styles.aiAssistantContent}>
+                <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
+                <Text style={styles.aiAssistantSubtitle}>
+                  {t('dashboard.aiAssistantSubtitle')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
@@ -883,7 +831,7 @@ const createStyles = (tokens) =>
     },
     highlightSection: {
       paddingHorizontal: tokens.spacing.xl,
-      marginBottom: tokens.spacing.xl,
+      marginBottom: tokens.spacing.lg,
       gap: tokens.spacing.md,
     },
     highlightTitle: {
@@ -897,7 +845,7 @@ const createStyles = (tokens) =>
     },
     aiAssistantContainer: {
       paddingHorizontal: tokens.spacing.xl,
-      paddingBottom: tokens.spacing.xl,
+      marginBottom: tokens.spacing.lg,
     },
     aiAssistantButton: {
       flexDirection: 'row',
@@ -1052,6 +1000,18 @@ const createStyles = (tokens) =>
       paddingHorizontal: tokens.spacing.xl,
       marginBottom: tokens.spacing.xl,
       gap: tokens.spacing.md,
+    },
+    viewInsightsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: tokens.spacing.md,
+      gap: tokens.spacing.xs,
+    },
+    viewInsightsButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.primary,
     },
     monthlyHeader: {
       alignItems: 'center',

@@ -336,6 +336,8 @@ export class StatsService {
     });
 
     const topFoods = Array.from(foodMap.values())
+      // Ignore foods that have no calories at all
+      .filter((entry) => entry.calories > 0)
       .sort((a, b) => {
         if (b.count !== a.count) {
           return b.count - a.count;

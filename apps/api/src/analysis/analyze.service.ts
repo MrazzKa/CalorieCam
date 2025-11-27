@@ -164,6 +164,25 @@ export class AnalyzeService {
     const totalPortion = items.reduce((acc, item) => acc + (item.portion_g || 0), 0);
     const healthScore = this.computeHealthScore(total, totalPortion);
 
+    // Debug instrumentation for zero-calorie analyses
+    if (total.calories === 0 && items.length > 0) {
+      this.logger.warn('[AnalyzeService] Zero-calorie analysis detected', {
+        componentCount: components.length,
+        itemCount: items.length,
+        sampleComponents: components.slice(0, 5).map((c) => ({
+          name: c.name,
+          preparation: c.preparation,
+          est_portion_g: c.est_portion_g,
+          confidence: c.confidence,
+        })),
+        sampleItems: items.slice(0, 5).map((it) => ({
+          name: it.name,
+          portion_g: it.portion_g,
+          nutrients: it.nutrients,
+        })),
+      });
+    }
+
     const result = { items, total, trace, healthScore };
 
     // Cache for 24 hours

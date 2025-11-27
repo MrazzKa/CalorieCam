@@ -552,9 +552,28 @@ const ProfileScreen = () => {
           </Text>
         </AppCard>
 
-        {editing ? (
-          <AppCard style={styles.formCard}>
-            <Text style={styles.sectionTitle}>{t('profile.details')}</Text>
+        <Modal
+          visible={editing}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={handleCancel}
+        >
+          <SafeAreaView style={[styles.editModalContainer, { backgroundColor: tokens.colors.background }]}>
+            <View style={[styles.editModalHeader, { borderBottomColor: tokens.colors.border }]}>
+              <TouchableOpacity
+                onPress={handleCancel}
+                style={styles.editModalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={tokens.colors.textPrimary} />
+              </TouchableOpacity>
+              <Text style={[styles.editModalTitle, { color: tokens.colors.textPrimary }]}>
+                {t('profile.editProfile') || 'Edit Profile'}
+              </Text>
+              <View style={styles.editModalCloseButton} />
+            </View>
+            <ScrollView style={styles.editModalContent} contentContainerStyle={styles.editModalContentInner}>
+              <AppCard style={styles.formCard}>
+                <Text style={styles.sectionTitle}>{t('profile.details')}</Text>
             <View style={styles.fieldRow}>
               <ProfileField
                 label={t('profile.firstName')}
@@ -682,8 +701,9 @@ const ProfileScreen = () => {
                 </View>
               </View>
             </View>
-
-            <View style={styles.formActions}>
+              </AppCard>
+            </ScrollView>
+            <View style={[styles.editModalFooter, { borderTopColor: tokens.colors.border, backgroundColor: tokens.colors.surface }]}>
               <TouchableOpacity
                 style={[styles.cancelButton, { borderColor: tokens.colors.borderMuted }]}
                 onPress={handleCancel}
@@ -700,8 +720,8 @@ const ProfileScreen = () => {
                 style={styles.formSaveButton}
               />
             </View>
-          </AppCard>
-        ) : null}
+          </SafeAreaView>
+        </Modal>
 
         <AppCard style={styles.preferencesCard}>
           <Text style={styles.sectionTitle}>{t('profile.preferences')}</Text>
@@ -812,7 +832,7 @@ const ProfileScreen = () => {
         onRequestClose={() => !planSaving && setPlanModalVisible(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: tokens.colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {safeT('profile.choosePlan', 'Choose a plan')}
@@ -1037,15 +1057,56 @@ const createStyles = (tokens) =>
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)',
       padding: tokens.spacing.xl,
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     modalContent: {
       backgroundColor: tokens.colors.surfacePrimary || tokens.colors.surface,
-      borderTopLeftRadius: tokens.radii.xl,
-      borderTopRightRadius: tokens.radii.xl,
+      borderRadius: tokens.radii.xl,
       maxHeight: '85%',
+      width: '100%',
+      maxWidth: 500,
       padding: tokens.spacing.xl,
       gap: tokens.spacing.lg,
+      ...(tokens.states.cardShadow || tokens.elevations.md),
+    },
+    editModalContainer: {
+      flex: 1,
+    },
+    editModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.lg,
+      paddingVertical: tokens.spacing.md,
+      borderBottomWidth: 1,
+    },
+    editModalTitle: {
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      flex: 1,
+      textAlign: 'center',
+    },
+    editModalCloseButton: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    editModalContent: {
+      flex: 1,
+    },
+    editModalContentInner: {
+      padding: tokens.spacing.lg,
+    },
+    editModalFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: tokens.spacing.lg,
+      paddingVertical: tokens.spacing.md,
+      borderTopWidth: 1,
+      gap: tokens.spacing.md,
     },
     modalHeader: {
       flexDirection: 'row',
