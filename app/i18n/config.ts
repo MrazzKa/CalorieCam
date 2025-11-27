@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 
 import en from './locales/en.json';
+import ru from './locales/ru.json';
+import kk from './locales/kk.json';
 import es from './locales/es.json';
 import de from './locales/de.json';
 import fr from './locales/fr.json';
@@ -16,7 +18,9 @@ const STORAGE_KEY = '@eatsense:language';
 // Безопасная нормализация ENV переменных
 const DEFAULT_FALLBACK = String(process.env.EXPO_PUBLIC_DEFAULT_LOCALE || 'en').trim() || 'en';
 
-const SUPPORTED_LOCALES_RAW = String(process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,es,de,fr,ko,ja,zh').trim();
+const SUPPORTED_LOCALES_RAW = String(
+  process.env.EXPO_PUBLIC_SUPPORTED_LOCALES || 'en,ru,kk,es,de,fr,ko,ja,zh',
+).trim();
 const SUPPORTED_LOCALES = SUPPORTED_LOCALES_RAW
   .split(',')
   .map(locale => locale.trim())
@@ -24,6 +28,8 @@ const SUPPORTED_LOCALES = SUPPORTED_LOCALES_RAW
 
 const resources = {
   en: { translation: en },
+  ru: { translation: ru },
+  kk: { translation: kk },
   es: { translation: es },
   de: { translation: de },
   fr: { translation: fr },

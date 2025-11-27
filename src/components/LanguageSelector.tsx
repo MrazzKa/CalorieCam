@@ -29,9 +29,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     }
   };
 
+  // Prioritize EN, RU, KK - show them first
+  const sortedLanguages = React.useMemo(() => {
+    const priority = ['en', 'ru', 'kk'];
+    const priorityLangs = (languages || []).filter(l => priority.includes(l.code));
+    const otherLangs = (languages || []).filter(l => !priority.includes(l.code));
+    return [...priorityLangs, ...otherLangs];
+  }, [languages]);
+
   return (
     <View style={styles.wrapper}>
-      {(languages || []).map((language) => {
+      {sortedLanguages.map((language) => {
         const isActive = language.code === selectedLanguage;
         return (
           <TouchableOpacity

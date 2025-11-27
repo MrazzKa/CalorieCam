@@ -202,16 +202,16 @@ export default function CameraScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.background }]}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef} zoom={zoom} enableZoomGesture flash={flashMode}>
+    <View style={[styles.container, { backgroundColor: '#000000' }]}>
+      <CameraView style={StyleSheet.absoluteFill} facing={facing} ref={cameraRef} zoom={zoom} enableZoomGesture flash={flashMode}>
         <LinearGradient
           colors={['rgba(0,0,0,0.65)', 'transparent', 'rgba(0,0,0,0.75)']}
           style={StyleSheet.absoluteFill}
         />
 
-        <View style={styles.cameraOverlay}>
+        <View style={[styles.cameraOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View
-            style={[styles.header, { paddingTop: insets.top + tokens.spacing.lg }]}
+            style={[styles.header, { paddingTop: tokens.spacing.lg }]}
           >
             <Pressable style={styles.headerButton} onPress={typeof handleClose === 'function' ? handleClose : () => {}}>
               <Ionicons name="close" size={24} color={tokens.colors.onPrimary} />
@@ -221,7 +221,7 @@ export default function CameraScreen() {
           </View>
 
           <View
-            style={[styles.controls, { paddingBottom: insets.bottom + tokens.spacing.xl }]}
+            style={[styles.controls, { paddingBottom: tokens.spacing.xl }]}
           >
             <View style={styles.controlRow}>
               <Pressable style={styles.controlButton} onPress={typeof handleFlashToggle === 'function' ? handleFlashToggle : () => {}}>
@@ -279,7 +279,7 @@ export default function CameraScreen() {
           </View>
         </View>
       </CameraView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -293,7 +293,7 @@ const createStyles = (tokens) =>
       flex: 1,
     },
     cameraOverlay: {
-      flex: 1,
+      ...StyleSheet.absoluteFillObject,
       justifyContent: 'space-between',
       paddingHorizontal: tokens.spacing.xl,
     },

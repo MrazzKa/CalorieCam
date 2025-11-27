@@ -27,25 +27,26 @@ interface Message {
 
 interface LabMetric {
   name: string;
-  value: number;
+  value: number | string;
   unit: string;
   isNormal: boolean;
   level: 'low' | 'normal' | 'high';
   comment?: string;
 }
 
-interface LabResult {
-  id: string;
-  metrics: LabMetric[];
-  summary: string;
-  recommendation: string;
-}
-
 interface RealAiAssistantProps {
   onClose: () => void;
 }
 
-type TabType = 'chat' | 'lab';
+type TabType = 'chat' | 'health';
+
+interface HealthResult {
+  id: string;
+  metrics?: LabMetric[];
+  summary: string;
+  recommendation: string;
+  keyFindings?: string[];
+}
 
 export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => {
   const { user } = useAuth();
@@ -55,9 +56,9 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [labText, setLabText] = useState('');
+  const [healthText, setHealthText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [labResult, setLabResult] = useState<LabResult | null>(null);
+  const [healthResult, setHealthResult] = useState<HealthResult | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -212,37 +213,72 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
     }
   }, [onClose]);
 
-  const handleAnalyzeLabResults = useCallback(async () => {
-    const trimmedText = labText.trim();
+  // Detect if text looks like lab results (numbers + units like g/L, mmol/L, %, etc.)
+  const looksLikeLabResults = useCallback((text: string): boolean => {
+    const labPatterns = [
+      /\d+\.?\d*\s*(g\/L|mmol\/L|mg\/dL|μmol\/L|IU\/L|%|cells\/μL|10\^3\/μL)/i,
+      /\b(WBC|RBC|HGB|HCT|PLT|GLU|CHOL|HDL|LDL|TG|ALT|AST|CREA|BUN|TSH|T4|T3)\b/i,
+      /\b(white blood|red blood|hemoglobin|hematocrit|platelet|glucose|cholesterol|triglyceride)\b/i,
+    ];
+    return labPatterns.some(pattern => pattern.test(text));
+  }, []);
+
+  const handleAnalyzeHealth = useCallback(async () => {
+    const trimmedText = healthText.trim();
     if (!trimmedText || isLoading || !user?.id) return;
 
     setIsLoading(true);
-    setLabResult(null);
+    setHealthResult(null);
 
     try {
-      await clientLog('AiAssistant:labResultsAnalyzed', { textLength: trimmedText.length }).catch(() => {});
+      const isLabResults = looksLikeLabResults(trimmedText);
+      await clientLog('AiAssistant:healthAnalyzed', { 
+        textLength: trimmedText.length,
+        isLabResults,
+      }).catch(() => {});
 
-      // Check if method exists
-      if (!ApiService || typeof ApiService.analyzeLabResults !== 'function') {
-        throw new Error('ApiService.analyzeLabResults is not available');
+      let response: any;
+
+      if (isLabResults) {
+        // Call lab-results endpoint
+        if (!ApiService || typeof ApiService.analyzeLabResults !== 'function') {
+          throw new Error('ApiService.analyzeLabResults is not available');
+        }
+        response = await ApiService.analyzeLabResults(
+          user.id,
+          trimmedText,
+          language || 'en',
+        );
+        setHealthResult({
+          id: response.id || `health-${Date.now()}`,
+          metrics: response.metrics || [],
+          summary: response.summary || '',
+          recommendation: response.recommendation || '',
+        });
+      } else {
+        // Call health-check endpoint
+        if (!ApiService || typeof ApiService.getHealthCheck !== 'function') {
+          throw new Error('ApiService.getHealthCheck is not available');
+        }
+        response = await ApiService.getHealthCheck(
+          user.id,
+          trimmedText,
+          language || 'en',
+        );
+        // Parse health-check response (it returns { answer, ... })
+        const answer = response?.answer || response?.summary || '';
+        // Try to extract structured data if available
+        setHealthResult({
+          id: `health-${Date.now()}`,
+          summary: answer,
+          recommendation: response?.recommendation || '',
+          keyFindings: response?.keyFindings || [],
+        });
       }
 
-      const response = await ApiService.analyzeLabResults(
-        user.id,
-        trimmedText,
-        language || 'en',
-      );
-
-      setLabResult({
-        id: response.id || `lab-${Date.now()}`,
-        metrics: response.metrics || [],
-        summary: response.summary || '',
-        recommendation: response.recommendation || '',
-      });
-
-      setLabText('');
+      setHealthText('');
     } catch (error: any) {
-      console.error('[RealAiAssistant] Error analyzing lab results:', error);
+      console.error('[RealAiAssistant] Error analyzing health:', error);
       
       const isQuotaExceeded = 
         error?.status === 503 ||
@@ -253,21 +289,21 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         ? (t('aiAssistant.quotaExceeded') || 'AI Assistant quota exceeded. Please try again later.')
         : (t('aiAssistant.error') || 'Sorry, something went wrong. Please try again later.');
 
-      setLabResult({
+      setHealthResult({
         id: `error-${Date.now()}`,
         metrics: [],
         summary: errorMessage,
         recommendation: '',
       });
 
-      await clientLog('AiAssistant:labResultsError', { 
+      await clientLog('AiAssistant:healthError', { 
         message: error?.message || String(error),
         status: error?.status,
       }).catch(() => {});
     } finally {
       setIsLoading(false);
     }
-  }, [labText, isLoading, user?.id, language, t]);
+  }, [healthText, isLoading, user?.id, language, t, looksLikeLabResults]);
 
   const renderMessage = (message: Message) => {
     const isUser = message.role === 'user';
@@ -303,13 +339,13 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
     );
   };
 
-  const renderLabResults = () => {
-    if (!labResult) {
+  const renderHealthResults = () => {
+    if (!healthResult) {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="medical" size={64} color={colors.textTertiary || '#8E8E93'} />
           <Text style={[styles.emptyText, { color: colors.textSecondary || '#6B7280' }]}>
-            {t('aiAssistant.labResults.empty') || 'Paste your lab results text below to analyze'}
+            {t('aiAssistant.healthAnalysis.empty') || 'Paste your health information or lab results below to analyze'}
           </Text>
         </View>
       );
@@ -317,23 +353,47 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
 
     return (
       <ScrollView style={styles.labResultsContainer} contentContainerStyle={styles.labResultsContent}>
-        {labResult.summary && (
+        {healthResult.summary && (
           <View style={[styles.labSection, { backgroundColor: colors.surfaceMuted || '#F2F2F7' }]}>
             <Text style={[styles.labSectionTitle, { color: colors.text || '#000000' }]}>
-              {t('aiAssistant.labResults.summary') || 'Summary'}
+              {t('aiAssistant.healthAnalysis.summary') || 'Summary'}
             </Text>
             <Text style={[styles.labSectionText, { color: colors.text || '#000000' }]}>
-              {labResult.summary}
+              {healthResult.summary}
             </Text>
           </View>
         )}
 
-        {labResult.metrics && labResult.metrics.length > 0 && (
+        {healthResult.keyFindings && healthResult.keyFindings.length > 0 && (
           <View style={styles.labMetricsContainer}>
             <Text style={[styles.labSectionTitle, { color: colors.text || '#000000' }]}>
-              {t('aiAssistant.labResults.metrics') || 'Metrics'}
+              {t('aiAssistant.healthAnalysis.keyFindings') || 'Key Findings'}
             </Text>
-            {labResult.metrics.map((metric, index) => (
+            {healthResult.keyFindings.map((finding, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.labMetricCard,
+                  {
+                    backgroundColor: colors.surface || '#FFFFFF',
+                    borderColor: colors.primary || '#007AFF',
+                  },
+                ]}
+              >
+                <Text style={[styles.labMetricName, { color: colors.text || '#000000' }]}>
+                  {finding}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {healthResult.metrics && healthResult.metrics.length > 0 && (
+          <View style={styles.labMetricsContainer}>
+            <Text style={[styles.labSectionTitle, { color: colors.text || '#000000' }]}>
+              {t('aiAssistant.healthAnalysis.metrics') || 'Metrics'}
+            </Text>
+            {healthResult.metrics.map((metric, index) => (
               <View
                 key={index}
                 style={[
@@ -393,13 +453,13 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
           </View>
         )}
 
-        {labResult.recommendation && (
+        {healthResult.recommendation && (
           <View style={[styles.labSection, { backgroundColor: colors.surfaceMuted || '#F2F2F7' }]}>
             <Text style={[styles.labSectionTitle, { color: colors.text || '#000000' }]}>
-              {t('aiAssistant.labResults.recommendation') || 'Recommendations'}
+              {t('aiAssistant.healthAnalysis.recommendation') || 'Recommendations'}
             </Text>
             <Text style={[styles.labSectionText, { color: colors.text || '#000000' }]}>
-              {labResult.recommendation}
+              {healthResult.recommendation}
             </Text>
           </View>
         )}
@@ -407,7 +467,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         <View style={[styles.labDisclaimer, { backgroundColor: colors.warning + '20' || '#FF950020' }]}>
           <Ionicons name="warning" size={16} color={colors.warning || '#FF9500'} />
           <Text style={[styles.labDisclaimerText, { color: colors.text || '#000000' }]}>
-            {t('aiAssistant.labResults.disclaimer') || 'This is not a medical diagnosis. Please consult a healthcare professional for medical decisions.'}
+            {t('aiAssistant.healthAnalysis.disclaimer') || 'This is not a medical diagnosis. Please consult a healthcare professional for medical decisions.'}
           </Text>
         </View>
       </ScrollView>
@@ -444,24 +504,24 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'lab' && { borderBottomColor: colors.primary || '#007AFF' },
+            activeTab === 'health' && { borderBottomColor: colors.primary || '#007AFF' },
           ]}
-          onPress={() => setActiveTab('lab')}
+          onPress={() => setActiveTab('health')}
         >
           <Ionicons
             name="medical"
             size={20}
-            color={activeTab === 'lab' ? colors.primary || '#007AFF' : colors.textTertiary || '#8E8E93'}
+            color={activeTab === 'health' ? colors.primary || '#007AFF' : colors.textTertiary || '#8E8E93'}
           />
           <Text
             style={[
               styles.tabText,
               {
-                color: activeTab === 'lab' ? colors.primary || '#007AFF' : colors.textTertiary || '#8E8E93',
+                color: activeTab === 'health' ? colors.primary || '#007AFF' : colors.textTertiary || '#8E8E93',
               },
             ]}
           >
-            {t('aiAssistant.tabs.labResults') || 'Blood Tests'}
+            {t('aiAssistant.tabs.healthAnalysis') || 'Health Analysis'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -559,8 +619,8 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
           </>
         ) : (
           <>
-            {renderLabResults()}
-            {/* Lab Results Input */}
+            {renderHealthResults()}
+            {/* Health Analysis Input */}
             <View style={[styles.inputContainer, { 
               backgroundColor: colors.surface || '#FFFFFF', 
               borderTopColor: colors.border || '#E5E5EA',
@@ -575,10 +635,10 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
                     borderColor: colors.border || '#E5E5EA',
                   },
                 ]}
-                placeholder={t('aiAssistant.labResults.placeholder') || 'Paste your lab results text here...'}
+                placeholder={t('aiAssistant.healthAnalysis.placeholder') || 'Paste your health information or lab results here...'}
                 placeholderTextColor={colors.textTertiary || '#8E8E93'}
-                value={labText}
-                onChangeText={setLabText}
+                value={healthText}
+                onChangeText={setHealthText}
                 multiline
                 maxLength={2000}
                 editable={!isLoading}
@@ -589,13 +649,13 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
                   styles.sendButton,
                   {
                     backgroundColor:
-                      labText.trim() && !isLoading
+                      healthText.trim() && !isLoading
                         ? colors.primary || '#007AFF'
                         : colors.surfaceMuted || '#E5E5EA',
                   },
                 ]}
-                onPress={handleAnalyzeLabResults}
-                disabled={!labText.trim() || isLoading}
+                onPress={handleAnalyzeHealth}
+                disabled={!healthText.trim() || isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color={colors.onPrimary || '#FFFFFF'} />
@@ -604,7 +664,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
                     name="analytics"
                     size={20}
                     color={
-                      labText.trim() && !isLoading
+                      healthText.trim() && !isLoading
                         ? colors.onPrimary || '#FFFFFF'
                         : colors.textTertiary || '#8E8E93'
                     }

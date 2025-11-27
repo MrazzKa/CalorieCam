@@ -42,7 +42,8 @@
       "topFoods": "Top foods",
       "foodMeta": "{{count}} logs • {{calories}} kcal total",
       "mealDistribution": "Meal distribution",
-      "mealMeta": "{{count}} meals • {{calories}} kcal"
+      "mealMeta": "{{count}} meals • {{calories}} kcal",
+      "viewFullInsights": "View full insights"
     },
     "mealTypes": {
       "breakfast": "Breakfast",
@@ -179,7 +180,20 @@
     "deleteAccountConfirm": "Delete",
     "deleteAccountCancel": "Cancel",
     "deleteAccountSuccess": "Account deleted successfully",
-    "deleteAccountError": "Failed to delete account. Please try again."
+    "deleteAccountError": "Failed to delete account. Please try again.",
+    "goalsTitle": "Goals & diet",
+    "goalLabel": "Goal",
+    "goalLoseWeight": "Lose weight",
+    "goalMaintainWeight": "Maintain weight",
+    "goalGainMuscle": "Gain muscle",
+    "dietLabel": "Diet type",
+    "dietBalanced": "Balanced",
+    "dietHighProtein": "High protein",
+    "dietLowCarb": "Low carb",
+    "dietMediterranean": "Mediterranean",
+    "dietPlantBased": "Plant-based",
+    "choosePlan": "Choose a plan",
+    "selectPlan": "Select Plan"
   },
   "gallery": {
     "title": "Select Photo",
@@ -402,16 +416,17 @@
       "calorieAdvice": "Calorie advice"
     },
     "tabs": {
-      "chat": "Assistant",
-      "labResults": "Analysis"
+      "chat": "Chat",
+      "healthAnalysis": "Health Analysis"
     },
-    "labResults": {
-      "empty": "Paste your blood test results below to analyze them.",
+    "healthAnalysis": {
+      "empty": "Paste your health information or lab results below to analyze",
       "summary": "Summary",
+      "keyFindings": "Key Findings",
       "metrics": "Metrics",
       "recommendation": "Recommendations",
-      "disclaimer": "This is not a medical diagnosis. Please consult a healthcare professional for medical decisions.",
-      "placeholder": "Paste your lab results text here..."
+      "placeholder": "Paste your health information or lab results here...",
+      "disclaimer": "This is not a medical diagnosis. Please consult a healthcare professional for medical decisions."
     }
   },
   "assistant": {

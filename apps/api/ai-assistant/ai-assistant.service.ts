@@ -222,6 +222,8 @@ export class AiAssistantService {
     // Map language codes to language names for OpenAI
     const languageMap: Record<string, string> = {
       en: 'English',
+      ru: 'Russian',
+      kk: 'Kazakh',
       es: 'Spanish',
       de: 'German',
       fr: 'French',
@@ -378,6 +380,8 @@ CRITICAL RULES:
     
     const languageMap: Record<string, string> = {
       en: 'English',
+      ru: 'Russian',
+      kk: 'Kazakh',
       es: 'Spanish',
       de: 'German',
       fr: 'French',

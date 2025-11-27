@@ -286,12 +286,47 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (response?.accessToken) {
         await ApiService.setToken(response.accessToken, response.refreshToken);
         setStatusMessage(t('auth.messages.signedIn'));
-        // Call onAuthSuccess immediately - no delay needed
+        
+        // Update AuthContext - load user profile (same as OTP flow)
+        let profile = null;
+        try {
+          await clientLog('Auth:googleSignInRefreshUser').catch(() => {});
+          profile = await ApiService.getUserProfile();
+          if (profile) {
+            setUser(profile);
+            await clientLog('Auth:googleSignInUserSet', {
+              userId: profile?.id || 'unknown',
+              hasOnboardingCompleted: !!profile?.isOnboardingCompleted,
+            }).catch(() => {});
+          } else {
+            // Profile doesn't exist yet - create a minimal user object to trigger onboarding
+            // This ensures user is considered authenticated even without profile
+            setUser({ id: response.user?.id, email: response.user?.email, isOnboardingCompleted: false });
+            await clientLog('Auth:googleSignInNoProfile', {
+              userId: response.user?.id || 'unknown',
+            }).catch(() => {});
+          }
+        } catch (profileError) {
+          console.warn('[AuthScreen] Error loading user profile after Google Sign In:', profileError);
+          // User is authenticated but profile fetch failed - create minimal user object
+          // This ensures onboarding is shown instead of login screen
+          if (response.user?.id) {
+            setUser({ id: response.user.id, email: response.user.email, isOnboardingCompleted: false });
+          }
+        }
+        
+        // Call onAuthSuccess if provided (for backward compatibility)
         if (onAuthSuccess && typeof onAuthSuccess === 'function') {
           console.log('[AuthScreen] Calling onAuthSuccess for Google Sign In');
           await onAuthSuccess();
           console.log('[AuthScreen] onAuthSuccess completed for Google Sign In');
         }
+        
+        // DO NOT navigate here - let RootNavigator handle navigation based on isAuthenticated state
+        await clientLog('Auth:googleSignInSuccessComplete', {
+          hasProfile: !!profile,
+          needsOnboarding: !profile?.isOnboardingCompleted,
+        }).catch(() => {});
       } else {
         throw new Error('No access token received from server');
       }
