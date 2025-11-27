@@ -20,6 +20,13 @@
     "lib": ["ES2020"],
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "*.ts", "**/*.ts", "food/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts", "*.ts", "food/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "test",
+    "**/test/**"
+  ]
 }

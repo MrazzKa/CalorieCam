@@ -12,5 +12,6 @@
         "watchAssets": true
       }
     ]
-  }
+  },
+  "test": false
 }
