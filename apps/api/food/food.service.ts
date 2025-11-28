@@ -232,8 +232,39 @@ export class FoodService {
   /**
    * Map AnalysisData to frontend format
    */
-  private mapAnalysisResult(raw: AnalysisData) {
-    const items = raw.items || [];
+  private mapAnalysisResult(raw: AnalysisData | any) {
+    // Normalize items to AnalyzedItem[] to be robust to legacy shapes
+    const rawItems: any[] = Array.isArray(raw?.items) ? raw.items : [];
+    const items: AnalyzedItem[] = rawItems.map((item: any) => {
+      // New shape: already AnalyzedItem with nutrients
+      if (item && item.nutrients) {
+        return item as AnalyzedItem;
+      }
+      // Legacy shape: { label, kcal, protein, carbs, fat, gramsMean }
+      const calories = item?.kcal ?? item?.calories ?? 0;
+      const protein = item?.protein ?? 0;
+      const carbs = item?.carbs ?? 0;
+      const fat = item?.fat ?? 0;
+      const weight = item?.gramsMean ?? item?.weight ?? 100;
+
+      return {
+        name: normalizeFoodName(item?.label || item?.name || 'Unknown Food'),
+        label: item?.label,
+        portion_g: weight,
+        nutrients: {
+          calories,
+          protein,
+          carbs,
+          fat,
+          fiber: 0,
+          sugars: 0,
+          satFat: 0,
+          energyDensity: 0,
+        },
+        source: 'fdc',
+      };
+    });
+
     const ingredients = items.map((item: AnalyzedItem) => {
       const n = item.nutrients;
       return {
