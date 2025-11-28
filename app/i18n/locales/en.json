@@ -113,7 +113,15 @@
     "timeoutMessage": "The analysis is taking longer than expected. Please try again.",
     "savedTitle": "Saved",
     "savedMessage": "Meal saved to your journal",
-    "saveError": "Failed to save meal. Please try again."
+    "saveError": "Failed to save meal. Please try again.",
+    "needsReviewTitle": "Review Required",
+    "needsReviewMessage": "We're not fully confident about this analysis. Please double-check and edit the values."
+  },
+  "describeFood": {
+    "title": "Describe Your Food",
+    "subtitle": "Tell us what you ate and we'll analyze it",
+    "placeholder": "e.g., Grilled chicken breast with rice and vegetables",
+    "analyze": "Analyze"
   },
   "healthScore": {
     "title": "Health Score",
@@ -193,7 +201,36 @@
     "dietMediterranean": "Mediterranean",
     "dietPlantBased": "Plant-based",
     "choosePlan": "Choose a plan",
-    "selectPlan": "Select Plan"
+    "selectPlan": "Select Plan",
+    "subscriptionTitle": "Subscription",
+    "changePlan": "Change plan",
+    "billingAnnual": "Billed annually",
+    "billingMonthly": "Billed monthly",
+    "billingFree": "Free forever",
+    "planFreeName": "EatSense Free",
+    "planProName": "EatSense Pro",
+    "planFreePrice": "Free",
+    "planMonthlyPrice": "{{price}} / month",
+    "planAnnualPrice": "{{price}} / year",
+    "planFreeDescription": "Start tracking meals with essential features.",
+    "planProMonthlyDescription": "Unlock unlimited AI tools with flexible billing.",
+    "planProAnnualDescription": "Best value — save 33% vs monthly billing.",
+    "planFeatures": {
+      "limitedAnalyses": "Up to 3 AI analyses per day",
+      "calorieTracking": "Calorie tracking",
+      "basicStats": "Basic statistics",
+      "unlimitedAnalyses": "Unlimited AI food analysis",
+      "advancedInsights": "Advanced nutrition insights",
+      "coachingTips": "Personalized coaching tips",
+      "everythingInProMonthly": "Everything in Pro Monthly",
+      "annualWebinars": "Exclusive annual webinars",
+      "earlyAccess": "Early access to new features"
+    },
+    "planBadges": {
+      "included": "Included",
+      "mostPopular": "Most popular",
+      "save33": "Save 33%"
+    }
   },
   "gallery": {
     "title": "Select Photo",
@@ -210,6 +247,7 @@
   "camera": {
     "requestingPermission": "Requesting camera permission...",
     "accessTitle": "Camera Access Required",
+    "typeInstead": "Type instead",
     "accessBody": "Enable camera access in Settings to capture your meals.",
     "requestPermission": "Grant Access",
     "takePhoto": "Capture Meal",
@@ -505,6 +543,12 @@
   "limits": {
     "title": "Daily Limit Reached",
     "dailyLimitReached": "You have reached your daily limit of {{count}} photo analyses. Please try again tomorrow."
+  },
+  "statistics": {
+    "title": "Statistics",
+    "today": "Today",
+    "empty": "No statistics available yet",
+    "times": "times"
   }
 }
 

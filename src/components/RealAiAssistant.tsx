@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { clientLog } from '../utils/clientLog';
+import { mapLanguageToLocale } from '../utils/locale';
 
 interface Message {
   id: string;
@@ -151,7 +152,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
       const response = await ApiService.getGeneralQuestion(
         user.id,
         trimmedInput,
-        language || 'en',
+        mapLanguageToLocale(language),
       );
 
       const assistantMessage: Message = {
@@ -247,7 +248,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         response = await ApiService.analyzeLabResults(
           user.id,
           trimmedText,
-          language || 'en',
+          mapLanguageToLocale(language),
         );
         setHealthResult({
           id: response.id || `health-${Date.now()}`,
@@ -263,7 +264,7 @@ export const RealAiAssistant: React.FC<RealAiAssistantProps> = ({ onClose }) => 
         response = await ApiService.getHealthCheck(
           user.id,
           trimmedText,
-          language || 'en',
+          mapLanguageToLocale(language),
         );
         // Parse health-check response (it returns { answer, ... })
         const answer = response?.answer || response?.summary || '';

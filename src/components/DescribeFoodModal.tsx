@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeClosableModal } from './common/SwipeClosableModal';
+import { useI18n } from '../../app/i18n/hooks';
 
 interface DescribeFoodModalProps {
   visible: boolean;
@@ -11,6 +12,7 @@ interface DescribeFoodModalProps {
 
 export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, onClose, onAnalyze }) => {
   const [description, setDescription] = useState('');
+  const { t } = useI18n();
 
   const handleAnalyze = () => {
     if (description.trim()) {
@@ -33,32 +35,36 @@ export const DescribeFoodModal: React.FC<DescribeFoodModalProps> = ({ visible, o
       enableBackdropClose={true}
       animationType="fade"
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>Describe Your Food</Text>
-        <Text style={styles.subtitle}>Tell us what you ate and we&apos;ll analyze it</Text>
-        
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="e.g., Grilled chicken breast with rice and vegetables"
-            placeholderTextColor="#95A5A6"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-        
-        <TouchableOpacity 
-          style={[styles.analyzeButton, !description.trim() && styles.analyzeButtonDisabled]} 
-          onPress={handleAnalyze}
-          disabled={!description.trim()}
-        >
-          <Ionicons name="sparkles" size={20} color="white" />
-          <Text style={styles.analyzeButtonText}>Analyze</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>{t('describeFood.title') || 'Describe Your Food'}</Text>
+            <Text style={styles.subtitle}>
+              {t('describeFood.subtitle') || "Tell us what you ate and we'll analyze it"}
+            </Text>
+            
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                placeholder={t('describeFood.placeholder') || 'e.g., Grilled chicken breast with rice and vegetables'}
+                placeholderTextColor="#95A5A6"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.analyzeButton, !description.trim() && styles.analyzeButtonDisabled]} 
+              onPress={handleAnalyze}
+              disabled={!description.trim()}
+            >
+              <Ionicons name="sparkles" size={20} color="white" />
+              <Text style={styles.analyzeButtonText}>
+                {t('describeFood.analyze') || 'Analyze'}
+              </Text>
+            </TouchableOpacity>
+          </View>
     </SwipeClosableModal>
   );
 };

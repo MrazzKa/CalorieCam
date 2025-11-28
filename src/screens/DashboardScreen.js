@@ -23,6 +23,7 @@ import { CircularProgress } from '../components/CircularProgress';
 import { clientLog } from '../utils/clientLog';
 import { CommonActions } from '@react-navigation/native';
 import { SwipeClosableModal } from '../components/common/SwipeClosableModal';
+import { StatisticsModal } from '../components/StatisticsModal';
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -316,6 +317,7 @@ export default function DashboardScreen() {
 
   const [showModal, setShowModal] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleCameraPress = async () => {
@@ -471,11 +473,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={styles.viewInsightsButton}
               onPress={() => {
-                // Navigate to Profile tab where stats can be viewed
-                // Or create a dedicated Insights screen later
-                if (navigation && typeof navigation.navigate === 'function') {
-                  navigation.navigate('Profile');
-                }
+                setShowStatistics(true);
               }}
             >
               <Text style={styles.viewInsightsButtonText}>
@@ -665,6 +663,12 @@ export default function DashboardScreen() {
       <AiAssistant
         visible={showAiAssistant}
         onClose={() => setShowAiAssistant(false)}
+      />
+
+      {/* Statistics Modal */}
+      <StatisticsModal
+        visible={showStatistics}
+        onClose={() => setShowStatistics(false)}
       />
     </SafeAreaView>
   );

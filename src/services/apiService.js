@@ -13,7 +13,7 @@ class ApiService {
     
     // Log configuration on init (using safe values) - only in dev
     if (__DEV__) {
-      console.log('[ApiService] Initialized with baseURL:', this.baseURL);
+    console.log('[ApiService] Initialized with baseURL:', this.baseURL);
     }
   }
 
@@ -125,12 +125,12 @@ class ApiService {
       }
 
       if (__DEV__) {
-        console.log(`[ApiService] Fetch config:`, {
-          method: config.method || 'GET',
-          headers: Object.keys(config.headers || {}),
-          hasBody: !!config.body,
-          hasAuth: !!(config.headers && config.headers['Authorization']),
-        });
+      console.log(`[ApiService] Fetch config:`, {
+        method: config.method || 'GET',
+        headers: Object.keys(config.headers || {}),
+        hasBody: !!config.body,
+        hasAuth: !!(config.headers && config.headers['Authorization']),
+      });
       }
 
       let response;
@@ -222,8 +222,8 @@ class ApiService {
       }
       
       if (__DEV__) {
-        console.error(`[ApiService] Request failed for ${url}:`, error.message);
-        console.error('[ApiService] Error details:', error);
+      console.error(`[ApiService] Request failed for ${url}:`, error.message);
+      console.error('[ApiService] Error details:', error);
       }
       throw error;
     }
@@ -290,10 +290,10 @@ class ApiService {
       body: JSON.stringify({ email, code: otp }),
     });
     if (__DEV__) {
-      console.log('[ApiService] verifyOtp response:', {
-        hasAccessToken: !!response?.accessToken,
-        hasRefreshToken: !!response?.refreshToken,
-      });
+    console.log('[ApiService] verifyOtp response:', {
+      hasAccessToken: !!response?.accessToken,
+      hasRefreshToken: !!response?.refreshToken,
+    });
     }
     return response;
   }
@@ -343,13 +343,17 @@ class ApiService {
   }
 
   // Food Analysis
-  async analyzeImage(imageUri) {
+  async analyzeImage(imageUri, locale) {
     const formData = new FormData();
     formData.append('image', {
       uri: imageUri,
       type: 'image/jpeg',
       name: 'food-image.jpg',
     });
+
+    if (locale) {
+      formData.append('locale', locale);
+    }
 
     // Get headers with token, but remove Content-Type for FormData
     const headers = this.getHeaders();
@@ -359,6 +363,17 @@ class ApiService {
       method: 'POST',
       headers: headers,
       body: formData,
+    });
+  }
+
+  async analyzeText(description, locale) {
+    const localeParam = locale || 'en';
+    return this.request('/food/analyze-text', {
+      method: 'POST',
+      body: JSON.stringify({
+        description: description.trim(),
+        locale: localeParam,
+      }),
     });
   }
 

@@ -65,7 +65,7 @@ export class EatSenseSDK {
     }
   }
 
-  async analyzeImage(imageUri: string): Promise<SDKResponse<any>> {
+  async analyzeImage(imageUri: string, locale?: 'en' | 'ru' | 'kk'): Promise<SDKResponse<any>> {
     const formData = new FormData();
     formData.append('image', {
       uri: imageUri,
@@ -77,6 +77,10 @@ export class EatSenseSDK {
       const url = `${this.config.baseURL}/v1/food/analyze`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+      if (locale) {
+        formData.append('locale', locale);
+      }
 
       const response = await fetch(url, {
         method: 'POST',

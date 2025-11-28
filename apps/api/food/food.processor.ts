@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { FoodAnalyzerService } from './food-analyzer/food-analyzer.service';
 import { AnalyzeService } from '../src/analysis/analyze.service';
 import { MealsService } from '../meals/meals.service';
+import { MediaService } from '../media/media.service';
 import * as sharp from 'sharp';
 
 @Processor('food-analysis')
@@ -13,11 +14,12 @@ export class FoodProcessor {
     private readonly foodAnalyzer: FoodAnalyzerService,
     private readonly analyzeService: AnalyzeService,
     private readonly mealsService: MealsService,
+    private readonly mediaService: MediaService,
   ) {}
 
   @Process('analyze-image')
   async handleImageAnalysis(job: Job) {
-    const { analysisId, imageBufferBase64, userId: jobUserId } = job.data;
+    const { analysisId, imageBufferBase64, userId: jobUserId, locale } = job.data;
     
     // Получаем userId из анализа, так как он точно правильный
     const analysis = await this.prisma.analysis.findUnique({
@@ -74,12 +76,30 @@ export class FoodProcessor {
         }
       }
 
+      // Save image to Media and get public URL
+      let imageUrl: string | null = null;
+      try {
+        const mockFile = {
+          buffer: processedBuffer,
+          originalname: `analysis-${analysisId}.jpg`,
+          mimetype: 'image/jpeg',
+          size: processedBuffer.length,
+        };
+        const mediaResult = await this.mediaService.uploadFile(mockFile, userId);
+        imageUrl = mediaResult.url;
+        console.log(`[FoodProcessor] Image saved to media, URL: ${imageUrl}`);
+      } catch (mediaError: any) {
+        console.error(`[FoodProcessor] Failed to save image to media:`, mediaError.message);
+        // Continue without imageUrl - analysis can still proceed
+      }
+
       // Convert buffer to base64 for new analysis service
       const imageBase64 = processedBuffer.toString('base64');
       
       // Use new AnalyzeService with USDA + RAG
       const analysisResult = await this.analyzeService.analyzeImage({
         imageBase64,
+        locale,
       });
 
       // Transform to old format for compatibility
@@ -147,6 +167,7 @@ export class FoodProcessor {
                 type: 'MEAL',
                 items: validItems,
                 healthScore: analysisResult.healthScore,
+                imageUri: imageUrl || null, // Include imageUrl when auto-saving meal
               });
               console.log(`Automatically saved analysis ${analysisId} to meals (mealId: ${meal.id})`);
               result.autoSave = {
@@ -251,7 +272,7 @@ export class FoodProcessor {
 
   @Process('analyze-text')
   async handleTextAnalysis(job: Job) {
-    const { analysisId, description, userId } = job.data;
+    const { analysisId, description, userId, locale } = job.data;
 
     try {
       // Update status to processing
@@ -261,7 +282,7 @@ export class FoodProcessor {
       });
 
       // Use new AnalyzeService for text analysis
-      const analysisResult = await this.analyzeService.analyzeText(description);
+      const analysisResult = await this.analyzeService.analyzeText(description, locale);
 
       // Transform to old format for compatibility
       const result: any = {

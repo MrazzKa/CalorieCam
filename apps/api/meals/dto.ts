@@ -48,6 +48,11 @@ export class CreateMealDto {
   @IsOptional()
   consumedAt?: string;
 
+  @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
+  @IsString()
+  @IsOptional()
+  imageUri?: string;
+
   @ApiProperty({ 
     example: [
       {

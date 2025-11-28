@@ -31,6 +31,7 @@ export class FoodController {
   @ApiConsumes('multipart/form-data')
   async analyzeImage(
     @UploadedFile() file: any,
+    @Body() body: AnalyzeImageDto,
     @Request() req: any,
   ) {
     try {
@@ -41,7 +42,9 @@ export class FoodController {
       if (!userId) {
         throw new BadRequestException('User not authenticated');
       }
-      return await this.foodService.analyzeImage(file, userId);
+      // Locale is optional and validated by DTO; default handled in service
+      const locale = body?.locale as 'en' | 'ru' | 'kk' | undefined;
+      return await this.foodService.analyzeImage(file, userId, locale);
     } catch (error: any) {
       this.logger.error('[FoodController] analyzeImage error', {
         message: error.message,
@@ -71,7 +74,8 @@ export class FoodController {
     if (!userId) {
       throw new BadRequestException('User not authenticated');
     }
-    return this.foodService.analyzeText(analyzeTextDto.description, userId);
+    const locale = analyzeTextDto.locale as 'en' | 'ru' | 'kk' | undefined;
+    return this.foodService.analyzeText(analyzeTextDto.description, userId, locale);
   }
 
   @Get('analysis/:analysisId/status')
