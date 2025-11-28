@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma.module';
 import { FoodAnalyzerModule } from '../food/food-analyzer/food-analyzer.module';
 import { AnalysisModule } from '../src/analysis/analysis.module';
 import { MealsModule } from '../meals/meals.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { MealsModule } from '../meals/meals.module';
     FoodAnalyzerModule,
     AnalysisModule,
     MealsModule,
+    MediaModule,
     BullModule.registerQueue({
       name: 'food-analysis',
     }),
