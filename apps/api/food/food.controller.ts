@@ -101,4 +101,25 @@ export class FoodController {
     }
     return this.foodService.getAnalysisResult(analysisId, userId);
   }
+
+  @Get('analysis/:analysisId/debug')
+  @ApiOperation({ summary: 'Get raw analysis data with debug info (dev only)' })
+  @ApiResponse({ status: 200, description: 'Raw analysis data retrieved' })
+  async getAnalysisDebug(
+    @Param('analysisId') analysisId: string,
+    @Request() req: any,
+  ) {
+    // Simple check: only allow if ANALYSIS_DEBUG is enabled or user is admin
+    const isDebugMode = process.env.ANALYSIS_DEBUG === 'true';
+    if (!isDebugMode) {
+      throw new BadRequestException('Debug endpoint is disabled');
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
+
+    return this.foodService.getRawAnalysis(analysisId, userId);
+  }
 }

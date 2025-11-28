@@ -8,6 +8,8 @@ import {
   Animated,
   Modal,
   ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,7 @@ import AiAssistant from '../components/AiAssistant';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { HealthScoreCard } from '../components/HealthScoreCard';
+import { CircularProgress } from '../components/CircularProgress';
 import { clientLog } from '../utils/clientLog';
 import { CommonActions } from '@react-navigation/native';
 import { SwipeClosableModal } from '../components/common/SwipeClosableModal';
@@ -26,6 +29,7 @@ export default function DashboardScreen() {
   const { colors, tokens } = useTheme();
   const { t, language } = useI18n();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [now, setNow] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plusScale] = useState(new Animated.Value(1));
   const [plusOpacity] = useState(new Animated.Value(0));
@@ -206,6 +210,12 @@ export default function DashboardScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Update time every minute for display
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   useFocusEffect(
     React.useCallback(() => {
       loadStats();
@@ -271,7 +281,22 @@ export default function DashboardScreen() {
     }
   };
 
+  // Check if daily limit reached
+  const hasReachedDailyLimit = (stats) => {
+    return stats && stats.todayPhotosAnalyzed >= stats.dailyLimit;
+  };
+
   const handlePlusPress = () => {
+    // Check limit before opening modal
+    if (hasReachedDailyLimit(userStats)) {
+      Alert.alert(
+        t('limits.title') || 'Daily Limit Reached',
+        t('limits.dailyLimitReached', { count: userStats.dailyLimit }) || 
+        `You have reached your daily limit of ${userStats.dailyLimit} photo analyses. Please try again tomorrow.`,
+      );
+      return;
+    }
+
     // Simple, unobtrusive feedback: light scale animation
     Animated.timing(plusScale, {
       toValue: 0.96,
@@ -294,6 +319,17 @@ export default function DashboardScreen() {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const handleCameraPress = async () => {
+    // Check limit before opening camera
+    if (hasReachedDailyLimit(userStats)) {
+      Alert.alert(
+        t('limits.title') || 'Daily Limit Reached',
+        t('limits.dailyLimitReached', { count: userStats.dailyLimit }) || 
+        `You have reached your daily limit of ${userStats.dailyLimit} photo analyses. Please try again tomorrow.`,
+      );
+      setShowModal(false);
+      return;
+    }
+
     await clientLog('Dashboard:openCameraPressed').catch(() => {});
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
@@ -302,6 +338,17 @@ export default function DashboardScreen() {
   };
 
   const handleGalleryPress = async () => {
+    // Check limit before opening gallery
+    if (hasReachedDailyLimit(userStats)) {
+      Alert.alert(
+        t('limits.title') || 'Daily Limit Reached',
+        t('limits.dailyLimitReached', { count: userStats.dailyLimit }) || 
+        `You have reached your daily limit of ${userStats.dailyLimit} photo analyses. Please try again tomorrow.`,
+      );
+      setShowModal(false);
+      return;
+    }
+
     await clientLog('Dashboard:openGalleryPressed').catch(() => {});
     setShowModal(false);
     if (navigation && typeof navigation.navigate === 'function') {
@@ -328,9 +375,10 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Compact header with date only */}
+        {/* Compact header with time and date */}
         <View style={styles.header}>
           <View style={styles.timeContainer}>
+            <Text style={styles.timeText}>{formatTime(now)}</Text>
             <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
           </View>
         </View>
@@ -364,15 +412,16 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Calories Circle */}
+        {/* Calories Circle with Progress */}
         <View style={styles.caloriesContainer}>
-          <View style={styles.caloriesCircle}>
-            <View style={styles.caloriesInner}>
-              <Text style={styles.caloriesNumber}>{stats.totalCalories}</Text>
-              <Text style={styles.caloriesLabel}>{t('dashboard.calories')}</Text>
-              <Text style={styles.caloriesGoal}>{t('dashboard.ofGoal', { goal: stats.goal.toLocaleString() })}</Text>
-            </View>
-          </View>
+          <CircularProgress
+            progress={stats.goal > 0 ? Math.min(1, stats.totalCalories / stats.goal) : 0}
+            size={220}
+            strokeWidth={8}
+            value={stats.totalCalories}
+            label={t('dashboard.calories')}
+            goal={t('dashboard.ofGoal', { goal: stats.goal.toLocaleString() })}
+          />
         </View>
 
         {/* Quick Stats */}
@@ -466,58 +515,35 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Highlight Meal Section */}
+        {/* AI Assistant Card - always show first */}
+        <View style={styles.aiAssistantContainer}>
+          <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
+            <View style={styles.aiAssistantIcon}>
+              <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
+            </View>
+            <View style={styles.aiAssistantContent}>
+              <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
+              <Text style={styles.aiAssistantSubtitle}>
+                {t('dashboard.aiAssistantSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Highlight Meal Section - Health Score */}
         {highlightMeal?.healthScore && (
-          <>
-            <View style={styles.highlightSection}>
-              <Text style={styles.highlightTitle}>
-                {t('dashboard.healthScoreTitle', { meal: highlightMeal.name })}
-              </Text>
-            </View>
-
-            {/* AI Assistant Card - moved above Health Score */}
-            <View style={styles.aiAssistantContainer}>
-              <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
-                <View style={styles.aiAssistantIcon}>
-                  <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
-                </View>
-                <View style={styles.aiAssistantContent}>
-                  <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
-                  <Text style={styles.aiAssistantSubtitle}>
-                    {t('dashboard.aiAssistantSubtitle')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Health Score Card */}
-            <View style={styles.highlightSection}>
-              <HealthScoreCard healthScore={highlightMeal.healthScore} />
-              <Text style={styles.highlightSubtitle}>
-                {t('dashboard.healthScoreSubtitle')}
-              </Text>
-            </View>
-          </>
-        )}
-
-        {/* AI Assistant Card - shown when no highlight meal */}
-        {!highlightMeal?.healthScore && (
-          <View style={styles.aiAssistantContainer}>
-            <TouchableOpacity style={styles.aiAssistantButton} onPress={typeof handleAiAssistantPress === 'function' ? handleAiAssistantPress : () => {}}>
-              <View style={styles.aiAssistantIcon}>
-                <Ionicons name="chatbubble" size={24} color={colors.onPrimary || colors.inverseText} />
-              </View>
-              <View style={styles.aiAssistantContent}>
-                <Text style={styles.aiAssistantTitle}>{t('dashboard.aiAssistant')}</Text>
-                <Text style={styles.aiAssistantSubtitle}>
-                  {t('dashboard.aiAssistantSubtitle')}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-            </TouchableOpacity>
+          <View style={styles.highlightSection}>
+            <Text style={styles.highlightTitle}>
+              {t('dashboard.healthScoreTitle', { meal: highlightMeal.name })}
+            </Text>
+            <HealthScoreCard healthScore={highlightMeal.healthScore} />
+            <Text style={styles.highlightSubtitle}>
+              {t('dashboard.healthScoreSubtitle')}
+            </Text>
           </View>
         )}
+
 
         {/* Recent Items */}
         <View style={styles.recentContainer}>
@@ -533,7 +559,14 @@ export default function DashboardScreen() {
                   }
                 }}
               >
-                <View style={{ flex: 1 }}>
+                {item.imageUri ? (
+                  <Image source={{ uri: item.imageUri }} style={styles.recentItemImage} />
+                ) : (
+                  <View style={styles.recentItemImagePlaceholder}>
+                    <Ionicons name="restaurant" size={24} color={colors.textTertiary} />
+                  </View>
+                )}
+                <View style={{ flex: 1, marginLeft: tokens.spacing.md }}>
                   <Text numberOfLines={1} style={styles.articleRowTitle}>{item.name || item.dishName || t('dashboard.mealFallback')}</Text>
                   <Text numberOfLines={1} style={styles.articleRowExcerpt}>
                     {t('dashboard.recentMacroSummary', {
@@ -656,7 +689,7 @@ const createStyles = (tokens) =>
       gap: tokens.spacing.xs,
     },
     timeText: {
-      fontSize: 32,
+      fontSize: 24,
       fontWeight: '600',
       color: tokens.colors.textPrimary,
     },
@@ -828,6 +861,20 @@ const createStyles = (tokens) =>
     articleRowExcerpt: {
       fontSize: 13,
       color: tokens.colors.textSecondary,
+    },
+    recentItemImage: {
+      width: 60,
+      height: 60,
+      borderRadius: tokens.radii.md,
+      backgroundColor: tokens.colors.surfaceMuted,
+    },
+    recentItemImagePlaceholder: {
+      width: 60,
+      height: 60,
+      borderRadius: tokens.radii.md,
+      backgroundColor: tokens.colors.surfaceMuted,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     highlightSection: {
       paddingHorizontal: tokens.spacing.xl,

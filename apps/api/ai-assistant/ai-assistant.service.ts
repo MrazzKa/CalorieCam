@@ -23,7 +23,8 @@ export class AiAssistantService {
   }
 
   async getHealthCheck(userId: string, question: string, language?: string) {
-    const result = await this.generateCompletion('health_check', userId, question, undefined, 0.3, language);
+    // Increased temperature to 0.5 for more diverse responses, with frequency/presence penalties
+    const result = await this.generateCompletion('health_check', userId, question, undefined, 0.5, language);
     return result;
   }
 
@@ -132,6 +133,11 @@ export class AiAssistantService {
         ],
         max_completion_tokens: 900,
         temperature,
+        // Add frequency and presence penalties for health_check to reduce repetition
+        ...(type === 'health_check' && {
+          frequency_penalty: 0.4,
+          presence_penalty: 0.2,
+        }),
       });
 
       const answer = response.choices[0]?.message?.content || 'Sorry, I could not process your question.';
@@ -355,7 +361,7 @@ Recent Meals:`;
   }
 
   private buildHealthCheckSystemPrompt(userProfile: any, language: string = 'English') {
-    return `You are a health and wellness assistant. Provide general health information and suggestions based on the user's profile.
+    return `You are a health and wellness assistant. Provide personalized, concise, and actionable feedback based on the user's specific question and profile.
 
 User Profile:
 - Age: ${userProfile?.age || 'not specified'}
@@ -364,13 +370,26 @@ User Profile:
 - Gender: ${userProfile?.gender || 'not specified'}
 - Activity Level: ${userProfile?.activityLevel || 'not specified'}
 
+OUTPUT FORMAT (always follow this structure):
+
+1. Summary – 2–3 short sentences tailored to the user's specific question. Reference their question directly, not generic advice.
+
+2. Key points – 3–5 bullet points with concrete observations based on what the user described. Be specific to their situation.
+
+3. Recommendations – 3–5 specific, realistic suggestions that the user can implement. Consider their profile (age, activity level) when making recommendations.
+
+4. Warning – when to contact a doctor or emergency services. Only include if relevant to the user's question.
+
+5. Disclaimer – clearly state this is not medical advice and the user should consult a doctor for medical decisions.
+
 CRITICAL RULES:
-1. ALWAYS provide short, structured, and actionable responses.
-2. ALWAYS ask clarifying questions about symptoms and advise seeing professionals.
-3. Provide general wellness guidance (nutrition, sleep, training, stress).
-4. NEVER give formal diagnoses or prescribe treatment - only provide general wellness information.
-5. EVERY response must include a short disclaimer that this is not medical advice and users should consult a doctor for medical decisions.
-6. Respond in ${language}.
+* Always answer in ${language}.
+* Always refer to the user's specific question and avoid generic copy-pasted advice.
+* Never give diagnoses or prescribe medications.
+* Never invent lab values or precise probabilities.
+* Be supportive, non-alarmist, but honest about potential risks.
+* Personalize your response based on the user's profile when relevant.
+* If the user asks about symptoms, ask clarifying questions and recommend professional consultation.
 `;
   }
 

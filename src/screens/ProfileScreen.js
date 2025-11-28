@@ -560,12 +560,7 @@ const ProfileScreen = () => {
         >
           <SafeAreaView style={[styles.editModalContainer, { backgroundColor: tokens.colors.background }]}>
             <View style={[styles.editModalHeader, { borderBottomColor: tokens.colors.border }]}>
-              <TouchableOpacity
-                onPress={handleCancel}
-                style={styles.editModalCloseButton}
-              >
-                <Ionicons name="close" size={24} color={tokens.colors.textPrimary} />
-              </TouchableOpacity>
+              <View style={styles.editModalCloseButton} />
               <Text style={[styles.editModalTitle, { color: tokens.colors.textPrimary }]}>
                 {t('profile.editProfile') || 'Edit Profile'}
               </Text>
@@ -1097,7 +1092,10 @@ const createStyles = (tokens) =>
       flex: 1,
     },
     editModalContentInner: {
-      padding: tokens.spacing.lg,
+      paddingHorizontal: tokens.spacing.xl,
+      paddingTop: tokens.spacing.xxl,
+      paddingBottom: tokens.spacing.xxxl,
+      gap: tokens.spacing.lg,
     },
     editModalFooter: {
       flexDirection: 'row',

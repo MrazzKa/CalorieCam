@@ -69,6 +69,7 @@ export class DailyLimitGuard implements CanActivate {
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          code: 'DAILY_LIMIT_EXCEEDED',
           message: `Daily limit reached. You have used ${currentCount} of ${effectiveLimit} ${options.resource === 'food' ? 'photo analyses' : 'chat requests'} today. Limit resets at midnight.`,
           limit: effectiveLimit,
           used: currentCount,

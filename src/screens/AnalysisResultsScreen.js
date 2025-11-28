@@ -551,7 +551,17 @@ export default function AnalysisResultsScreen() {
     <SafeAreaView style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation && typeof navigation.goBack === 'function' ? navigation.goBack() : null}>
+          <TouchableOpacity onPress={() => {
+            // Navigate directly to MainTabs (Dashboard) instead of going back
+            if (navigation && typeof navigation.reset === 'function') {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs', params: { screen: 'Dashboard' } }],
+              });
+            } else if (navigation && typeof navigation.navigate === 'function') {
+              navigation.navigate('MainTabs', { screen: 'Dashboard' });
+            }
+          }}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('analysis.title')}</Text>
@@ -975,17 +985,21 @@ const createStyles = (tokens) =>
       gap: tokens.spacing.md,
     },
     actionButtonsSingle: {
+      flexDirection: 'row',
       justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: tokens.spacing.md,
     },
     shareButton: {
-      flex: 1,
       backgroundColor: tokens.colors.primaryTint,
       borderRadius: tokens.radii.md,
       paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.xl,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: tokens.spacing.sm,
+      minWidth: 150,
     },
     shareButtonText: {
       color: tokens.colors.primary,
