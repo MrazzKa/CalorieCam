@@ -492,6 +492,152 @@ export class AnalyzeService {
     };
   }
 
+  /**
+   * Q4: Add vision fallback item when FDC match fails
+   */
+  private addVisionFallback(
+    component: VisionComponent,
+    items: AnalyzedItem[],
+    debug: AnalysisDebug,
+  ): void {
+    // Если Vision уверен (confidence >= 0.7) и имя не слишком общее
+    if (!component.confidence || component.confidence < 0.7) {
+      return;
+    }
+
+    const genericNames = ['food', 'meal', 'dish', 'item', 'ingredient', 'something'];
+    const isGeneric = genericNames.some((g) => component.name.toLowerCase().includes(g));
+    if (isGeneric) {
+      return;
+    }
+
+    const fallbackPortion = this.estimatePortionInGrams(component, null, debug);
+
+    const fallbackNutrients: Nutrients = {
+      calories: Math.round(fallbackPortion * 1.2), // условно 1.2 ккал/г — "средне"
+      protein: this.round(fallbackPortion * 0.04, 1), // ~4 г белка на 100г
+      carbs: this.round(fallbackPortion * 0.15, 1), // ~15 г углеводов на 100г
+      fat: this.round(fallbackPortion * 0.06, 1), // ~6 г жиров на 100г
+      fiber: 0,
+      sugars: 0,
+      satFat: 0,
+      energyDensity: 120, // 120 ккал/100г
+    };
+
+    const fallbackItem: AnalyzedItem = {
+      name: normalizeFoodName(component.name),
+      label: component.name,
+      portion_g: fallbackPortion,
+      nutrients: fallbackNutrients,
+      source: 'vision_fallback',
+    };
+
+    items.push(fallbackItem);
+    debug.components = debug.components || [];
+    debug.components.push({
+      type: 'vision_fallback',
+      vision: component,
+      message: 'Added fallback item due to FDC match failure',
+    });
+  }
+
+  /**
+   * Q1: Run sanity check on analysis data
+   */
+  private runSanityCheck(input: {
+    items: AnalyzedItem[];
+    total: AnalysisTotals;
+    healthScore?: HealthScore | null;
+    debug?: AnalysisDebug;
+  }): AnalysisSanityIssue[] {
+    const { items, total } = input;
+    const issues: AnalysisSanityIssue[] = [];
+
+    items.forEach((item, index) => {
+      const { portion_g, nutrients } = item;
+      const { calories, protein, carbs, fat } = nutrients;
+
+      // 1) Порция слишком маленькая или слишком большая
+      if (portion_g > 0 && portion_g < 5) {
+        issues.push({
+          type: 'portion_too_small',
+          level: 'warning',
+          message: `Portion ${portion_g}g looks too small for a meal component`,
+          itemIndex: index,
+          itemName: item.name,
+        });
+      }
+
+      if (portion_g > 0 && portion_g > 800) {
+        issues.push({
+          type: 'portion_too_large',
+          level: 'warning',
+          message: `Portion ${portion_g}g looks too large for a single component`,
+          itemIndex: index,
+          itemName: item.name,
+        });
+      }
+
+      // 2) Калории на грамм
+      if (portion_g > 0 && calories > 0) {
+        const kcalPerGram = calories / portion_g;
+        // Типичный диапазон ~0.2–4.5 ккал/г (очень грубо)
+        if (kcalPerGram < 0.1 || kcalPerGram > 7) {
+          issues.push({
+            type: 'calories_per_gram_out_of_range',
+            level: 'warning',
+            message: `kcal/g=${kcalPerGram.toFixed(2)} is outside expected range`,
+            itemIndex: index,
+            itemName: item.name,
+          });
+        }
+      }
+
+      // 3) Связь калорий и макросов (4/4/9 правило)
+      if (protein >= 0 && carbs >= 0 && fat >= 0 && calories > 0) {
+        const kcalFromMacros = protein * 4 + carbs * 4 + fat * 9;
+        const diff = Math.abs(kcalFromMacros - calories);
+
+        if (diff > Math.max(50, calories * 0.25)) {
+          issues.push({
+            type: 'macro_kcal_mismatch',
+            level: 'warning',
+            message: `Calories ${calories} vs macros-derived ${Math.round(
+              kcalFromMacros,
+            )} differ too much`,
+            itemIndex: index,
+            itemName: item.name,
+          });
+        }
+      }
+
+      // 4) Нулевая калорийность при ненулевой порции
+      if (portion_g > 0 && calories === 0) {
+        issues.push({
+          type: 'zero_calories_nonzero_portion',
+          level: 'warning',
+          message: `Portion ${portion_g}g has 0 kcal`,
+          itemIndex: index,
+          itemName: item.name,
+        });
+      }
+    });
+
+    // 5) Sanity по totals
+    if (total.portion_g > 0 && total.calories > 0) {
+      const kcalPerGramTotal = total.calories / total.portion_g;
+      if (kcalPerGramTotal < 0.1 || kcalPerGramTotal > 7) {
+        issues.push({
+          type: 'suspicious_energy_density',
+          level: 'warning',
+          message: `Total kcal/g=${kcalPerGramTotal.toFixed(2)} looks suspicious`,
+        });
+      }
+    }
+
+    return issues;
+  }
+
   private hashImage(params: { imageUrl?: string; imageBase64?: string }): string {
     const str = params.imageUrl || params.imageBase64 || '';
     return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);
