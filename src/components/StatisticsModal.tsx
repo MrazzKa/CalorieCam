@@ -53,9 +53,9 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClo
       enableSwipe={true}
       enableBackdropClose={true}
       animationType="fade"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#F8F9FA' }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#F8F9FA', flex: 1 }]} edges={['top', 'bottom']}>
         <View style={[styles.header, { backgroundColor: colors.surface || 'white', borderBottomColor: colors.border || '#E5E7EB' }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color={colors.text || '#2C3E50'} />

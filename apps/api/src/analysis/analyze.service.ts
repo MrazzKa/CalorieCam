@@ -29,7 +29,7 @@ type HealthWeights = {
 export class AnalyzeService {
   private readonly logger = new Logger(AnalyzeService.name);
   // Versioned cache key to avoid conflicts with legacy cached shapes
-  private readonly ANALYSIS_CACHE_VERSION = 'v2';
+  private readonly ANALYSIS_CACHE_VERSION = 'v3';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -184,6 +184,9 @@ export class AnalyzeService {
         const originalNameEn = normalizeFoodName(bestMatch.description || food.description || component.name);
         const localizedName = await this.foodLocalization.localizeName(originalNameEn, locale);
 
+        // Check if item has valid nutrition data
+        const hasNutrition = nutrients.calories > 0 || nutrients.protein > 0 || nutrients.carbs > 0 || nutrients.fat > 0;
+        
         // Create AnalyzedItem with localized and original names
         const item: AnalyzedItem = {
           name: localizedName || originalNameEn,
@@ -196,6 +199,7 @@ export class AnalyzeService {
           fdcScore: bestMatch.score,
           dataType: food.dataType,
           locale,
+          hasNutrition,
         };
 
         items.push(item);
@@ -257,12 +261,17 @@ export class AnalyzeService {
     // Q4: Check for all-zero macros (needsReview flag)
     const allMacrosZero = total.calories === 0 && total.protein === 0 && total.carbs === 0 && total.fat === 0;
     const hasItemsButNoData = items.length > 0 && allMacrosZero;
-    const needsReview = hasItemsButNoData || (items.length > 0 && items.every(item => 
-      item.nutrients.calories === 0 && 
-      item.nutrients.protein === 0 && 
-      item.nutrients.carbs === 0 && 
+    
+    // Check for any item with weight > 0 but all macros zero
+    const anyItemHasWeightAndZeroMacros = items.some(item =>
+      item.portion_g > 0 &&
+      item.nutrients.calories === 0 &&
+      item.nutrients.protein === 0 &&
+      item.nutrients.carbs === 0 &&
       item.nutrients.fat === 0
-    ));
+    );
+    
+    const needsReview = hasItemsButNoData || anyItemHasWeightAndZeroMacros;
 
     // Log sanity issues in debug mode
     if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
@@ -484,12 +493,17 @@ export class AnalyzeService {
     // Q4: Check for all-zero macros (needsReview flag)
     const allMacrosZero = total.calories === 0 && total.protein === 0 && total.carbs === 0 && total.fat === 0;
     const hasItemsButNoData = items.length > 0 && allMacrosZero;
-    const needsReview = hasItemsButNoData || (items.length > 0 && items.every(item => 
-      item.nutrients.calories === 0 && 
-      item.nutrients.protein === 0 && 
-      item.nutrients.carbs === 0 && 
+    
+    // Check for any item with weight > 0 but all macros zero
+    const anyItemHasWeightAndZeroMacros = items.some(item =>
+      item.portion_g > 0 &&
+      item.nutrients.calories === 0 &&
+      item.nutrients.protein === 0 &&
+      item.nutrients.carbs === 0 &&
       item.nutrients.fat === 0
-    ));
+    );
+    
+    const needsReview = hasItemsButNoData || anyItemHasWeightAndZeroMacros;
 
     // Log sanity issues in debug mode
     if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
@@ -587,6 +601,8 @@ export class AnalyzeService {
           portion_g: fallbackPortion,
           nutrients: fallbackNutrients,
           source: 'vision_fallback',
+          hasNutrition: true, // Fallback always has estimated nutrition
+          hasNutrition: true, // Fallback always has estimated nutrition
         };
 
     items.push(fallbackItem);

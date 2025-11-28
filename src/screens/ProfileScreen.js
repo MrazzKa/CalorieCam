@@ -253,17 +253,12 @@ const ProfileScreen = () => {
     },
   ];
 
-  const getCurrencySymbol = (lng) => {
-    if (!lng) return '$';
-    const lower = lng.toLowerCase();
-    if (lower.startsWith('ru')) return '₽';
-    if (lower.startsWith('kk') || lower.startsWith('kz')) return '₸';
-    return '$';
-  };
+  // Always use USD for plans
+  const getCurrencySymbol = () => '$';
 
   const getPlanDetails = (planId) => {
     const basePlan = planOptions.find((plan) => plan.id === planId) || planOptions[0];
-    const currency = getCurrencySymbol(language);
+    const currency = getCurrencySymbol(); // Always USD
 
     const name =
       basePlan.id === 'free'

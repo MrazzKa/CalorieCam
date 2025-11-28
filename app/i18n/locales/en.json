@@ -115,7 +115,8 @@
     "savedMessage": "Meal saved to your journal",
     "saveError": "Failed to save meal. Please try again.",
     "needsReviewTitle": "Review Required",
-    "needsReviewMessage": "We're not fully confident about this analysis. Please double-check and edit the values."
+    "needsReviewMessage": "We're not fully confident about this analysis. Please double-check and edit the values.",
+    "noNutritionData": "No nutrition data"
   },
   "describeFood": {
     "title": "Describe Your Food",

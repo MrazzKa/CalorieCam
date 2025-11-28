@@ -25,6 +25,13 @@ import { CommonActions } from '@react-navigation/native';
 import { SwipeClosableModal } from '../components/common/SwipeClosableModal';
 import { StatisticsModal } from '../components/StatisticsModal';
 
+// Helper to format grams with proper decimal places
+const formatGrams = (value) => {
+  if (value == null || Number.isNaN(value)) return '0 g';
+  const rounded = Number(value.toFixed(1));
+  return `${rounded} g`;
+};
+
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const { colors, tokens } = useTheme();
@@ -429,15 +436,15 @@ export default function DashboardScreen() {
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.totalProtein}g</Text>
+            <Text style={styles.statNumber}>{formatGrams(stats.totalProtein)}</Text>
             <Text style={styles.statLabel}>{t('dashboard.protein')}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.totalCarbs}g</Text>
+            <Text style={styles.statNumber}>{formatGrams(stats.totalCarbs)}</Text>
             <Text style={styles.statLabel}>{t('dashboard.carbs')}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.totalFat}g</Text>
+            <Text style={styles.statNumber}>{formatGrams(stats.totalFat)}</Text>
             <Text style={styles.statLabel}>{t('dashboard.fat')}</Text>
           </View>
         </View>
