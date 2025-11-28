@@ -391,6 +391,33 @@
     "addMeal": "Добавить блюдо",
     "mealDetails": "Детали блюда"
   },
+  "subscription": {
+    "title": "Подписка",
+    "plan": {
+      "free": "EatSense Free",
+      "pro": "EatSense Pro",
+      "premium": "EatSense Premium"
+    },
+    "features": {
+      "analyses": "AI-анализов в день",
+      "tracking": "Отслеживание калорий",
+      "stats": "Расширенная статистика"
+    },
+    "billing": {
+      "perMonth": "в месяц",
+      "perYear": "в год",
+      "free": "Бесплатно навсегда",
+      "currency": {
+        "ru": "₽",
+        "kk": "₸",
+        "default": "$"
+      }
+    }
+  },
+  "limits": {
+    "title": "Дневной лимит достигнут",
+    "dailyLimitReached": "Вы достигли дневного лимита в {{count}} фото-анализов. Попробуйте снова завтра."
+  },
   "terms": {
     "title": "Условия использования",
     "lastUpdated": "Последнее обновление",

@@ -30,7 +30,7 @@ export default {
 
     ios: {
             bundleIdentifier: "ch.eatsense.app",
-            buildNumber: "46",
+            buildNumber: "47",
       developmentTeam: "73T7PB4F99",
       supportsTablet: true,
       infoPlist: {
@@ -55,7 +55,7 @@ export default {
 
     android: {
       package: "ch.eatsense.app",
-            versionCode: 35,
+            versionCode: 36,
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFFFF" },
       permissions: ["CAMERA","READ_MEDIA_IMAGES","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","POST_NOTIFICATIONS"],
       intentFilters: [{

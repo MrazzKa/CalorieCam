@@ -1,37 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { HybridService } from '../fdc/hybrid/hybrid.service';
-import { VisionService } from './vision.service';
+import { VisionService, VisionComponent } from './vision.service';
 import { PortionService } from './portion.service';
 import { CacheService } from '../cache/cache.service';
+import { normalizeFoodName } from './text-utils';
+import {
+  AnalysisData,
+  AnalyzedItem,
+  AnalysisTotals,
+  Nutrients,
+  HealthScore,
+  AnalysisDebug,
+  AnalysisSanityIssue,
+} from './analysis.types';
 import * as crypto from 'crypto';
-
-interface Component {
-  name: string;
-  preparation: string;
-  est_portion_g: number;
-  confidence: number;
-}
-
-interface AnalysisItem {
-  name: string;
-  fdcId: number;
-  dataType: string;
-  portion_g: number;
-  nutrients: {
-    calories: number;
-    protein: number;
-    fat: number;
-    carbs: number;
-    fiber?: number;
-    sugars?: number;
-    sodium?: number;
-    satFat?: number;
-  };
-  source: string;
-  matchScore: number;
-  trace?: any;
-}
 
 type HealthWeights = {
   protein: number;
@@ -54,42 +37,111 @@ export class AnalyzeService {
   ) {}
 
   /**
+   * Helper: Estimate portion in grams
+   * Priority: Vision > FDC serving > default 150g
+   * Clamps to reasonable range: 10g - 800g
+   */
+  private estimatePortionInGrams(
+    component: VisionComponent,
+    fdcServingSizeG: number | null,
+    debug?: AnalysisDebug,
+  ): number {
+    const originalEstimate = component.est_portion_g && component.est_portion_g > 0
+      ? component.est_portion_g
+      : fdcServingSizeG && fdcServingSizeG > 0
+      ? fdcServingSizeG
+      : 150;
+
+    // Мягкие пределы: минимум 10 г, максимум 800 г
+    let portion = originalEstimate;
+    if (portion < 10) portion = 10;
+    if (portion > 800) portion = 800;
+
+    // Log clamping in debug mode
+    if (process.env.ANALYSIS_DEBUG === 'true' && debug && portion !== originalEstimate) {
+      debug.components = debug.components || [];
+      debug.components.push({
+        type: 'portion_clamped',
+        componentName: component.name,
+        originalPortionG: originalEstimate,
+        finalPortionG: portion,
+      });
+    }
+
+    return portion;
+  }
+
+  /**
+   * Helper: Round number to 1 decimal or integer
+   */
+  private round(value: number, decimals: number = 1): number {
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
+  }
+
+  /**
    * Analyze image and return normalized nutrition data
    */
-  async analyzeImage(params: { imageUrl?: string; imageBase64?: string }): Promise<{
-    items: AnalysisItem[];
-    total: any;
-    trace: any[];
-    healthScore: any;
-  }> {
+  async analyzeImage(params: { imageUrl?: string; imageBase64?: string }): Promise<AnalysisData> {
+    const isDebugMode = process.env.ANALYSIS_DEBUG === 'true';
+    
     // Check cache
     const imageHash = this.hashImage(params);
-    const cached = await this.cache.get<any>(imageHash, 'analysis');
+    const cached = await this.cache.get<AnalysisData>(imageHash, 'analysis');
     if (cached) {
       this.logger.debug('Cache hit for image analysis');
       return cached;
     }
 
     // Extract components via Vision
-    const components = await this.vision.extractComponents(params);
+    const visionComponents = await this.vision.extractComponents(params);
+    
+    // Initialize debug object
+    const debug: AnalysisDebug = {
+      componentsRaw: visionComponents,
+      components: [],
+      timestamp: new Date().toISOString(),
+      model: process.env.OPENAI_MODEL || process.env.VISION_MODEL || 'gpt-5.1',
+    };
 
     // Analyze each component
-    const items: AnalysisItem[] = [];
-    const trace: any[] = [];
+    const items: AnalyzedItem[] = [];
 
-    for (const component of components) {
+    for (const component of visionComponents) {
       try {
-        const query = `${component.name} ${component.preparation}`;
+        const query = `${component.name} ${component.preparation || ''}`.trim();
         const matches = await this.hybrid.findByText(query, 5, 0.7);
 
-        if (matches.length === 0) {
-          this.logger.warn(`No matches for: ${query}`);
-          trace.push({ component: component.name, status: 'no_match' });
+        if (!matches || matches.length === 0) {
+          debug.components.push({ type: 'no_match', vision: component });
+          // Q4: Fallback при отсутствии FDC
+          this.addVisionFallback(component, items, debug);
           continue;
         }
 
-        // Select best match by priority
+        // Select best match only (already sorted by score)
         const bestMatch = matches[0];
+        
+        // Filter weak matches
+        if (bestMatch.score < 0.7) {
+          debug.components.push({ type: 'low_score', vision: component, bestMatch, score: bestMatch.score });
+          // Q4: Fallback при отсутствии FDC
+          this.addVisionFallback(component, items, debug);
+          continue;
+        }
+
+        // Check text overlap between component name and food description
+        const desc = (bestMatch.description || '').toLowerCase();
+        const componentWords = component.name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const hasOverlap = componentWords.some(w => desc.includes(w));
+        
+        if (!hasOverlap) {
+          debug.components.push({ type: 'no_overlap', vision: component, bestMatch });
+          // Q4: Fallback при отсутствии FDC
+          this.addVisionFallback(component, items, debug);
+          continue;
+        }
+
         const food = await this.prisma.food.findUnique({
           where: { fdcId: bestMatch.fdcId },
           include: {
@@ -104,72 +156,107 @@ export class AnalyzeService {
         });
 
         if (!food) {
+          debug.components.push({ type: 'no_match', vision: component, reason: 'food_not_found' });
           continue;
         }
 
-        // Get normalized nutrients
+        // Get normalized nutrients (per 100g)
         const normalized = await this.hybrid.getFoodNormalized(bestMatch.fdcId);
-        const portionG = this.portion.selectPortion(component.est_portion_g, food.portions);
+        
+        // Get FDC serving size (if available)
+        const fdcServingSizeG = food.portions?.[0]?.gramWeight || null;
+        
+        // Estimate portion (with clamping)
+        const portionG = this.estimatePortionInGrams(component, fdcServingSizeG, debug);
 
-        // Calculate nutrients for portion
+        // Calculate nutrients for portion (FDC data is per 100g)
         const nutrients = this.calculateNutrientsForPortion(
           normalized,
           portionG,
-          food.label !== null,
         );
 
-        items.push({
-          name: food.description,
-          fdcId: food.fdcId,
-          dataType: food.dataType,
+        // Create AnalyzedItem
+        const item: AnalyzedItem = {
+          name: normalizeFoodName(bestMatch.description || food.description),
+          label: component.name,
           portion_g: portionG,
           nutrients,
-          source: food.source,
-          matchScore: bestMatch.score || 0.8,
-          trace: {
-            component: component.name,
-            confidence: component.confidence,
-            usedLabel: food.label !== null,
-            usedAtwater: !food.label,
-          },
-        });
+          source: 'fdc',
+          fdcId: bestMatch.fdcId,
+          fdcScore: bestMatch.score,
+          dataType: food.dataType,
+        };
 
-        trace.push({
-          component: component.name,
-          fdcId: food.fdcId,
-          matchScore: bestMatch.score,
-          source: food.source,
-        });
+        items.push(item);
+        debug.components.push({ type: 'matched', vision: component, bestMatch, score: bestMatch.score });
       } catch (error: any) {
         this.logger.error(`Error analyzing component ${component.name}:`, error.message);
-        trace.push({ component: component.name, error: error.message });
+        debug.components.push({ type: 'no_match', vision: component, error: error.message });
+        // Q4: Fallback при отсутствии FDC
+        this.addVisionFallback(component, items, debug);
       }
     }
 
     // Calculate totals
-    const total = items.reduce(
-      (acc, item) => ({
-        calories: acc.calories + item.nutrients.calories,
-        protein: acc.protein + item.nutrients.protein,
-        fat: acc.fat + item.nutrients.fat,
-        carbs: acc.carbs + item.nutrients.carbs,
-        fiber: (acc.fiber || 0) + (item.nutrients.fiber || 0),
-        sugars: (acc.sugars || 0) + (item.nutrients.sugars || 0),
-        sodium: (acc.sodium || 0) + (item.nutrients.sodium || 0),
-        satFat: (acc.satFat || 0) + (item.nutrients.satFat || 0),
-      }),
-      { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium: 0, satFat: 0 },
+    const total: AnalysisTotals = items.reduce(
+      (acc, item) => {
+        acc.portion_g += item.portion_g;
+        acc.calories += item.nutrients.calories;
+        acc.protein += item.nutrients.protein;
+        acc.carbs += item.nutrients.carbs;
+        acc.fat += item.nutrients.fat;
+        acc.fiber += item.nutrients.fiber;
+        acc.sugars += item.nutrients.sugars;
+        acc.satFat += item.nutrients.satFat;
+        acc.energyDensity += item.nutrients.energyDensity;
+        return acc;
+      },
+      {
+        portion_g: 0,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+        sugars: 0,
+        satFat: 0,
+        energyDensity: 0,
+      },
     );
 
-    const totalPortion = items.reduce((acc, item) => acc + (item.portion_g || 0), 0);
-    const healthScore = this.computeHealthScore(total, totalPortion);
+    // Recalculate energyDensity as calories per 100g
+    if (total.portion_g > 0) {
+      total.energyDensity = this.round((total.calories / total.portion_g) * 100, 1);
+    }
+
+    const healthScore = this.computeHealthScore(total, total.portion_g);
+
+    // Q1: Run sanity check
+    const sanity = this.runSanityCheck({ items, total, healthScore, debug });
+    if (debug) {
+      debug.sanity = sanity;
+    }
+    
+    // Q3: Mark suspicious analyses
+    const hasSeriousIssues = sanity.some(
+      (i) => i.type === 'macro_kcal_mismatch' || i.type === 'suspicious_energy_density',
+    );
+    const isSuspicious = hasSeriousIssues;
+
+    // Log sanity issues in debug mode
+    if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
+      this.logger.warn('[AnalysisSanity] Issues detected', {
+        issues: sanity,
+        total: total,
+      });
+    }
 
     // Debug instrumentation for zero-calorie analyses
     if (total.calories === 0 && items.length > 0) {
       this.logger.warn('[AnalyzeService] Zero-calorie analysis detected', {
-        componentCount: components.length,
+        componentCount: visionComponents.length,
         itemCount: items.length,
-        sampleComponents: components.slice(0, 5).map((c) => ({
+        sampleComponents: visionComponents.slice(0, 5).map((c) => ({
           name: c.name,
           preparation: c.preparation,
           est_portion_g: c.est_portion_g,
@@ -183,7 +270,28 @@ export class AnalyzeService {
       });
     }
 
-    const result = { items, total, trace, healthScore };
+    // Log final analysis in debug mode or for first N analyses
+    if (isDebugMode) {
+      this.logger.log('[AnalysisDebug] Final analysis', {
+        totals: total,
+        items: items.map(i => ({
+          name: i.name,
+          portion_g: i.portion_g,
+          calories: i.nutrients.calories,
+          protein: i.nutrients.protein,
+          carbs: i.nutrients.carbs,
+          fat: i.nutrients.fat,
+        })),
+      });
+    }
+
+    const result: AnalysisData = {
+      items,
+      total,
+      healthScore,
+      debug: isDebugMode ? debug : undefined,
+      isSuspicious,
+    };
 
     // Cache for 24 hours
     await this.cache.set(imageHash, result, 'analysis');
@@ -194,38 +302,60 @@ export class AnalyzeService {
   /**
    * Analyze text description
    */
-  async analyzeText(text: string): Promise<{
-    items: AnalysisItem[];
-    total: any;
-    trace: any[];
-    healthScore: any;
-  }> {
+  async analyzeText(text: string): Promise<AnalysisData> {
+    const isDebugMode = process.env.ANALYSIS_DEBUG === 'true';
+    
     // Simple parsing: split by commas, newlines, etc.
-    const components = text
+    const components: VisionComponent[] = text
       .split(/[,;\n]/)
       .map(s => s.trim())
       .filter(s => s.length > 0)
       .map(name => ({
         name,
-        preparation: 'unknown' as const,
+        preparation: 'unknown',
         est_portion_g: 100,
         confidence: 0.7,
       }));
 
-    // Reuse analyzeImage logic without vision
-    const items: AnalysisItem[] = [];
-    const trace: any[] = [];
+    const debug: AnalysisDebug = {
+      componentsRaw: components,
+      components: [],
+      timestamp: new Date().toISOString(),
+      model: 'text-input',
+    };
+
+    const items: AnalyzedItem[] = [];
 
     for (const component of components) {
       try {
         const query = component.name;
         const matches = await this.hybrid.findByText(query, 5, 0.7);
 
-        if (matches.length === 0) {
+        if (!matches || matches.length === 0) {
+          debug.components.push({ type: 'no_match', vision: component });
+          this.addVisionFallback(component, items, debug);
           continue;
         }
 
         const bestMatch = matches[0];
+        
+        if (bestMatch.score < 0.7) {
+          debug.components.push({ type: 'low_score', vision: component, bestMatch, score: bestMatch.score });
+          this.addVisionFallback(component, items, debug);
+          continue;
+        }
+
+        // Check text overlap
+        const desc = (bestMatch.description || '').toLowerCase();
+        const componentWords = component.name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const hasOverlap = componentWords.some(w => desc.includes(w));
+        
+        if (!hasOverlap) {
+          debug.components.push({ type: 'no_overlap', vision: component, bestMatch });
+          this.addVisionFallback(component, items, debug);
+          continue;
+        }
+
         const food = await this.prisma.food.findUnique({
           where: { fdcId: bestMatch.fdcId },
           include: {
@@ -239,88 +369,126 @@ export class AnalyzeService {
           },
         });
 
-        if (!food) continue;
+        if (!food) {
+          debug.components.push({ type: 'no_match', vision: component, reason: 'food_not_found' });
+          this.addVisionFallback(component, items, debug);
+          continue;
+        }
 
         const normalized = await this.hybrid.getFoodNormalized(bestMatch.fdcId);
-        const portionG = this.portion.selectPortion(component.est_portion_g, food.portions);
-        const nutrients = this.calculateNutrientsForPortion(
-          normalized,
-          portionG,
-          food.label !== null,
-        );
+        const fdcServingSizeG = food.portions?.[0]?.gramWeight || null;
+        const portionG = this.estimatePortionInGrams(component, fdcServingSizeG, debug);
+        const nutrients = this.calculateNutrientsForPortion(normalized, portionG);
 
-        items.push({
-          name: food.description,
-          fdcId: food.fdcId,
-          dataType: food.dataType,
+        const item: AnalyzedItem = {
+          name: normalizeFoodName(bestMatch.description || food.description),
+          label: component.name,
           portion_g: portionG,
           nutrients,
-          source: food.source,
-          matchScore: bestMatch.score || 0.8,
-        });
+          source: 'fdc',
+          fdcId: bestMatch.fdcId,
+          fdcScore: bestMatch.score,
+          dataType: food.dataType,
+        };
 
-        trace.push({
-          component: component.name,
-          fdcId: food.fdcId,
-          matchScore: bestMatch.score,
-        });
+        items.push(item);
+        debug.components.push({ type: 'matched', vision: component, bestMatch, score: bestMatch.score });
       } catch (error: any) {
         this.logger.error(`Error analyzing text component ${component.name}:`, error.message);
+        debug.components.push({ type: 'no_match', vision: component, error: error.message });
+        this.addVisionFallback(component, items, debug);
       }
     }
 
-    const total = items.reduce(
-      (acc, item) => ({
-        calories: acc.calories + item.nutrients.calories,
-        protein: acc.protein + item.nutrients.protein,
-        fat: acc.fat + item.nutrients.fat,
-        carbs: acc.carbs + item.nutrients.carbs,
-        fiber: (acc.fiber || 0) + (item.nutrients.fiber || 0),
-        sugars: (acc.sugars || 0) + (item.nutrients.sugars || 0),
-        sodium: (acc.sodium || 0) + (item.nutrients.sodium || 0),
-        satFat: (acc.satFat || 0) + (item.nutrients.satFat || 0),
-      }),
-      { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium: 0, satFat: 0 },
+    // Calculate totals
+    const total: AnalysisTotals = items.reduce(
+      (acc, item) => {
+        acc.portion_g += item.portion_g;
+        acc.calories += item.nutrients.calories;
+        acc.protein += item.nutrients.protein;
+        acc.carbs += item.nutrients.carbs;
+        acc.fat += item.nutrients.fat;
+        acc.fiber += item.nutrients.fiber;
+        acc.sugars += item.nutrients.sugars;
+        acc.satFat += item.nutrients.satFat;
+        acc.energyDensity += item.nutrients.energyDensity;
+        return acc;
+      },
+      {
+        portion_g: 0,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+        sugars: 0,
+        satFat: 0,
+        energyDensity: 0,
+      },
     );
-    const totalPortion = items.reduce((acc, item) => acc + (item.portion_g || 0), 0);
-    const healthScore = this.computeHealthScore(total, totalPortion);
 
-    return { items, total, trace, healthScore };
+    if (total.portion_g > 0) {
+      total.energyDensity = this.round((total.calories / total.portion_g) * 100, 1);
+    }
+
+    const healthScore = this.computeHealthScore(total, total.portion_g);
+
+    // Q1: Run sanity check
+    const sanity = this.runSanityCheck({ items, total, healthScore, debug });
+    if (debug) {
+      debug.sanity = sanity;
+    }
+    
+    // Q3: Mark suspicious analyses
+    const hasSeriousIssues = sanity.some(
+      (i) => i.type === 'macro_kcal_mismatch' || i.type === 'suspicious_energy_density',
+    );
+    const isSuspicious = hasSeriousIssues;
+
+    // Log sanity issues in debug mode
+    if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
+      this.logger.warn('[AnalysisSanity] Issues detected', {
+        issues: sanity,
+        total: total,
+      });
+    }
+
+    return {
+      items,
+      total,
+      healthScore,
+      debug: isDebugMode ? debug : undefined,
+      isSuspicious,
+    };
   }
 
+  /**
+   * Calculate nutrients for a specific portion size
+   * FDC data is per 100g, so we scale by portionG / 100
+   */
   private calculateNutrientsForPortion(
     normalized: any,
     portionG: number,
-    hasLabel: boolean,
-  ): any {
-    const satValue = normalized?.nutrients?.satFat ?? normalized?.nutrients?.saturatedFat ?? normalized?.nutrients?.saturated_fat ?? normalized?.nutrients?.saturated ?? 0;
-    if (hasLabel && normalized.nutrients) {
-      // Label nutrients are per serving - need to scale
-      // Assume label is per 100g serving for simplicity
-      const scale = portionG / 100;
-      return {
-        calories: Math.round((normalized.nutrients.calories || 0) * scale),
-        protein: Math.round((normalized.nutrients.protein || 0) * scale * 10) / 10,
-        fat: Math.round((normalized.nutrients.fat || 0) * scale * 10) / 10,
-        carbs: Math.round((normalized.nutrients.carbs || 0) * scale * 10) / 10,
-      fiber: normalized.nutrients.fiber ? Math.round(normalized.nutrients.fiber * scale * 10) / 10 : undefined,
-      sugars: normalized.nutrients.sugars ? Math.round(normalized.nutrients.sugars * scale * 10) / 10 : undefined,
-      sodium: normalized.nutrients.sodium ? Math.round(normalized.nutrients.sodium * scale * 10) / 10 : undefined,
-        satFat: satValue ? Math.round(satValue * scale * 10) / 10 : undefined,
-      };
-    }
-
-    // Per 100g scaling
+  ): Nutrients {
+    // FDC nutrients are always per 100g
     const scale = portionG / 100;
+    const base = normalized.nutrients || {};
+
+    // Extract saturated fat from various possible fields
+    const satFat = base.satFat ?? base.saturatedFat ?? base.saturated_fat ?? base.saturated ?? 0;
+
+    // Calculate energy density (kcal per 100g)
+    const energyDensity = base.calories || 0;
+
     return {
-      calories: Math.round((normalized.nutrients?.calories || 0) * scale),
-      protein: Math.round((normalized.nutrients?.protein || 0) * scale * 10) / 10,
-      fat: Math.round((normalized.nutrients?.fat || 0) * scale * 10) / 10,
-      carbs: Math.round((normalized.nutrients?.carbs || 0) * scale * 10) / 10,
-      fiber: normalized.nutrients?.fiber ? Math.round(normalized.nutrients.fiber * scale * 10) / 10 : undefined,
-      sugars: normalized.nutrients?.sugars ? Math.round(normalized.nutrients.sugars * scale * 10) / 10 : undefined,
-      sodium: normalized.nutrients?.sodium ? Math.round(normalized.nutrients.sodium * scale * 10) / 10 : undefined,
-      satFat: satValue ? Math.round(satValue * scale * 10) / 10 : undefined,
+      calories: Math.round((base.calories || 0) * scale),
+      protein: this.round((base.protein || 0) * scale, 1),
+      carbs: this.round((base.carbs || 0) * scale, 1),
+      fat: this.round((base.fat || 0) * scale, 1),
+      fiber: this.round((base.fiber || 0) * scale, 1),
+      sugars: this.round((base.sugars || 0) * scale, 1),
+      satFat: this.round(satFat * scale, 1),
+      energyDensity: this.round(energyDensity, 1),
     };
   }
 
@@ -329,7 +497,7 @@ export class AnalyzeService {
     return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);
   }
 
-  private computeHealthScore(total: any, totalPortion: number) {
+  private computeHealthScore(total: AnalysisTotals, totalPortion: number): HealthScore {
     const weights = this.getHealthWeights();
     const portionWeight = totalPortion || 250; // fallback 250g meal
     const proteinScore = this.positiveScore(total.protein, 30);

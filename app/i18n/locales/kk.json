@@ -391,6 +391,33 @@
     "addMeal": "Тағам қосу",
     "mealDetails": "Тағам деталдары"
   },
+  "subscription": {
+    "title": "Жазылым",
+    "plan": {
+      "free": "EatSense Free",
+      "pro": "EatSense Pro",
+      "premium": "EatSense Premium"
+    },
+    "features": {
+      "analyses": "Күніне AI талдаулары",
+      "tracking": "Калорияларды бақылау",
+      "stats": "Кеңейтілген статистика"
+    },
+    "billing": {
+      "perMonth": "айына",
+      "perYear": "жылына",
+      "free": "Мәңгі тегін",
+      "currency": {
+        "ru": "₽",
+        "kk": "₸",
+        "default": "$"
+      }
+    }
+  },
+  "limits": {
+    "title": "Күнделікті лимит жетті",
+    "dailyLimitReached": "Сіз күнделікті {{count}} фото-талдау лимитіне жеттіңіз. Ертең қайта көріңіз."
+  },
   "terms": {
     "title": "Пайдалану ережелері",
     "lastUpdated": "Соңғы жаңарту",

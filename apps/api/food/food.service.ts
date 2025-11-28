@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma.service';
 import { FoodAnalyzerService } from './food-analyzer/food-analyzer.service';
 import { RedisService } from '../redis/redis.service';
 import { calculateHealthScore } from './food-health-score.util';
+import { normalizeFoodName } from '../src/analysis/text-utils';
+import { AnalysisData, AnalyzedItem } from '../src/analysis/analysis.types';
 
 @Injectable()
 export class FoodService {
@@ -219,26 +221,42 @@ export class FoodService {
       throw new BadRequestException('Analysis result not found');
     }
 
-    const resultData = analysis.results[0].data as any;
+    const resultData = analysis.results[0].data as AnalysisData;
     
-    // Transform API format to frontend format
-    const items = resultData.items || [];
-    const ingredients = items.map((item: any) => ({
-      name: item.label || item.name,
-      calories: item.kcal || item.calories,
-      protein: item.protein || 0,
-      carbs: item.carbs || 0,
-      fat: item.fat || 0,
-      weight: item.gramsMean || item.weight || 100,
-    }));
+    // Map AnalysisData to frontend format
+    const mapped = this.mapAnalysisResult(resultData);
+    
+    return mapped;
+  }
 
+  /**
+   * Map AnalysisData to frontend format
+   */
+  private mapAnalysisResult(raw: AnalysisData) {
+    const items = raw.items || [];
+    const ingredients = items.map((item: AnalyzedItem) => {
+      const n = item.nutrients;
+      return {
+        name: item.label || item.name || 'Unknown Food',
+        calories: n.calories ?? 0,
+        protein: n.protein ?? 0,
+        carbs: n.carbs ?? 0,
+        fat: n.fat ?? 0,
+        fiber: n.fiber ?? 0,
+        sugars: n.sugars ?? 0,
+        satFat: n.satFat ?? 0,
+        weight: item.portion_g ?? 100,
+      };
+    });
+
+    // Calculate totals from ingredients (more reliable than resultData.total)
     const totalCalories = ingredients.reduce((sum: number, ing: any) => sum + (ing.calories || 0), 0);
     const totalProtein = ingredients.reduce((sum: number, ing: any) => sum + (ing.protein || 0), 0);
     const totalCarbs = ingredients.reduce((sum: number, ing: any) => sum + (ing.carbs || 0), 0);
     const totalFat = ingredients.reduce((sum: number, ing: any) => sum + (ing.fat || 0), 0);
 
     // Extract Health Score (new pipeline provides this)
-    let healthScore = resultData.healthScore;
+    let healthScore = raw.healthScore;
 
     if (!healthScore) {
       const fallbackScore = calculateHealthScore({
@@ -277,31 +295,30 @@ export class FoodService {
       };
     }
 
-    const autoSave = resultData.autoSave
-      ? {
-          mealId: resultData.autoSave.mealId,
-          savedAt: resultData.autoSave.savedAt,
-        }
-      : null;
+    // AutoSave is handled in processor, not in AnalysisData
+    const autoSave = null;
 
-    // Generate a more descriptive dish name
-    // If we have multiple items, create a combined name, otherwise use the first item
-    let dishName = 'Food Analysis';
-    if (items.length > 0) {
-      const firstItem = items[0];
-      if (items.length === 1) {
-        dishName = firstItem.label || firstItem.name || 'Food Analysis';
-      } else if (items.length <= 3) {
-        // For 2-3 items, combine them: "Chicken with Rice and Vegetables"
-        const names = items.slice(0, 3).map(item => item.label || item.name).filter(Boolean);
-        if (names.length > 0) {
-          dishName = names.join(' with ');
-        }
-      } else {
-        // For more items, use first item + "and more"
-        dishName = `${firstItem.label || firstItem.name || 'Food'} and more`;
+    // Generate a concise, natural dish name from AnalyzedItems
+    function buildDishName(items: AnalyzedItem[]): string {
+      const names = items.map(i => i.name).filter(Boolean);
+      if (names.length === 0) return 'Food Analysis';
+      
+      if (names.length === 1) {
+        const name = names[0];
+        // Limit to 60 characters
+        return name.length > 60 ? name.substring(0, 57) + '...' : name;
       }
+      
+      if (names.length === 2) {
+        const combined = `${names[0]} with ${names[1]}`;
+        return combined.length > 60 ? names[0] + ' and more' : combined;
+      }
+      
+      // 3 or more items
+      return names[0] + ' and more';
     }
+
+    const dishName = buildDishName(items);
 
     return {
       dishName,
@@ -312,7 +329,41 @@ export class FoodService {
       ingredients,
       healthScore,
       autoSave,
+      analysisFlags: {
+        isSuspicious: raw.isSuspicious || false,
+      },
     };
+  }
+
+  /**
+   * Get raw analysis data (for debug endpoint)
+   */
+  async getRawAnalysis(analysisId: string, userId: string) {
+    const analysis = await this.prisma.analysis.findFirst({
+      where: {
+        id: analysisId,
+        userId,
+      },
+      include: {
+        results: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!analysis) {
+      throw new BadRequestException('Analysis not found');
+    }
+
+    if (!analysis.results || analysis.results.length === 0) {
+      throw new BadRequestException('Analysis result not found');
+    }
+
+    // Return raw data as-is (includes debug if ANALYSIS_DEBUG was enabled)
+    return analysis.results[0].data;
   }
 
   async getUserAnalyses(userId: string, limit: number = 10, offset: number = 0) {

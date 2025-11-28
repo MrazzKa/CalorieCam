@@ -478,6 +478,33 @@
     "empty": "No meals recorded yet.",
     "addMeal": "Add Meal",
     "mealDetails": "Meal Details"
+  },
+  "subscription": {
+    "title": "Subscription",
+    "plan": {
+      "free": "EatSense Free",
+      "pro": "EatSense Pro",
+      "premium": "EatSense Premium"
+    },
+    "features": {
+      "analyses": "AI analyses per day",
+      "tracking": "Calorie tracking",
+      "stats": "Advanced statistics"
+    },
+    "billing": {
+      "perMonth": "per month",
+      "perYear": "per year",
+      "free": "Free forever",
+      "currency": {
+        "ru": "₽",
+        "kk": "₸",
+        "default": "$"
+      }
+    }
+  },
+  "limits": {
+    "title": "Daily Limit Reached",
+    "dailyLimitReached": "You have reached your daily limit of {{count}} photo analyses. Please try again tomorrow."
   }
 }
 
