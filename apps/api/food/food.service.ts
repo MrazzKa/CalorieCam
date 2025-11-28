@@ -221,7 +221,7 @@ export class FoodService {
       throw new BadRequestException('Analysis result not found');
     }
 
-    const resultData = analysis.results[0].data as AnalysisData;
+    const resultData = analysis.results[0].data as unknown as AnalysisData;
     
     // Map AnalysisData to frontend format
     const mapped = this.mapAnalysisResult(resultData);
@@ -264,7 +264,13 @@ export class FoodService {
         protein: totalProtein,
         carbs: totalCarbs,
         fat: totalFat,
-        items: items,
+        items: ingredients.map((ing) => ({
+          label: ing.name,
+          kcal: ing.calories,
+          protein: ing.protein,
+          carbs: ing.carbs,
+          fat: ing.fat,
+        })),
       });
       healthScore = {
         score: fallbackScore.score,
@@ -291,7 +297,8 @@ export class FoodService {
             weight: 0.15,
           },
         },
-        feedback: fallbackScore.feedback,
+        // Keep only human-readable messages for API clients
+        feedback: fallbackScore.feedback.map((f) => f.message),
       };
     }
 

@@ -61,6 +61,10 @@ export interface AnalysisDebug {
     componentName?: string;
     originalPortionG?: number;
     finalPortionG?: number;
+    // Optional debug fields
+    reason?: string;
+    error?: string;
+    message?: string;
   }>;
   sanity?: AnalysisSanityIssue[];
   timestamp: string;

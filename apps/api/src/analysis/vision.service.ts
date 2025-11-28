@@ -123,13 +123,13 @@ No markdown, no additional keys, no text before or after JSON.`;
         : (parsed as any).components ?? (parsed as any).items ?? [];
 
       // Validate and filter components
-      const validated: any[] = [];
+      const validated: VisionComponent[] = [];
       for (const comp of components) {
         try {
           // Validate individual component with relaxed schema
-          const validatedComp = ComponentSchema.parse(comp);
+          const validatedComp = VisionComponentSchema.parse(comp);
           // Apply defaults for optional fields
-          const finalComp = {
+          const finalComp: VisionComponent = {
             name: validatedComp.name || 'Unknown',
             preparation: validatedComp.preparation || 'unknown',
             est_portion_g: validatedComp.est_portion_g || 100,
@@ -137,7 +137,7 @@ No markdown, no additional keys, no text before or after JSON.`;
           };
           
           // Filter low confidence items
-          if (finalComp.confidence >= 0.55) {
+          if ((finalComp.confidence ?? 0) >= 0.55) {
             validated.push(finalComp);
           } else {
             this.logger.warn(`Low confidence component: ${finalComp.name} (${finalComp.confidence})`);

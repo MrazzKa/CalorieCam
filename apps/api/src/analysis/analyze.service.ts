@@ -521,13 +521,14 @@ export class AnalyzeService {
       totalWeight;
     const score = Math.round(Math.max(0, Math.min(100, weightedScore)));
     const grade = this.deriveGrade(score);
-    const feedback = this.buildFeedback(factorMap);
+    const feedbackObjects = this.buildFeedback(factorMap);
 
     return {
       score,
       grade,
       factors: factorMap,
-      feedback,
+      // Expose only human-readable messages; internal structure is kept in debug if needed
+      feedback: feedbackObjects.map((f) => f.message),
     };
   }
 
