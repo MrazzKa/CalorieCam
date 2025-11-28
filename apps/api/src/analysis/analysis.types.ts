@@ -32,6 +32,8 @@ export interface AnalyzedItem {
   dataType?: string;   // USDA dataType (Branded, Foundation, etc.)
   // Locale used for localization (optional, for debug)
   locale?: 'en' | 'ru' | 'kk';
+  // Flag indicating if nutrition data is available (false = no data, show "No nutrition data")
+  hasNutrition?: boolean;
 }
 
 export interface AnalysisTotals extends Nutrients {
