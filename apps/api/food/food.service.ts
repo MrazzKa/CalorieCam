@@ -231,11 +231,9 @@ export class FoodService {
     const mapped = this.mapAnalysisResult(resultData);
     
     // Include imageUrl from analysis result if available
-    if (analysis.results && analysis.results[0] && analysis.results[0].data) {
-      const resultData = analysis.results[0].data as any;
-      if (resultData.imageUrl) {
-        mapped.imageUrl = resultData.imageUrl;
-      }
+    const rawData = analysis.results[0].data as any;
+    if (rawData && rawData.imageUrl) {
+      (mapped as any).imageUrl = rawData.imageUrl;
     }
     
     return mapped;
@@ -366,7 +364,7 @@ export class FoodService {
         return names[0] + ' and more';
       })();
 
-    return {
+    const result: any = {
       dishName,
       totalCalories,
       totalProtein,
@@ -375,11 +373,13 @@ export class FoodService {
       ingredients,
       healthScore,
       autoSave,
+      imageUrl: raw.imageUrl || null, // Include imageUrl from analysis result
       analysisFlags: {
         isSuspicious: raw.isSuspicious || false,
         needsReview: raw.needsReview || false,
       },
     };
+    return result;
   }
 
   /**
