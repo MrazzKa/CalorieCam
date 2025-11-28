@@ -27,6 +27,8 @@ type HealthWeights = {
 @Injectable()
 export class AnalyzeService {
   private readonly logger = new Logger(AnalyzeService.name);
+  // Versioned cache key to avoid conflicts with legacy cached shapes
+  private readonly ANALYSIS_CACHE_VERSION = 'v2';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -87,7 +89,8 @@ export class AnalyzeService {
     
     // Check cache
     const imageHash = this.hashImage(params);
-    const cached = await this.cache.get<AnalysisData>(imageHash, 'analysis');
+    const cacheKey = `${this.ANALYSIS_CACHE_VERSION}:${imageHash}`;
+    const cached = await this.cache.get<AnalysisData>(cacheKey, 'analysis');
     if (cached) {
       this.logger.debug('Cache hit for image analysis');
       return cached;
@@ -294,7 +297,7 @@ export class AnalyzeService {
     };
 
     // Cache for 24 hours
-    await this.cache.set(imageHash, result, 'analysis');
+    await this.cache.set(cacheKey, result, 'analysis');
 
     return result;
   }
