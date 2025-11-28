@@ -69,19 +69,19 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
 
         if (shouldClose && enableSwipe) {
           closeModal();
-    } else {
+        } else {
       // Snap back to original position with a very small, simple animation
       Animated.timing(translateY, {
         toValue: swipeDirection === 'down' || swipeDirection === 'up' ? 0 : translateY._value,
         duration: 150,
-        useNativeDriver: true,
-      }).start();
+            useNativeDriver: true,
+          }).start();
       Animated.timing(translateX, {
-        toValue: 0,
+            toValue: 0,
         duration: 150,
-        useNativeDriver: true,
-      }).start();
-    }
+            useNativeDriver: true,
+          }).start();
+        }
       },
     }),
   ).current;
@@ -153,7 +153,7 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
   };
 
   const isFullScreen = presentationStyle === 'fullScreen';
-  
+
   return (
     <Modal
       visible={visible}
@@ -164,23 +164,23 @@ export const SwipeClosableModal: React.FC<SwipeClosableModalProps> = ({
     >
       <View style={[styles.overlay, isFullScreen && styles.overlayFullScreen]}>
         {!isFullScreen && (
-          <Animated.View
-            style={[
-              styles.backdrop,
-              {
-                opacity: animationType === 'fade' ? opacity : 1,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              },
-            ]}
-          >
-            {enableBackdropClose && (
-              <TouchableOpacity
-                style={StyleSheet.absoluteFill}
-                activeOpacity={1}
-                onPress={closeModal}
-              />
-            )}
-          </Animated.View>
+        <Animated.View
+          style={[
+            styles.backdrop,
+            {
+              opacity: animationType === 'fade' ? opacity : 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            },
+          ]}
+        >
+          {enableBackdropClose && (
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeModal}
+            />
+          )}
+        </Animated.View>
         )}
         <Animated.View
           style={[

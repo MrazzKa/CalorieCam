@@ -19,7 +19,7 @@ export class FoodService {
     private readonly redisService: RedisService,
   ) {}
 
-  async analyzeImage(file: any, userId: string) {
+  async analyzeImage(file: any, userId: string, locale?: 'en' | 'ru' | 'kk') {
     try {
       if (!file) {
         throw new BadRequestException('No image file provided');
@@ -61,6 +61,7 @@ export class FoodService {
             filename: file.originalname,
             mimetype: file.mimetype,
             size: file.size,
+            locale: locale ?? null,
           },
         },
       });
@@ -74,6 +75,7 @@ export class FoodService {
         analysisId: analysis.id,
         imageBufferBase64: imageBufferBase64,
         userId,
+        locale: locale ?? null,
       });
 
       // Increment daily limit counter after successful analysis creation
@@ -123,7 +125,7 @@ export class FoodService {
     }
   }
 
-  async analyzeText(description: string, userId: string) {
+  async analyzeText(description: string, userId: string, locale?: 'en' | 'ru' | 'kk') {
     if (!description || description.trim().length === 0) {
       throw new BadRequestException('Description cannot be empty');
     }
@@ -136,6 +138,7 @@ export class FoodService {
         status: 'PENDING',
         metadata: {
           description: description.trim(),
+          locale: locale ?? null,
         },
       },
     });
@@ -145,6 +148,7 @@ export class FoodService {
       analysisId: analysis.id,
       description: description.trim(),
       userId,
+      locale: locale ?? null,
     });
 
     // Increment daily limit counter after successful analysis creation
@@ -225,6 +229,14 @@ export class FoodService {
     
     // Map AnalysisData to frontend format
     const mapped = this.mapAnalysisResult(resultData);
+    
+    // Include imageUrl from analysis result if available
+    if (analysis.results && analysis.results[0] && analysis.results[0].data) {
+      const resultData = analysis.results[0].data as any;
+      if (resultData.imageUrl) {
+        mapped.imageUrl = resultData.imageUrl;
+      }
+    }
     
     return mapped;
   }
@@ -336,27 +348,23 @@ export class FoodService {
     // AutoSave is handled in processor, not in AnalysisData
     const autoSave = null;
 
-    // Generate a concise, natural dish name from AnalyzedItems
-    function buildDishName(items: AnalyzedItem[]): string {
-      const names = items.map(i => i.name).filter(Boolean);
-      if (names.length === 0) return 'Food Analysis';
-      
-      if (names.length === 1) {
-        const name = names[0];
-        // Limit to 60 characters
-        return name.length > 60 ? name.substring(0, 57) + '...' : name;
-      }
-      
-      if (names.length === 2) {
-        const combined = `${names[0]} with ${names[1]}`;
-        return combined.length > 60 ? names[0] + ' and more' : combined;
-      }
-      
-      // 3 or more items
-      return names[0] + ' and more';
-    }
-
-    const dishName = buildDishName(items);
+    // Prefer localized dish name if available, otherwise fall back to original / derived
+    const dishName =
+      raw.dishNameLocalized ||
+      raw.originalDishName ||
+      ((): string => {
+        const names = items.map(i => i.name).filter(Boolean);
+        if (names.length === 0) return 'Food Analysis';
+        if (names.length === 1) {
+          const name = names[0];
+          return name.length > 60 ? name.substring(0, 57) + '...' : name;
+        }
+        if (names.length === 2) {
+          const combined = `${names[0]} with ${names[1]}`;
+          return combined.length > 60 ? names[0] + ' and more' : combined;
+        }
+        return names[0] + ' and more';
+      })();
 
     return {
       dishName,
@@ -369,6 +377,7 @@ export class FoodService {
       autoSave,
       analysisFlags: {
         isSuspicious: raw.isSuspicious || false,
+        needsReview: raw.needsReview || false,
       },
     };
   }

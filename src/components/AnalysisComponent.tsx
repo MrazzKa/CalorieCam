@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { analyzeImage } from '../lib/api';
+import { useI18n } from '../../app/i18n/hooks';
+import { mapLanguageToLocale } from '../utils/locale';
 
 interface AnalysisComponentProps {
   imageUri: string;
@@ -17,10 +19,11 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { language } = useI18n();
 
   const startAnalysis = React.useCallback(async () => {
     try {
-      const result = await analyzeImage(imageUri);
+      const result = await analyzeImage(imageUri, mapLanguageToLocale(language));
       setProgress(100);
       setIsAnalyzing(false);
       if (typeof onAnalysisComplete === 'function') {
@@ -31,7 +34,7 @@ export const AnalysisComponent: React.FC<AnalysisComponentProps> = ({
       setError(error.message || 'Failed to analyze image');
       setIsAnalyzing(false);
     }
-  }, [imageUri, onAnalysisComplete]);
+  }, [imageUri, onAnalysisComplete, language]);
 
   useEffect(() => {
     void startAnalysis();

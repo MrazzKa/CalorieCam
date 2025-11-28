@@ -14,6 +14,7 @@ import {
   AnalysisDebug,
   AnalysisSanityIssue,
 } from './analysis.types';
+import { FoodLocalizationService } from './food-localization.service';
 import * as crypto from 'crypto';
 
 type HealthWeights = {
@@ -36,6 +37,7 @@ export class AnalyzeService {
     private readonly vision: VisionService,
     private readonly portion: PortionService,
     private readonly cache: CacheService,
+    private readonly foodLocalization: FoodLocalizationService,
   ) {}
 
   /**
@@ -84,8 +86,9 @@ export class AnalyzeService {
   /**
    * Analyze image and return normalized nutrition data
    */
-  async analyzeImage(params: { imageUrl?: string; imageBase64?: string }): Promise<AnalysisData> {
+  async analyzeImage(params: { imageUrl?: string; imageBase64?: string; locale?: 'en' | 'ru' | 'kk' }): Promise<AnalysisData> {
     const isDebugMode = process.env.ANALYSIS_DEBUG === 'true';
+    const locale = (params.locale as 'en' | 'ru' | 'kk' | undefined) || 'en';
     
     // Check cache
     const imageHash = this.hashImage(params);
@@ -97,7 +100,7 @@ export class AnalyzeService {
     }
 
     // Extract components via Vision
-    const visionComponents = await this.vision.extractComponents(params);
+    const visionComponents = await this.vision.extractComponents({ imageUrl: params.imageUrl, imageBase64: params.imageBase64 });
     
     // Initialize debug object
     const debug: AnalysisDebug = {
@@ -178,9 +181,13 @@ export class AnalyzeService {
           portionG,
         );
 
-        // Create AnalyzedItem
+        const originalNameEn = normalizeFoodName(bestMatch.description || food.description || component.name);
+        const localizedName = await this.foodLocalization.localizeName(originalNameEn, locale);
+
+        // Create AnalyzedItem with localized and original names
         const item: AnalyzedItem = {
-          name: normalizeFoodName(bestMatch.description || food.description),
+          name: localizedName || originalNameEn,
+          originalName: originalNameEn,
           label: component.name,
           portion_g: portionG,
           nutrients,
@@ -188,6 +195,7 @@ export class AnalyzeService {
           fdcId: bestMatch.fdcId,
           fdcScore: bestMatch.score,
           dataType: food.dataType,
+          locale,
         };
 
         items.push(item);
@@ -246,6 +254,16 @@ export class AnalyzeService {
     );
     const isSuspicious = hasSeriousIssues;
 
+    // Q4: Check for all-zero macros (needsReview flag)
+    const allMacrosZero = total.calories === 0 && total.protein === 0 && total.carbs === 0 && total.fat === 0;
+    const hasItemsButNoData = items.length > 0 && allMacrosZero;
+    const needsReview = hasItemsButNoData || (items.length > 0 && items.every(item => 
+      item.nutrients.calories === 0 && 
+      item.nutrients.protein === 0 && 
+      item.nutrients.carbs === 0 && 
+      item.nutrients.fat === 0
+    ));
+
     // Log sanity issues in debug mode
     if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
       this.logger.warn('[AnalysisSanity] Issues detected', {
@@ -259,6 +277,7 @@ export class AnalyzeService {
       this.logger.warn('[AnalyzeService] Zero-calorie analysis detected', {
         componentCount: visionComponents.length,
         itemCount: items.length,
+        needsReview,
         sampleComponents: visionComponents.slice(0, 5).map((c) => ({
           name: c.name,
           preparation: c.preparation,
@@ -277,8 +296,9 @@ export class AnalyzeService {
     if (isDebugMode) {
       this.logger.log('[AnalysisDebug] Final analysis', {
         totals: total,
-        items: items.map(i => ({
+        items: items.map((i) => ({
           name: i.name,
+          originalName: i.originalName,
           portion_g: i.portion_g,
           calories: i.nutrients.calories,
           protein: i.nutrients.protein,
@@ -288,12 +308,20 @@ export class AnalyzeService {
       });
     }
 
+    // Build English base dish name from items and localize it
+    const originalDishName = this.buildDishNameEn(items);
+    const dishNameLocalized = await this.foodLocalization.localizeName(originalDishName, locale);
+
     const result: AnalysisData = {
       items,
       total,
       healthScore,
       debug: isDebugMode ? debug : undefined,
+      locale,
+      dishNameLocalized: dishNameLocalized || originalDishName,
+      originalDishName,
       isSuspicious,
+      needsReview,
     };
 
     // Cache for 24 hours
@@ -305,7 +333,7 @@ export class AnalyzeService {
   /**
    * Analyze text description
    */
-  async analyzeText(text: string): Promise<AnalysisData> {
+  async analyzeText(text: string, locale?: 'en' | 'ru' | 'kk'): Promise<AnalysisData> {
     const isDebugMode = process.env.ANALYSIS_DEBUG === 'true';
     
     // Simple parsing: split by commas, newlines, etc.
@@ -383,8 +411,12 @@ export class AnalyzeService {
         const portionG = this.estimatePortionInGrams(component, fdcServingSizeG, debug);
         const nutrients = this.calculateNutrientsForPortion(normalized, portionG);
 
+        const originalNameEn = normalizeFoodName(bestMatch.description || food.description || component.name);
+        const localizedName = await this.foodLocalization.localizeName(originalNameEn, locale);
+
         const item: AnalyzedItem = {
-          name: normalizeFoodName(bestMatch.description || food.description),
+          name: localizedName || originalNameEn,
+          originalName: originalNameEn,
           label: component.name,
           portion_g: portionG,
           nutrients,
@@ -392,6 +424,7 @@ export class AnalyzeService {
           fdcId: bestMatch.fdcId,
           fdcScore: bestMatch.score,
           dataType: food.dataType,
+          locale,
         };
 
         items.push(item);
@@ -448,6 +481,16 @@ export class AnalyzeService {
     );
     const isSuspicious = hasSeriousIssues;
 
+    // Q4: Check for all-zero macros (needsReview flag)
+    const allMacrosZero = total.calories === 0 && total.protein === 0 && total.carbs === 0 && total.fat === 0;
+    const hasItemsButNoData = items.length > 0 && allMacrosZero;
+    const needsReview = hasItemsButNoData || (items.length > 0 && items.every(item => 
+      item.nutrients.calories === 0 && 
+      item.nutrients.protein === 0 && 
+      item.nutrients.carbs === 0 && 
+      item.nutrients.fat === 0
+    ));
+
     // Log sanity issues in debug mode
     if (process.env.ANALYSIS_DEBUG === 'true' && sanity.length > 0) {
       this.logger.warn('[AnalysisSanity] Issues detected', {
@@ -456,11 +499,18 @@ export class AnalyzeService {
       });
     }
 
+    // Build English base dish name from original names
+    const originalDishName = this.buildDishNameEn(items);
+    const dishNameLocalized = await this.foodLocalization.localizeName(originalDishName, locale);
+
     return {
       items,
       total,
       healthScore,
       debug: isDebugMode ? debug : undefined,
+      locale: locale || 'en',
+      dishNameLocalized: dishNameLocalized || originalDishName,
+      originalDishName,
       isSuspicious,
     };
   }
@@ -527,13 +577,17 @@ export class AnalyzeService {
       energyDensity: 120, // 120 ккал/100г
     };
 
-    const fallbackItem: AnalyzedItem = {
-      name: normalizeFoodName(component.name),
-      label: component.name,
-      portion_g: fallbackPortion,
-      nutrients: fallbackNutrients,
-      source: 'vision_fallback',
-    };
+        const originalNameEn = normalizeFoodName(component.name);
+        const localizedName = await this.foodLocalization.localizeName(originalNameEn, undefined);
+
+        const fallbackItem: AnalyzedItem = {
+          name: localizedName || originalNameEn,
+          originalName: originalNameEn,
+          label: component.name,
+          portion_g: fallbackPortion,
+          nutrients: fallbackNutrients,
+          source: 'vision_fallback',
+        };
 
     items.push(fallbackItem);
     debug.components = debug.components || [];
@@ -639,6 +693,22 @@ export class AnalyzeService {
     }
 
     return issues;
+  }
+
+  /**
+   * Build a concise English dish name from analyzed items (using originalName/name).
+   */
+  private buildDishNameEn(items: AnalyzedItem[]): string {
+    const names = items
+      .map(i => (i.originalName || i.name || '').trim())
+      .filter(Boolean);
+
+    if (!names.length) return 'Meal';
+
+    const unique = Array.from(new Set(names));
+    if (unique.length === 1) return unique[0];
+    if (unique.length === 2) return `${unique[0]} with ${unique[1]}`;
+    return `${unique[0]} and more`;
   }
 
   private hashImage(params: { imageUrl?: string; imageBase64?: string }): string {

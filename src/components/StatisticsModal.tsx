@@ -1,7 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeClosableModal } from './common/SwipeClosableModal';
+import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../../app/i18n/hooks';
+import ApiService from '../services/apiService';
 
 interface StatisticsModalProps {
   visible: boolean;
@@ -9,6 +13,38 @@ interface StatisticsModalProps {
 }
 
 export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClose }) => {
+  const { colors, tokens } = useTheme();
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [monthlyStats, setMonthlyStats] = useState<any>(null);
+
+  useEffect(() => {
+    if (visible) {
+      loadStats();
+    }
+  }, [visible]);
+
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      const [todayStats, monthly] = await Promise.all([
+        ApiService.getStats(new Date()),
+        ApiService.getMonthlyStats(),
+      ]);
+      setStats(todayStats);
+      setMonthlyStats(monthly);
+    } catch (error) {
+      console.error('[StatisticsModal] Error loading stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatNumber = (num: number) => {
+    return num.toLocaleString();
+  };
+
   return (
     <SwipeClosableModal
       visible={visible}
@@ -19,59 +55,147 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClo
       animationType="fade"
       presentationStyle="pageSheet"
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color="#2C3E50" />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background || '#F8F9FA' }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: colors.surface || 'white', borderBottomColor: colors.border || '#E5E7EB' }]}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={24} color={colors.text || '#2C3E50'} />
           </TouchableOpacity>
-          <Text style={styles.title}>Your Statistics</Text>
+          <Text style={[styles.title, { color: colors.text || '#2C3E50' }]}>
+            {t('statistics.title') || 'Statistics'}
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Goal Progress</Text>
-            
-            <View style={styles.progressCard}>
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Current Weight</Text>
-                <Text style={styles.progressValue}>75.2 kg</Text>
-              </View>
-              
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Target Weight</Text>
-                <Text style={styles.progressValue}>70.0 kg</Text>
-              </View>
-              
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Remaining</Text>
-                <Text style={styles.progressValue}>5.2 kg</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.recordButton}>
-              <Ionicons name="add" size={20} color="white" />
-              <Text style={styles.recordButtonText}>Record Weight</Text>
-            </TouchableOpacity>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary || '#3498DB'} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary || '#7F8C8D' }]}>
+              {t('common.loading') || 'Loading...'}
+            </Text>
           </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Today's Stats */}
+            {stats && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text || '#2C3E50' }]}>
+                  {t('statistics.today') || 'Today'}
+                </Text>
+                
+                <View style={[styles.statsCard, { backgroundColor: colors.surface || 'white' }]}>
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary || '#7F8C8D' }]}>
+                        {t('dashboard.calories') || 'Calories'}
+                      </Text>
+                      <Text style={[styles.statValue, { color: colors.primary || '#3498DB' }]}>
+                        {formatNumber(stats.today?.calories || 0)}
+                      </Text>
+                      {stats.goals?.calories && (
+                        <Text style={[styles.statGoal, { color: colors.textTertiary || '#95A5A6' }]}>
+                          {t('dashboard.ofGoal', { goal: formatNumber(stats.goals.calories) }) || `of ${formatNumber(stats.goals.calories)} goal`}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Calories</Text>
-            
-            <View style={styles.caloriesCard}>
-              <View style={styles.caloriesItem}>
-                <Text style={styles.caloriesLabel}>Total</Text>
-                <Text style={styles.caloriesValue}>2,450</Text>
+                  <View style={styles.macrosRow}>
+                    <View style={styles.macroItem}>
+                      <Text style={[styles.macroLabel, { color: colors.textSecondary || '#7F8C8D' }]}>
+                        {t('dashboard.protein') || 'Protein'}
+                      </Text>
+                      <Text style={[styles.macroValue, { color: colors.text || '#2C3E50' }]}>
+                        {formatNumber(stats.today?.protein || 0)}g
+                      </Text>
+                    </View>
+                    <View style={styles.macroItem}>
+                      <Text style={[styles.macroLabel, { color: colors.textSecondary || '#7F8C8D' }]}>
+                        {t('dashboard.carbs') || 'Carbs'}
+                      </Text>
+                      <Text style={[styles.macroValue, { color: colors.text || '#2C3E50' }]}>
+                        {formatNumber(stats.today?.carbs || 0)}g
+                      </Text>
+                    </View>
+                    <View style={styles.macroItem}>
+                      <Text style={[styles.macroLabel, { color: colors.textSecondary || '#7F8C8D' }]}>
+                        {t('dashboard.fat') || 'Fat'}
+                      </Text>
+                      <Text style={[styles.macroValue, { color: colors.text || '#2C3E50' }]}>
+                        {formatNumber(stats.today?.fat || 0)}g
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </View>
-              
-              <View style={styles.caloriesItem}>
-                <Text style={styles.caloriesLabel}>Daily Average</Text>
-                <Text style={styles.caloriesValue}>2,380</Text>
+            )}
+
+            {/* Monthly Highlights */}
+            {monthlyStats && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text || '#2C3E50' }]}>
+                  {t('dashboard.monthlyStats.title') || 'Monthly Highlights'}
+                </Text>
+                
+                {monthlyStats.topFoods && monthlyStats.topFoods.length > 0 && (
+                  <View style={[styles.statsCard, { backgroundColor: colors.surface || 'white' }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text || '#2C3E50' }]}>
+                      {t('dashboard.monthlyStats.topFoods') || 'Top Foods'}
+                    </Text>
+                    {monthlyStats.topFoods.slice(0, 5).map((food: any, index: number) => (
+                      <View key={index} style={styles.foodItem}>
+                        <Text style={[styles.foodName, { color: colors.text || '#2C3E50' }]} numberOfLines={1}>
+                          {food.name || 'Unknown'}
+                        </Text>
+                        <Text style={[styles.foodCount, { color: colors.textSecondary || '#7F8C8D' }]}>
+                          {food.count || 0} {t('statistics.times') || 'times'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {monthlyStats.mealDistribution && monthlyStats.mealDistribution.length > 0 && (
+                  <View style={[styles.statsCard, { backgroundColor: colors.surface || 'white' }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text || '#2C3E50' }]}>
+                      {t('dashboard.monthlyStats.mealDistribution') || 'Meal Distribution'}
+                    </Text>
+                    {monthlyStats.mealDistribution.map((meal: any, index: number) => (
+                      <View key={index} style={styles.mealItem}>
+                        <Text style={[styles.mealLabel, { color: colors.text || '#2C3E50' }]}>
+                          {meal.type || 'Meal'}
+                        </Text>
+                        <View style={styles.mealBarContainer}>
+                          <View 
+                            style={[
+                              styles.mealBar, 
+                              { 
+                                width: `${Math.min(100, Math.max(0, meal.percentage || 0))}%`,
+                                backgroundColor: colors.primary || '#3498DB'
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={[styles.mealPercentage, { color: colors.textSecondary || '#7F8C8D' }]}>
+                          {Math.round(meal.percentage || 0)}%
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
-          </View>
-        </ScrollView>
-      </View>
+            )}
+
+            {!stats && !monthlyStats && !loading && (
+              <View style={styles.emptyState}>
+                <Ionicons name="stats-chart" size={48} color={colors.textTertiary || '#95A5A6'} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary || '#7F8C8D' }]}>
+                  {t('statistics.empty') || 'No statistics available yet'}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </SafeAreaView>
     </SwipeClosableModal>
   );
 };
@@ -79,58 +203,103 @@ export const StatisticsModal: React.FC<StatisticsModalProps> = ({ visible, onClo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   header: {
-    backgroundColor: 'white',
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderBottomWidth: 1,
   },
   closeButton: {
-    padding: 5,
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2C3E50',
+    fontWeight: '600',
   },
   placeholder: {
-    width: 34,
+    width: 44,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
   },
   scrollContent: {
     padding: 20,
     paddingBottom: 100,
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 16,
+    fontWeight: '600',
+    marginBottom: 12,
   },
-  progressCard: {
-    backgroundColor: 'white',
+  statsCard: {
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  progressItem: {
+  statsRow: {
+    marginBottom: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  statGoal: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  macrosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F8F9FA',
+  },
+  macroItem: {
+    alignItems: 'center',
+  },
+  macroLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  macroValue: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  foodItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -138,54 +307,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F8F9FA',
   },
-  progressLabel: {
-    fontSize: 16,
-    color: '#7F8C8D',
+  foodName: {
+    fontSize: 14,
+    flex: 1,
+    marginRight: 12,
   },
-  progressValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2C3E50',
+  foodCount: {
+    fontSize: 14,
   },
-  recordButton: {
-    flexDirection: 'row',
+  mealItem: {
+    marginBottom: 12,
+  },
+  mealLabel: {
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  mealBarContainer: {
+    height: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  mealBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  mealPercentage: {
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3498DB',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    padding: 40,
   },
-  recordButtonText: {
+  emptyText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  caloriesCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  caloriesItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8F9FA',
-  },
-  caloriesLabel: {
-    fontSize: 16,
-    color: '#7F8C8D',
-  },
-  caloriesValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2C3E50',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

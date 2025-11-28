@@ -19,6 +19,7 @@ import { EditFoodItemModal } from '../components/EditFoodItemModal';
 import { HealthScoreCard } from '../components/HealthScoreCard';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
+import { mapLanguageToLocale } from '../utils/locale';
 import AppCard from '../components/common/AppCard';
 import { clientLog } from '../utils/clientLog';
 
@@ -56,7 +57,7 @@ export default function AnalysisResultsScreen() {
   const readOnly = Boolean(routeParams.readOnly);
   const baseImageUri = capturedImageUri || initialAnalysisParam?.imageUri || null;
   const { colors, tokens } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const [isAnalyzing, setIsAnalyzing] = useState(!initialAnalysisParam);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -154,6 +155,8 @@ export default function AnalysisResultsScreen() {
 
       const healthScore = raw.healthScore || raw.healthInsights || null;
       const autoSave = raw.autoSave || raw.savedMeal || null;
+      const needsReview = raw.analysisFlags?.needsReview || raw.needsReview || false;
+      const isSuspicious = raw.analysisFlags?.isSuspicious || raw.isSuspicious || false;
 
       return {
         id: raw.id || raw.analysisId || null,
@@ -162,7 +165,7 @@ export default function AnalysisResultsScreen() {
           raw.name ||
           normalizedIngredients[0]?.name ||
           'Food Analysis',
-        imageUri: raw.imageUri || fallbackImage || null,
+        imageUri: raw.imageUrl || raw.imageUri || fallbackImage || null,
         totalCalories,
         totalProtein,
         totalCarbs,
@@ -170,6 +173,8 @@ export default function AnalysisResultsScreen() {
         ingredients: normalizedIngredients,
         healthScore,
         autoSave,
+        needsReview,
+        isSuspicious,
         consumedAt: raw.consumedAt || raw.date || raw.createdAt || null,
       };
     },
@@ -205,6 +210,50 @@ export default function AnalysisResultsScreen() {
       return () => clearTimeout(timeoutId);
     }
 
+    // Handle text description analysis
+    const description = routeParams.description;
+    if (description) {
+      setIsAnalyzing(true);
+      const runTextAnalysis = async () => {
+        try {
+          const locale = mapLanguageToLocale(language);
+          const analysisResponse = await ApiService.analyzeText(description, locale);
+          if (analysisResponse.analysisId) {
+            // Poll for results similar to image analysis
+            let attempts = 0;
+            const maxAttempts = 60;
+            const pollForResults = async () => {
+              try {
+                const status = await ApiService.getAnalysisStatus(analysisResponse.analysisId);
+                if (status.status === 'completed') {
+                  const result = await ApiService.getAnalysisResult(analysisResponse.analysisId);
+                  applyResult(result, null);
+                } else if (status.status === 'failed') {
+                  showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
+                } else if (attempts < maxAttempts) {
+                  attempts += 1;
+                  setTimeout(pollForResults, 1000);
+                } else {
+                  showAnalysisError('analysis.timeoutTitle', 'analysis.timeoutMessage');
+                }
+              } catch (error) {
+                console.error('Text analysis polling error:', error);
+                showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
+              }
+            };
+            pollForResults();
+          } else {
+            showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
+          }
+        } catch (error) {
+          console.error('[AnalysisResultsScreen] Text analysis failed:', error);
+          showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
+        }
+      };
+      runTextAnalysis();
+      return;
+    }
+
     if (!capturedImageUri) {
       showAnalysisError('analysis.errorTitle', 'analysis.errorMessage');
       return;
@@ -232,7 +281,8 @@ export default function AnalysisResultsScreen() {
 
         let analysisResponse;
         try {
-          analysisResponse = await ApiService.analyzeImage(capturedImageUri);
+          const locale = mapLanguageToLocale(language);
+          analysisResponse = await ApiService.analyzeImage(capturedImageUri, locale);
           await clientLog('Analysis:apiCalled', {
             hasAnalysisId: !!analysisResponse?.analysisId,
             hasResult: !!analysisResponse?.items,
@@ -319,11 +369,17 @@ export default function AnalysisResultsScreen() {
   const hasAutoSave = Boolean(autoSaveInfo?.mealId);
   const previewImage = analysisResult?.imageUri || baseImageUri;
 
+  const dishTitle =
+    analysisResult?.dishName ||
+    analysisResult?.name ||
+    t('analysis.title') ||
+    'Meal';
+
   const handleShare = async () => {
     if (!analysisResult) return;
     try {
       await Share.share({
-        message: `I just analyzed my meal: ${analysisResult.dishName}! ${analysisResult.totalCalories} calories.`,
+        message: `I just analyzed my meal: ${dishTitle}! ${analysisResult.totalCalories} calories.`,
         title: 'EatSense Analysis',
       });
     } catch (error) {
@@ -375,9 +431,10 @@ export default function AnalysisResultsScreen() {
 
     try {
       const mealData = {
-        name: analysisResult.dishName || 'Meal',
+        name: dishTitle || 'Meal',
         type: 'meal',
         consumedAt: new Date().toISOString(), // Set current date/time for the meal
+        imageUri: analysisResult.imageUri || previewImage || null,
         items: (analysisResult.ingredients && Array.isArray(analysisResult.ingredients) ? analysisResult.ingredients : []).map((ingredient) => ({
           name: ingredient.name || 'Unknown',
           calories: Number(ingredient.calories) || 0,
@@ -569,17 +626,24 @@ export default function AnalysisResultsScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Image */}
+          {/* Image with gradient overlay */}
           <View style={styles.imageContainer}>
             {renderImage(previewImage, styles.resultImage, true)}
+            {previewImage && (
+              <View style={styles.imageGradientOverlay}>
+                <Text style={styles.dishNameOverlay}>{analysisResult?.dishName}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Dish Name */}
-          <View>
-            <View style={styles.dishNameContainer}>
-              <Text style={styles.dishName}>{analysisResult?.dishName}</Text>
+          {/* Dish Name (fallback if no image) */}
+          {!previewImage && (
+            <View>
+              <View style={styles.dishNameContainer}>
+                <Text style={styles.dishName}>{analysisResult?.dishName}</Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Total Nutrition */}
           <View>
@@ -607,6 +671,23 @@ export default function AnalysisResultsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Needs Review Banner */}
+          {analysisResult?.needsReview && (
+            <View>
+              <AppCard style={[styles.warningCard, { backgroundColor: colors.warningBackground || '#FFF3CD', borderColor: colors.warning || '#FFC107' }]}>
+                <View style={styles.warningHeader}>
+                  <Ionicons name="alert-circle" size={22} color={colors.warning || '#FFC107'} />
+                  <Text style={[styles.warningTitle, { color: colors.warningText || '#856404' }]}>
+                    {t('analysis.needsReviewTitle') || 'Review Required'}
+                  </Text>
+                </View>
+                <Text style={[styles.warningDescription, { color: colors.warningText || '#856404' }]}>
+                  {t('analysis.needsReviewMessage') || 'We\'re not fully confident about this analysis. Please double-check and edit the values.'}
+                </Text>
+              </AppCard>
+            </View>
+          )}
 
           {/* Health Score */}
           {analysisResult?.healthScore && (
@@ -772,10 +853,28 @@ const createStyles = (tokens) =>
     },
     resultImage: {
       width: '100%',
-      height: 200,
+      height: 240,
       borderRadius: tokens.radii.lg,
       marginTop: tokens.spacing.lg,
       resizeMode: 'cover',
+    },
+    imageGradientOverlay: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 100,
+      borderRadius: tokens.radii.lg,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+      padding: tokens.spacing.lg,
+      paddingBottom: tokens.spacing.xl,
+    },
+    dishNameOverlay: {
+      color: tokens.colors.inverseText || '#FFFFFF',
+      fontSize: tokens.typography.headingM.fontSize,
+      fontWeight: tokens.typography.headingM.fontWeight,
+      textAlign: 'left',
     },
     analyzingOverlay: {
       position: 'absolute',
@@ -1062,6 +1161,25 @@ const createStyles = (tokens) =>
     autoSaveMeta: {
       fontSize: tokens.typography.caption.fontSize,
       color: tokens.colors.textTertiary,
+    },
+    warningCard: {
+      marginHorizontal: tokens.spacing.xl,
+      marginBottom: tokens.spacing.lg,
+      gap: tokens.spacing.xs,
+      borderWidth: 1,
+    },
+    warningHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.spacing.sm,
+    },
+    warningTitle: {
+      fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    warningDescription: {
+      fontSize: tokens.typography.body.fontSize,
+      lineHeight: tokens.typography.body.lineHeight,
     },
     autoSaveActions: {
       paddingHorizontal: tokens.spacing.xl,

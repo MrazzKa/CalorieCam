@@ -57,7 +57,7 @@ export class MealsService {
   }
 
   async createMeal(userId: string, createMealDto: CreateMealDto) {
-    const { items, consumedAt, healthScore: healthScorePayload, ...mealData } = createMealDto;
+    const { items, consumedAt, healthScore: healthScorePayload, imageUri, ...mealData } = createMealDto;
     
     // Валидация: проверяем, что есть хотя бы один item
     if (!items || items.length === 0) {
@@ -105,6 +105,7 @@ export class MealsService {
         healthScore: healthScorePayload?.score ?? null,
         healthGrade: healthScorePayload?.grade ?? null,
         healthInsights: healthScorePayload ? (healthScorePayload as any) : null,
+        imageUri: imageUri || null,
         items: {
           create: validItems,
         },

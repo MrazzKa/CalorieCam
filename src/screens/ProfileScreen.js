@@ -228,53 +228,90 @@ const ProfileScreen = () => {
   };
 
   const reminderOptions = [6, 8, 12, 18, 20];
+
   const planOptions = [
     {
       id: 'free',
-      name: 'EatSense Free',
-      price: '$0 forever',
       billingCycle: 'lifetime',
-      description: 'Start tracking meals with essential features.',
-      features: ['3 AI analyses per day', 'Calorie tracking', 'Basic statistics'],
-      badge: 'Included',
+      price: 0,
+      featureKeys: ['limitedAnalyses', 'calorieTracking', 'basicStats'],
+      badgeKey: 'included',
     },
     {
       id: 'pro_monthly',
-      name: 'EatSense Pro',
-      price: '$9.99 / month',
       billingCycle: 'monthly',
-      description: 'Unlock unlimited AI tools with flexible billing.',
-      features: [
-        'Unlimited AI food analysis',
-        'Advanced nutrition insights',
-        'Personalized coaching tips',
-      ],
-      badge: 'Most Popular',
+      price: 9.99,
+      featureKeys: ['unlimitedAnalyses', 'advancedInsights', 'coachingTips'],
+      badgeKey: 'mostPopular',
     },
     {
       id: 'pro_annual',
-      name: 'EatSense Pro',
-      price: '$79.99 / year',
       billingCycle: 'annual',
-      description: 'Best value — save 33% vs monthly billing.',
-      features: [
-        'Everything in Pro Monthly',
-        'Exclusive annual webinars',
-        'Early access to new features',
-      ],
-      badge: 'Save 33%',
+      price: 79.99,
+      featureKeys: ['everythingInProMonthly', 'annualWebinars', 'earlyAccess'],
+      badgeKey: 'save33',
     },
   ];
 
+  const getCurrencySymbol = (lng) => {
+    if (!lng) return '$';
+    const lower = lng.toLowerCase();
+    if (lower.startsWith('ru')) return '₽';
+    if (lower.startsWith('kk') || lower.startsWith('kz')) return '₸';
+    return '$';
+  };
+
   const getPlanDetails = (planId) => {
-    const plan = planOptions.find((plan) => plan.id === planId) || planOptions[0];
-    if (!plan || !plan.features || !Array.isArray(plan.features)) {
-      return {
-        ...plan,
-        features: plan?.features || [],
-      };
+    const basePlan = planOptions.find((plan) => plan.id === planId) || planOptions[0];
+    const currency = getCurrencySymbol(language);
+
+    const name =
+      basePlan.id === 'free'
+        ? safeT('profile.planFreeName', 'EatSense Free')
+        : safeT('profile.planProName', 'EatSense Pro');
+
+    let priceText;
+    if (basePlan.id === 'free') {
+      priceText = safeT('profile.planFreePrice', 'Free');
+    } else if (basePlan.billingCycle === 'monthly') {
+      priceText = safeT('profile.planMonthlyPrice', '{{price}} / month').replace(
+        '{{price}}',
+        `${currency}${basePlan.price.toFixed(2)}`,
+      );
+    } else {
+      priceText = safeT('profile.planAnnualPrice', '{{price}} / year').replace(
+        '{{price}}',
+        `${currency}${basePlan.price.toFixed(2)}`,
+      );
     }
-    return plan;
+
+    const description =
+      basePlan.id === 'free'
+        ? safeT('profile.planFreeDescription', 'Start tracking meals with essential features.')
+        : basePlan.billingCycle === 'monthly'
+        ? safeT('profile.planProMonthlyDescription', 'Unlock unlimited AI tools with flexible billing.')
+        : safeT('profile.planProAnnualDescription', 'Best value — save 33% vs monthly billing.');
+
+    const features =
+      (basePlan.featureKeys || []).map((key) =>
+        safeT(`profile.planFeatures.${key}`, key),
+      ) || [];
+
+    const badge =
+      basePlan.id === 'free'
+        ? safeT('profile.planBadges.included', 'Included')
+        : basePlan.id === 'pro_monthly'
+        ? safeT('profile.planBadges.mostPopular', 'Most Popular')
+        : safeT('profile.planBadges.save33', 'Save 33%');
+
+    return {
+      ...basePlan,
+      name,
+      priceText,
+      description,
+      features,
+      badge,
+    };
   };
 
   const formatReminderTime = (hour) => {
@@ -527,7 +564,7 @@ const ProfileScreen = () => {
                 {getPlanDetails(subscription.planId).name}
               </Text>
               <Text style={styles.planSummaryPrice}>
-                {getPlanDetails(subscription.planId).price}
+                {getPlanDetails(subscription.planId).priceText}
               </Text>
             </View>
           </View>

@@ -89,7 +89,15 @@
     "timeoutMessage": "Талдау күткендегіден ұзақ жүріп жатыр. Қайталап көріңіз.",
     "savedTitle": "Сақталды",
     "savedMessage": "Тағам күнделікке сақталды",
-    "saveError": "Тағамды сақтау мүмкін болмады. Қайталап көріңіз."
+    "saveError": "Тағамды сақтау мүмкін болмады. Қайталап көріңіз.",
+    "needsReviewTitle": "Тексеру қажет",
+    "needsReviewMessage": "Біз талдауға толық сенімді емеспіз. Өтінеміз, мәндерді тексеріп, қажет болса түзетіңіз."
+  },
+  "describeFood": {
+    "title": "Тағамыңызды сипаттаңыз",
+    "subtitle": "Не жегеніңізді жазыңыз, біз оны талдаймыз",
+    "placeholder": "Мысалы: грильдегі тауық еті, күріш және көкөністермен",
+    "analyze": "Талдау"
   },
   "healthScore": {
     "title": "Пайдалық бағасы",
@@ -169,7 +177,36 @@
     "dietMediterranean": "Жерорта теңізі",
     "dietPlantBased": "Өсімдік негізіндегі",
     "choosePlan": "Жоспар таңдау",
-    "selectPlan": "Жоспарды таңдау"
+    "selectPlan": "Жоспарды таңдау",
+    "subscriptionTitle": "Жазылым",
+    "changePlan": "Жоспарды өзгерту",
+    "billingAnnual": "Жылына төлем",
+    "billingMonthly": "Ай сайынғы төлем",
+    "billingFree": "Мәңгі тегін",
+    "planFreeName": "EatSense Free",
+    "planProName": "EatSense Pro",
+    "planFreePrice": "Тегін",
+    "planMonthlyPrice": "{{price}} / ай",
+    "planAnnualPrice": "{{price}} / жыл",
+    "planFreeDescription": "Негізгі мүмкіндіктермен тамақ қабылдауларын қадағалауды бастаңыз.",
+    "planProMonthlyDescription": "Икемді төлеммен шексіз AI‑құралдарды ашыңыз.",
+    "planProAnnualDescription": "Ең тиімді — ай сайынғы төлеммен салыстырғанда 33% үнемдеу.",
+    "planFeatures": {
+      "limitedAnalyses": "Күніне 3 AI‑талдауға дейін",
+      "calorieTracking": "Калорияларды қадағалау",
+      "basicStats": "Негізгі статистика",
+      "unlimitedAnalyses": "Шексіз AI тағам талдауы",
+      "advancedInsights": "Тамақтану бойынша кеңейтілген аналитика",
+      "coachingTips": "Жеке тамақтану кеңестері",
+      "everythingInProMonthly": "Pro Monthly жоспарындағының бәрі",
+      "annualWebinars": "Жыл сайынғы эксклюзивті вебинарлар",
+      "earlyAccess": "Жаңа функцияларға ерте қол жеткізу"
+    },
+    "planBadges": {
+      "included": "Қамтылған",
+      "mostPopular": "Ең танымал",
+      "save33": "33% үнемдеу"
+    }
   },
   "gallery": {
     "title": "Фотоны таңдау",
@@ -194,7 +231,8 @@
     "flashModeAuto": "Авто",
     "switchCamera": "Камераны ауыстыру",
     "zoomLabel": "Зум {{value}}x",
-    "captureError": "Фото түсіру мүмкін болмады. Қайталап көріңіз."
+    "captureError": "Фото түсіру мүмкін болмады. Қайталап көріңіз.",
+    "typeInstead": "Қолмен жазу"
   },
   "aiAssistant": {
     "title": "AI тамақтану көмекшісі",
@@ -507,6 +545,12 @@
         "content": "Құпиялылыққа байланысты сұрақтар үшін: privacy@eatsense.ch"
       }
     }
+  },
+  "statistics": {
+    "title": "Статистика",
+    "today": "Бүгін",
+    "empty": "Статистика әлі қолжетімсіз",
+    "times": "рет"
   }
 }
 

@@ -92,7 +92,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
-      >
+        >
         <View style={[styles.modal, { backgroundColor: colors.surface }]}>
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
               <View>
@@ -241,7 +241,7 @@ export const EditFoodItemModal = ({ visible, onClose, item, onSave, index }) => 
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
     </SwipeClosableModal>
   );
 };

@@ -85,7 +85,7 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
   const handleClose = async () => {
     await clientLog('AiAssistant:closed').catch(() => {});
     if (onClose && typeof onClose === 'function') {
-      onClose();
+    onClose();
     }
   };
 
@@ -103,42 +103,42 @@ const AiAssistantContent: React.FC<AiAssistantProps> = ({ visible, onClose }) =>
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={insets.top}
-      >
+    >
         <View style={[styles.container, { backgroundColor: colors.surface || '#FFFFFF' }]}>
           <View style={[styles.header, { 
             borderBottomColor: colors.border || '#E5E5EA',
             paddingTop: insets.top,
             paddingHorizontal: 16,
           }]}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {t('dashboard.aiAssistant') || 'AI Assistant'}
-            </Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            {t('dashboard.aiAssistant') || 'AI Assistant'}
+          </Text>
             <TouchableOpacity 
               onPress={typeof handleClose === 'function' ? handleClose : () => {}}
               style={styles.closeButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={24} color={colors.text || '#000'} />
-            </TouchableOpacity>
-          </View>
-          
-          <ErrorBoundary>
-            {hasError ? (
-              <AiAssistantFallback onClose={handleClose} t={t} />
-            ) : (
-              <Suspense fallback={
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary || '#007AFF'} />
-                  <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                    {t('common.loading') || 'Loading...'}
-                  </Text>
-                </View>
-              }>
-                <RealAiAssistant onClose={handleClose} />
-              </Suspense>
-            )}
-          </ErrorBoundary>
+            <Ionicons name="close" size={24} color={colors.text || '#000'} />
+          </TouchableOpacity>
+        </View>
+        
+        <ErrorBoundary>
+          {hasError ? (
+            <AiAssistantFallback onClose={handleClose} t={t} />
+          ) : (
+            <Suspense fallback={
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary || '#007AFF'} />
+                <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+                  {t('common.loading') || 'Loading...'}
+                </Text>
+              </View>
+            }>
+              <RealAiAssistant onClose={handleClose} />
+            </Suspense>
+          )}
+        </ErrorBoundary>
         </View>
       </KeyboardAvoidingView>
     </SwipeClosableModal>

@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma.module';
 import { RedisModule } from '../redis/redis.module';
 import { LimitsModule } from '../limits/limits.module';
 import { MealsModule } from '../meals/meals.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MealsModule } from '../meals/meals.module';
     RedisModule,
     LimitsModule,
     MealsModule,
+    MediaModule,
   ],
   controllers: [FoodController],
   providers: [FoodService],

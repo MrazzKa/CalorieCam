@@ -89,7 +89,15 @@
     "timeoutMessage": "Анализ занимает больше времени, чем обычно. Попробуйте ещё раз.",
     "savedTitle": "Сохранено",
     "savedMessage": "Блюдо сохранено в дневник",
-    "saveError": "Не удалось сохранить блюдо. Попробуйте ещё раз."
+    "saveError": "Не удалось сохранить блюдо. Попробуйте ещё раз.",
+    "needsReviewTitle": "Требуется проверка",
+    "needsReviewMessage": "Мы не полностью уверены в анализе. Пожалуйста, проверьте и при необходимости исправьте значения."
+  },
+  "describeFood": {
+    "title": "Опишите блюдо",
+    "subtitle": "Расскажите, что вы ели, и мы проанализируем это",
+    "placeholder": "Например: куриная грудка на гриле с рисом и овощами",
+    "analyze": "Анализировать"
   },
   "healthScore": {
     "title": "Оценка пользы",
@@ -169,7 +177,36 @@
     "dietMediterranean": "Средиземноморская",
     "dietPlantBased": "Растительная",
     "choosePlan": "Выбрать план",
-    "selectPlan": "Выбрать план"
+    "selectPlan": "Выбрать план",
+    "subscriptionTitle": "Подписка",
+    "changePlan": "Сменить план",
+    "billingAnnual": "Оплата раз в год",
+    "billingMonthly": "Ежемесячная оплата",
+    "billingFree": "Бесплатно навсегда",
+    "planFreeName": "EatSense Free",
+    "planProName": "EatSense Pro",
+    "planFreePrice": "Бесплатно",
+    "planMonthlyPrice": "{{price}} в месяц",
+    "planAnnualPrice": "{{price}} в год",
+    "planFreeDescription": "Начните отслеживать приёмы пищи с базовыми функциями.",
+    "planProMonthlyDescription": "Откройте неограниченные AI‑инструменты с гибкой оплатой.",
+    "planProAnnualDescription": "Лучшая выгода — экономия до 33% по сравнению с помесячной оплатой.",
+    "planFeatures": {
+      "limitedAnalyses": "До 3 AI‑анализов в день",
+      "calorieTracking": "Отслеживание калорий",
+      "basicStats": "Базовая статистика",
+      "unlimitedAnalyses": "Неограниченный AI‑анализ блюд",
+      "advancedInsights": "Расширенная аналитика питания",
+      "coachingTips": "Персональные советы по питанию",
+      "everythingInProMonthly": "Всё из Pro Monthly",
+      "annualWebinars": "Ежегодные эксклюзивные вебинары",
+      "earlyAccess": "Ранний доступ к новым функциям"
+    },
+    "planBadges": {
+      "included": "Включено",
+      "mostPopular": "Самый популярный",
+      "save33": "Экономия 33%"
+    }
   },
   "gallery": {
     "title": "Выбор фото",
@@ -194,7 +231,8 @@
     "flashModeAuto": "Авто",
     "switchCamera": "Повернуть камеру",
     "zoomLabel": "Зум {{value}}x",
-    "captureError": "Не удалось сделать фото. Попробуйте ещё раз."
+    "captureError": "Не удалось сделать фото. Попробуйте ещё раз.",
+    "typeInstead": "Написать вручную"
   },
   "aiAssistant": {
     "title": "AI‑ассистент по питанию",
@@ -507,6 +545,12 @@
         "content": "По вопросам конфиденциальности обращайтесь: privacy@eatsense.ch"
       }
     }
+  },
+  "statistics": {
+    "title": "Статистика",
+    "today": "Сегодня",
+    "empty": "Статистика пока недоступна",
+    "times": "раз"
   }
 }
 

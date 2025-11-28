@@ -87,6 +87,7 @@ model Meal {
   healthScore    Float?     @map("health_score")
   healthGrade    String?    @map("health_grade")
   healthInsights Json?      @map("health_insights")
+  imageUri       String?    @map("image_uri")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   items          MealItem[]

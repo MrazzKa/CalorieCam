@@ -41,14 +41,14 @@ export const analyzeImage = async (imageUri: string): Promise<AnalysisResult> =>
   }
 };
 
-export const analyzeText = async (description: string): Promise<AnalysisResult> => {
+export const analyzeText = async (description: string, locale?: 'en' | 'ru' | 'kk'): Promise<AnalysisResult> => {
   try {
     const response = await fetchWithTimeout(`${URLS.API_BASE_URL}/analyze-text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ description }),
+      body: JSON.stringify({ description, locale }),
     }, 30000);
 
     if (!response.ok) {

@@ -155,7 +155,7 @@ export class AiAssistantController {
 
       // Re-throw BadRequestException as-is
       if (error instanceof BadRequestException) {
-        throw error;
+      throw error;
       }
 
       // For other errors, throw InternalServerErrorException

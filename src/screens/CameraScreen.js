@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../../app/i18n/hooks';
 import { clientLog } from '../utils/clientLog';
+import { DescribeFoodModal } from '../components/DescribeFoodModal';
 
 export default function CameraScreen() {
   const navigation = useNavigation();
@@ -23,6 +24,7 @@ export default function CameraScreen() {
   const [zoom, setZoom] = useState(0);
   const [facing, setFacing] = useState('back');
   const [flashMode, setFlashMode] = useState('off');
+  const [showDescribeModal, setShowDescribeModal] = useState(false);
   
   // Safe requestPermission wrapper
   const handleRequestPermission = async () => {
@@ -148,6 +150,16 @@ export default function CameraScreen() {
     if (navigation && typeof navigation.goBack === 'function') {
       navigation.goBack();
     }
+  };
+
+  const handleDescribeFood = (description) => {
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate('AnalysisResults', {
+        description,
+        source: 'text',
+      });
+    }
+    setShowDescribeModal(false);
   };
 
   if (!permission) {
@@ -276,9 +288,25 @@ export default function CameraScreen() {
                 onValueChange={setZoom}
               />
             </View>
+
+            <Pressable
+              style={styles.typeButton}
+              onPress={() => setShowDescribeModal(true)}
+            >
+              <Ionicons name="create-outline" size={20} color={tokens.colors.onPrimary} />
+              <Text style={[styles.typeButtonText, { color: tokens.colors.onPrimary }]}>
+                {t('camera.typeInstead') || 'Type instead'}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </CameraView>
+
+      <DescribeFoodModal
+        visible={showDescribeModal}
+        onClose={() => setShowDescribeModal(false)}
+        onAnalyze={handleDescribeFood}
+      />
     </View>
   );
 }
@@ -403,6 +431,21 @@ const createStyles = (tokens) =>
     },
     permissionButtonText: {
       fontSize: tokens.typography.bodyStrong.fontSize,
+      fontWeight: tokens.typography.bodyStrong.fontWeight,
+    },
+    typeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: tokens.spacing.sm,
+      backgroundColor: 'rgba(15,23,42,0.32)',
+      borderRadius: tokens.radii.lg,
+      paddingVertical: tokens.spacing.md,
+      paddingHorizontal: tokens.spacing.lg,
+      marginTop: tokens.spacing.md,
+    },
+    typeButtonText: {
+      fontSize: tokens.typography.body.fontSize,
       fontWeight: tokens.typography.bodyStrong.fontWeight,
     },
   });

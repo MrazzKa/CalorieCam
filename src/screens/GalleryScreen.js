@@ -94,20 +94,20 @@ export default function GalleryScreen() {
       // iOS странность: accessPrivileges="all" но granted=false - попробуем открыть пикер
       if (Platform.OS === 'ios' && p0.accessPrivileges === 'all' && p0.canAskAgain === true) {
           if (__DEV__) console.log('[GalleryScreen] iOS quirk detected - allowing anyway');
-          setState(STATE.READY);
-          return true;
-        }
-
-        // Отказ; возможно нельзя повторно спрашивать
-        if (__DEV__) console.log('[GalleryScreen] Permission denied, canAskAgain:', p0.canAskAgain);
-        setState(STATE.DENIED);
-        return false;
-      } catch (e) {
-        if (__DEV__) console.error('[GalleryScreen] Permission error:', e);
-        setState(STATE.ERROR);
-        setError(String(e?.message ?? e));
-        return false;
+        setState(STATE.READY);
+        return true;
       }
+
+      // Отказ; возможно нельзя повторно спрашивать
+        if (__DEV__) console.log('[GalleryScreen] Permission denied, canAskAgain:', p0.canAskAgain);
+      setState(STATE.DENIED);
+      return false;
+    } catch (e) {
+        if (__DEV__) console.error('[GalleryScreen] Permission error:', e);
+      setState(STATE.ERROR);
+      setError(String(e?.message ?? e));
+      return false;
+    }
   }, []);
 
   const openSettings = useCallback(() => {
@@ -191,7 +191,7 @@ export default function GalleryScreen() {
           source: 'gallery',
         });
       }
-      } catch (e) {
+    } catch (e) {
       if (__DEV__) console.error('[GalleryScreen] Error picking image:', e);
       setState(STATE.ERROR);
       setError(String(e?.message ?? e));
