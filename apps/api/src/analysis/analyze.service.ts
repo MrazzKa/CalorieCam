@@ -121,7 +121,7 @@ export class AnalyzeService {
         if (!matches || matches.length === 0) {
           debug.components.push({ type: 'no_match', vision: component });
           // Q4: Fallback при отсутствии FDC
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -132,7 +132,7 @@ export class AnalyzeService {
         if (bestMatch.score < 0.7) {
           debug.components.push({ type: 'low_score', vision: component, bestMatch, score: bestMatch.score });
           // Q4: Fallback при отсутствии FDC
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -144,7 +144,7 @@ export class AnalyzeService {
         if (!hasOverlap) {
           debug.components.push({ type: 'no_overlap', vision: component, bestMatch });
           // Q4: Fallback при отсутствии FDC
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -204,7 +204,7 @@ export class AnalyzeService {
         this.logger.error(`Error analyzing component ${component.name}:`, error.message);
         debug.components.push({ type: 'no_match', vision: component, error: error.message });
         // Q4: Fallback при отсутствии FDC
-        this.addVisionFallback(component, items, debug);
+        await this.addVisionFallback(component, items, debug);
       }
     }
 
@@ -364,7 +364,7 @@ export class AnalyzeService {
 
         if (!matches || matches.length === 0) {
           debug.components.push({ type: 'no_match', vision: component });
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -372,7 +372,7 @@ export class AnalyzeService {
         
         if (bestMatch.score < 0.7) {
           debug.components.push({ type: 'low_score', vision: component, bestMatch, score: bestMatch.score });
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -383,7 +383,7 @@ export class AnalyzeService {
         
         if (!hasOverlap) {
           debug.components.push({ type: 'no_overlap', vision: component, bestMatch });
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -402,7 +402,7 @@ export class AnalyzeService {
 
         if (!food) {
           debug.components.push({ type: 'no_match', vision: component, reason: 'food_not_found' });
-          this.addVisionFallback(component, items, debug);
+          await this.addVisionFallback(component, items, debug);
           continue;
         }
 
@@ -432,7 +432,7 @@ export class AnalyzeService {
       } catch (error: any) {
         this.logger.error(`Error analyzing text component ${component.name}:`, error.message);
         debug.components.push({ type: 'no_match', vision: component, error: error.message });
-        this.addVisionFallback(component, items, debug);
+        await this.addVisionFallback(component, items, debug);
       }
     }
 
@@ -548,11 +548,11 @@ export class AnalyzeService {
   /**
    * Q4: Add vision fallback item when FDC match fails
    */
-  private addVisionFallback(
+  private async addVisionFallback(
     component: VisionComponent,
     items: AnalyzedItem[],
     debug: AnalysisDebug,
-  ): void {
+  ): Promise<void> {
     // Если Vision уверен (confidence >= 0.7) и имя не слишком общее
     if (!component.confidence || component.confidence < 0.7) {
       return;
