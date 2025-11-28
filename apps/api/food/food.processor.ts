@@ -93,7 +93,6 @@ export class FoodProcessor {
           gramsMean: item.portion_g,
         })),
         total: analysisResult.total,
-        trace: analysisResult.trace,
         healthScore: analysisResult.healthScore,
       };
 
@@ -275,7 +274,6 @@ export class FoodProcessor {
           gramsMean: item.portion_g,
         })),
         total: analysisResult.total,
-        trace: analysisResult.trace,
         healthScore: analysisResult.healthScore,
       };
 
