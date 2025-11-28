@@ -49,7 +49,7 @@ export function CircularProgress({ progress = 0, size = 220, strokeWidth = 8, va
         {children || (
           <>
             <Text style={[styles.value, { color: colors.primary }]}>
-              {value !== undefined ? value : Math.round(clampedProgress * 100)}%
+              {value !== undefined ? value.toLocaleString() : `${Math.round(clampedProgress * 100)}%`}
             </Text>
             {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
             {goal && <Text style={[styles.goal, { color: colors.textTertiary }]}>{goal}</Text>}

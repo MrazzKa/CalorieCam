@@ -729,10 +729,18 @@ export default function AnalysisResultsScreen() {
                     <Text style={styles.ingredientWeight}>{ingredient.weight}g</Text>
                   </View>
                   <View style={styles.ingredientNutrition}>
-                    <Text style={styles.ingredientCalories}>{ingredient.calories} cal</Text>
-                    <Text style={styles.ingredientMacros}>
-                      P: {ingredient.protein}g • C: {ingredient.carbs}g • F: {ingredient.fat}g
-                    </Text>
+                    {ingredient.hasNutrition === false ? (
+                      <Text style={[styles.ingredientCalories, { color: colors.textTertiary, fontStyle: 'italic' }]}>
+                        {t('analysis.noNutritionData')}
+                      </Text>
+                    ) : (
+                      <>
+                        <Text style={styles.ingredientCalories}>{ingredient.calories} cal</Text>
+                        <Text style={styles.ingredientMacros}>
+                          P: {ingredient.protein}g • C: {ingredient.carbs}g • F: {ingredient.fat}g
+                        </Text>
+                      </>
+                    )}
                   </View>
                   {allowEditing && (
                     <TouchableOpacity
@@ -765,26 +773,17 @@ export default function AnalysisResultsScreen() {
             </View>
           </View>
 
-          {/* Save Button */}
-          <View>
-            {hasAutoSave ? (
-              <View style={styles.autoSaveActions}>
-                <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={handleViewMeal}>
-                  <Ionicons name="arrow-forward-circle" size={20} color={colors.primary} />
-                  <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
-                    {t('analysis.viewMeal')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.saveButton, styles.saveButtonInline]} onPress={handleSave}>
-                  <Text style={styles.saveButtonText}>{t('analysis.saveAsNewEntry')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>{t('analysis.saveToJournal')}</Text>
+          {/* Auto-save info only - no save button since analysis is auto-saved */}
+          {hasAutoSave && (
+            <View style={styles.autoSaveActions}>
+              <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.primary }]} onPress={handleViewMeal}>
+                <Ionicons name="arrow-forward-circle" size={20} color={colors.primary} />
+                <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+                  {t('analysis.viewMeal')}
+                </Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
 

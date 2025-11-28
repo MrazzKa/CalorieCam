@@ -277,8 +277,10 @@ export class FoodService {
 
     const ingredients = items.map((item: AnalyzedItem) => {
       const n = item.nutrients;
+      // Use localized name if available, fallback to label or original name
+      const displayName = item.name || item.label || item.originalName || 'Unknown Food';
       return {
-        name: item.label || item.name || 'Unknown Food',
+        name: displayName,
         calories: n.calories ?? 0,
         protein: n.protein ?? 0,
         carbs: n.carbs ?? 0,
@@ -287,6 +289,7 @@ export class FoodService {
         sugars: n.sugars ?? 0,
         satFat: n.satFat ?? 0,
         weight: item.portion_g ?? 100,
+        hasNutrition: item.hasNutrition !== false, // Default to true if not set
       };
     });
 
