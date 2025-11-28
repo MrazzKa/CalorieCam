@@ -602,7 +602,6 @@ export class AnalyzeService {
           nutrients: fallbackNutrients,
           source: 'vision_fallback',
           hasNutrition: true, // Fallback always has estimated nutrition
-          hasNutrition: true, // Fallback always has estimated nutrition
         };
 
     items.push(fallbackItem);
